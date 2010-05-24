@@ -1,0 +1,47 @@
+OpenBTS
+Copyright 2008, 2009 Free Software Foundation.
+See COPYING for details.
+
+
+Patent Laws
+
+The use of this software to provide GSM services may result in the use of
+patented technologies.  The user of this software is required to take whatever
+actions are necessary to avoid patent infringement.
+
+
+Trademark
+
+"OpenBTS" is a registered trademark of Kestrel Signal Processing, Inc. (KSP), a
+California corporation.  KSP reserves the right to control the use of this 
+trademark.  Do not use this trademark in commerce without permission.
+
+
+Telecom and Radio Spectrum Laws
+
+The primary function of OpenBTS is the provision of telecommunications service
+over a radio link.  This activity is heavily regulated nearly everywhere in
+the world.  Users of this software are expected to comply with local and national
+regulations in the jurisdictions where this sortware is used with radio equipment.
+
+
+Legal Summary
+
+The user of this software is expected to comply with all applicable laws and
+regulations, including patent laws, copyright laws, and telecommunications
+regulations.
+
+The legal restrictions listed here are not necessarily exhaustive.
+
+
+Software Licensing
+
+OpenBTS itself is distributed publicly under GPLv3.  KSP reserves the right to
+distribute it under other licenses as well.  See the COPYING file for information
+on the license for this specific distribution.
+
+GPLv3 releases of OpenBTS use the following GPL components that must be licensed,
+removed or replaced for non-GPL distributions:
+
+libosip2, liportp2, readline
+

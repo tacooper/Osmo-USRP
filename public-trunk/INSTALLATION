@@ -1,0 +1,21 @@
+Installation Requirements
+
+
+
+OpenBTS compiles to a simple Unix binary and does not require special installation.
+
+One some systems (Ubuntu), you will need to define LIBS = -lpthread prior to running configure.
+
+To run OpenBTS, the following should be installed:
+
+	Asterisk (http://www.asterisk.org), running SIP on port 5060.
+
+	libosip (http://www.gnu.org/software/osip/)
+
+	libusrp (http://gnuradio.org).  This is part of the GNURadio installation.  It is the only part used by OpenBTS.
+
+
+For information on specific executables, see tests/README.tests and apps/README.apps.
+
+See http://gnuradio.org/trac/wiki/OpenBTS/BuildingAndRunning for more information.
+
