@@ -23,7 +23,7 @@ Telecom and Radio Spectrum Laws
 The primary function of OpenBTS is the provision of telecommunications service
 over a radio link.  This activity is heavily regulated nearly everywhere in
 the world.  Users of this software are expected to comply with local and national
-regulations in the jurisdictions where this sortware is used with radio equipment.
+regulations in the jurisdictions where this software is used with radio equipment.
 
 
 Legal Summary
@@ -49,7 +49,7 @@ libosip2, liportp2, readline
 
 Note to US Government Users
 
-The OpenBTS software applications and associated documenttation are "Commercial
+The OpenBTS software applications and associated documentation are "Commercial
 Item(s)," as that term is defined at 48 C.F.R. Section 2.101, consisting of
 "Commercial Computer Software" and "Commercial Computer Software Documentation,"
 as such terms are used in 48 C.F.R. §12.212 or 48 C.F.R. §227.7202, as
@@ -64,13 +64,13 @@ Note to US Government Contractors
 
 GPL is not compatible with "government purpose rights" (GPR).  If you receive
 OpenBTS software under GPL and deliver it under GPR, you will be in violation
-of GPL and possibly subject to enforement actions by the original authors and
+of GPL and possibly subject to enforcement actions by the original authors and
 copyright holders, including the Free Software Foundation, Inc.
 
 
 Other Licenses
 
-For information about acquring OpenBTS under non-GPL licenses, contact
+For information about acquiring OpenBTS under non-GPL licenses, contact
 Kestrel Signal Processing, Inc., dburgess@kestrelsp.com.  Please be sure to
 put "OpenBTS" in the subject line.
  
