@@ -437,6 +437,7 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 	// HACK
 	// Check for "Easter Eggs"
 	// TL-PID
+	// See 03.40 9.2.3.9.
 	unsigned TLPID=0;
 	if (strncmp(message,"#!TLPID",7)==0) sscanf(message,"#!TLPID%d",&TLPID);
 
