@@ -28,6 +28,7 @@
 
 
 
+#include <Logger.h>
 
 #include "GSML3CommonElements.h"
 
@@ -191,30 +192,29 @@ void L3MobileIdentity::parseV( const L3Frame& src, size_t &rp, size_t expectedLe
 	bool oddCount = (bool) src.readField(rp,1);
 	mType = (MobileIDType) src.readField(rp,3);
 
-	// No ID?
-	if (mType==NoIDType) {
-		mDigits[0]='\0';
-		return;
+	switch (mType) {
+		case TMSIType:
+			mDigits[0]='\0';
+			// GSM 03.03 2.4 tells us the TMSI is always 32 bits
+			mTMSI = src.readField(rp,32);
+			break;
+		case IMSIType:
+		case IMEISVType:
+		case IMEIType:
+			while (rp<endCount) {
+				unsigned tmp = src.readField(rp,4);
+				mDigits[numDigits++] = src.readField(rp,4)+'0';
+				mDigits[numDigits++] = tmp + '0';
+				if (numDigits>15) L3_READ_ERROR;
+			}
+			if (!oddCount) numDigits--;
+			mDigits[numDigits]='\0';
+			break;
+		default:
+			LOG(NOTICE) << "non-standard identity type " << (int)mType;
+			mDigits[0]='\0';
+			mType = NoIDType;
 	}
-
-	// TMSI? 
-	if (mType==TMSIType) {
-		mDigits[0]='\0';
-		// GSM 03.03 2.4 tells us the TMSI is always 32 bits
-		mTMSI = src.readField(rp,32);
-		return;
-	}
-
-	// IMEI and IMSI.
-	while (rp<endCount) {
-		unsigned tmp = src.readField(rp,4);
-		mDigits[numDigits++] = src.readField(rp,4)+'0';
-		mDigits[numDigits++] = tmp + '0';
-		if (numDigits>15) L3_READ_ERROR;
-	}
-	if (!oddCount) numDigits--;
-	mDigits[numDigits]='\0';
-
 }
 
 void L3MobileIdentity::text(ostream& os) const
