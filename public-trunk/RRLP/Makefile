@@ -21,16 +21,16 @@
 # See the COPYING file in the main directory for details.
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU Affero General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
+# You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
@@ -41,16 +41,16 @@
 # See the COPYING file in the main directory for details.
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
+# it under the terms of the GNU Affero General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU Affero General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
+# You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 srcdir = .
@@ -89,15 +89,15 @@ CONFIG_CLEAN_FILES =
 SOURCES =
 DIST_SOURCES =
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /Users/dburgess/OpenBTSProject/openbts/public/missing --run aclocal-1.9
+ACLOCAL = ${SHELL} /Users/dburgess/OpenBTSProject/openbts-SF/public-trunk/missing --run aclocal-1.9
 AMDEP_FALSE = #
 AMDEP_TRUE = 
-AMTAR = ${SHELL} /Users/dburgess/OpenBTSProject/openbts/public/missing --run tar
+AMTAR = ${SHELL} /Users/dburgess/OpenBTSProject/openbts-SF/public-trunk/missing --run tar
 AR = ar
 AS = as
-AUTOCONF = ${SHELL} /Users/dburgess/OpenBTSProject/openbts/public/missing --run autoconf
-AUTOHEADER = ${SHELL} /Users/dburgess/OpenBTSProject/openbts/public/missing --run autoheader
-AUTOMAKE = ${SHELL} /Users/dburgess/OpenBTSProject/openbts/public/missing --run automake-1.9
+AUTOCONF = ${SHELL} /Users/dburgess/OpenBTSProject/openbts-SF/public-trunk/missing --run autoconf
+AUTOHEADER = ${SHELL} /Users/dburgess/OpenBTSProject/openbts-SF/public-trunk/missing --run autoheader
+AUTOMAKE = ${SHELL} /Users/dburgess/OpenBTSProject/openbts-SF/public-trunk/missing --run automake-1.9
 AWK = gawk
 CC = gcc
 CCAS = gcc
@@ -133,7 +133,7 @@ LIBS = -lreadline
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /Users/dburgess/OpenBTSProject/openbts/public/missing --run makeinfo
+MAKEINFO = ${SHELL} /Users/dburgess/OpenBTSProject/openbts-SF/public-trunk/missing --run makeinfo
 OBJDUMP = objdump
 OBJEXT = o
 ORTP_CFLAGS = -D_REENTRANT -DORTP_INET6 -I/usr/local/include  
@@ -187,7 +187,7 @@ host_vendor = apple
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = /Users/dburgess/OpenBTSProject/openbts/public/install-sh
+install_sh = /Users/dburgess/OpenBTSProject/openbts-SF/public-trunk/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale

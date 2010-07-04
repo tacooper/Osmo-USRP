@@ -37,13 +37,11 @@ The legal restrictions listed here are not necessarily exhaustive.
 
 Software Licensing
 
-OpenBTS itself is distributed publicly under GPLv3.  KSP reserves the right to
+OpenBTS itself is distributed publicly under AGPLv3.  KSP reserves the right to
 distribute it under other licenses as well.  See the COPYING file for information
 on the license for this specific distribution.
 
-GPLv3 releases of OpenBTS use the following GPL components that must be licensed,
-removed or replaced for non-GPL distributions:
-
+Public releases of OpenBTS use the following GPL components:
 libosip2, liportp2, readline
 
 
@@ -57,7 +55,7 @@ applicable. Consistent with 48 C.F.R. §12.212 or 48 C.F.R. Sections 227.7202-1
 through 227.7202-4, as applicable, the Commercial Computer Software and
 Commercial Computer Software Documentation are being licensed to U.S. Government
 end users (a) only as Commercial Items and (b) with only those rights as are
-granted to all other end users pursuant to the terms and conditions of GPLv3.
+granted to all other end users pursuant to the terms and conditions of AGPLv3.
 
 
 Note to US Government Contractors

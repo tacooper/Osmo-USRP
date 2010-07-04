@@ -219,14 +219,14 @@ $optional Control.OpenRegistration
 #
 
 # The message sent upon full successful registration, all the way through the Asterisk server.
-Control.NormalRegistrationWelcomeMessage Welcome to OpenBTS!
-$optional Control.NormalRegistrationWelcomeMessage
+# THIS MESSAGE IS NORMALLY REQUIRED FOR COMPLIANCE WITH AGPLv3.
+Control.NormalRegistrationWelcomeMessage Welcome to OpenBTS! AGPLv3 openbts.sf.net. Your IMSI is
 Control.NormalRegistrationWelcomeShortCode 0000
 
 # Then message sent to accpeted open registrations.
 # IF OPEN REGISTRATION IS ENABLED, THIS MUST ALSO BE DEFINED.
-Control.OpenRegistrationWelcomeMessage You handset has attached to the test network.
-$optional Control.OpenRegistrationWelcomeMessage
+# THIS MESSAGE IS NORMALLY REQUIRED FOR COMPLIANCE WITH AGPLv3.
+Control.OpenRegistrationWelcomeMessage Welcome to OpenBTS! AGPLv3 openbts.sf.net. Your IMSI is
 # If you use SMS auto-provisioning, use that short code as the return address here.
 Control.OpenRegistrationWelcomeShortCode 101
 
