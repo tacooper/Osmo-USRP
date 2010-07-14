@@ -1,0 +1,52 @@
+# autoreconf by-products
+*.in
+
+aclocal.m4
+autom4te.cache/
+config.guess
+config.h.in
+config.sub
+configure
+depcomp
+install-sh
+ltmain.sh
+missing
+
+# configure by-products
+.deps
+Makefile
+
+config.h
+config.log
+config.status
+libtool
+stamp-h1
+
+# build by-products
+.libs
+*.o
+*.la
+*.lo
+
+# final executables
+CommonLibs/BitVectorTest
+CommonLibs/ConfigurationTest
+CommonLibs/F16Test
+CommonLibs/InterthreadTest
+CommonLibs/LogTest
+CommonLibs/RegexpTest
+CommonLibs/SocketsTest
+CommonLibs/TimevalTest
+CommonLibs/VectorTest
+HLR/HLRTest
+Transceiver/USRPping
+Transceiver/transceiver
+Transceiver52M/USRPping
+Transceiver52M/sigProcLibTest
+Transceiver52M/transceiver
+apps/OpenBTS
+
+# Temporary/Backup files
+*.*~
+.*.swp
+
