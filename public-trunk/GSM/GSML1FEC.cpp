@@ -659,6 +659,10 @@ void XCCHL1Decoder::handleGoodFrame()
 	OBJLOG(DEEPDEBUG) <<"XCCHL1Decoder d[]=" << mD;
 
 	if (mUpstream) {
+		// Send all bits to GSMTAP
+		gWriteGSMTAP(ARFCN(),TN(),mReadTime.FN(),
+		             typeAndOffset(),mMapping.repeatLength()>51,true,
+					 mD);
 		// Build an L2 frame and pass it up.
 		const BitVector L2Part(mD.tail(headerOffset()));
 		OBJLOG(DEEPDEBUG) <<"XCCHL1Decoder L2=" << L2Part;
@@ -810,14 +814,18 @@ void XCCHL1Encoder::sendFrame(const L2Frame& frame)
 	// GSM 05.03 4.1.1.
 	//assert(mD.size()==headerOffset()+frame.size());
 	frame.copyToSegment(mU,headerOffset());
+
+	// Send to GSMTAP (must send mU = real bits !)
+	gWriteGSMTAP(ARFCN(),TN(),mNextWriteTime.FN(),
+	             typeAndOffset(),mMapping.repeatLength()>51,false,mU);
+
+	// Encode data into bursts
 	OBJLOG(DEEPDEBUG) << "XCCHL1Encoder d[]=" << mD;
 	mD.LSB8MSB();
 	OBJLOG(DEEPDEBUG) << "XCCHL1Encoder d[]=" << mD;
 	encode();			// Encode u[] to c[], GSM 05.03 4.1.2 and 4.1.3.
 	interleave();		// Interleave c[] to i[][], GSM 05.03 4.1.4.
 	transmit();			// Send the bursts to the radio, GSM 05.03 4.1.5.
-	// FIXME: is this FN OK, or do we need to back it up by 4?
-	gWriteGSMTAP(ARFCN(),mTN,mPrevWriteTime.FN(),frame);
 }
 
 
