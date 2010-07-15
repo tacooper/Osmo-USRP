@@ -568,6 +568,10 @@ bool XCCHL1Decoder::processBurst(const RxBurst& inBurst)
 	inBurst.data1().copyToSegment(mI[B],0);
 	inBurst.data2().copyToSegment(mI[B],57);
 
+	// If the burst index is 0, save the time
+	if (B==0)
+		mReadTime = inBurst.time();
+
 	// If the burst index is 3, then this is the last burst in the L2 frame.
 	// Return true to indicate that we are ready to deinterleave.
 	return B==3;

@@ -482,6 +482,7 @@ class XCCHL1Decoder : public L1Decoder {
 	BitVector mD;				///< d[], as per GSM 05.03 2.2
 	//@}
 
+	GSM::Time mReadTime;		///< timestamp of the first burst
 	unsigned mRSSIHistory[4];
 
 	public:
