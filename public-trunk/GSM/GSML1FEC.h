@@ -295,8 +295,12 @@ class L1Decoder {
 	/** Accept an RxBurst and process it into the deinterleaver. */
 	virtual void writeLowSide(const RxBurst&) = 0;
 
-	/** Return the decoder timeslot number. */
+	/**@name Components of the channel description. */
+	//@{
 	unsigned TN() const { return mTN; }
+	unsigned ARFCN() const;					///< this comes from mUpstream
+	TypeAndOffset typeAndOffset() const;	///< this comes from mMapping
+	//@}
 
 
 	protected:

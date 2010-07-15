@@ -308,6 +308,19 @@ void L1Encoder::sendIdleFill()
 
 
 
+unsigned L1Decoder::ARFCN() const
+{
+	assert(mParent);
+	return mParent->ARFCN();
+}
+
+
+TypeAndOffset L1Decoder::typeAndOffset() const
+{
+	return mMapping.typeAndOffset();
+}
+
+
 void L1Decoder::open()
 {
 	mLock.lock();
