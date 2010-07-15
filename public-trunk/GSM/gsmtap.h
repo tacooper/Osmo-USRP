@@ -69,21 +69,4 @@ struct gsmtap_hdr {
 
 } __attribute__((packed));
 
-
-/* PCAP related definitions */
-#define TCPDUMP_MAGIC   0xa1b2c3d4
-#ifndef LINKTYPE_GSMTAP
-#define LINKTYPE_GSMTAP	2342
-#endif
-struct pcap_timeval {
-	int32_t tv_sec;
-	int32_t tv_usec;
-};
-
-struct pcap_sf_pkthdr {
-	struct pcap_timeval ts;		/* time stamp */
-	uint32_t caplen;		/* lenght of portion present */
-	uint32_t len;			/* length of this packet */
-};
-
 #endif /* _GSMTAP_H */
