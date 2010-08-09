@@ -607,7 +607,7 @@ bool USRPDevice::updateAlignment(TIMESTAMP timestamp)
 bool USRPDevice::setTxFreq(double wFreq) {
   // Tune to wFreq+LO_OFFSET, to prevent LO bleedthrough from interfering with transmitted signal.
   double actFreq;
-  if (!tx_setFreq(wFreq+9*LO_OFFSET,&actFreq)) return false;
+  if (!tx_setFreq(wFreq+LO_OFFSET,&actFreq)) return false;
   bool retVal = m_uTx->set_tx_freq(0,(wFreq-actFreq));
   LOG(INFO) << "set TX: " << wFreq-actFreq << " actual TX: " << m_uTx->tx_freq(0);
   return retVal;
@@ -621,7 +621,7 @@ bool USRPDevice::setRxFreq(double wFreq) {
   //        in front of the ADC.  This possibly gives us an extra 10-20dB Tx/Rx isolation.
   double actFreq;
   // FIXME -- This should bo configurable.
-  if (!rx_setFreq(wFreq-5*LO_OFFSET,&actFreq)) return false;
+  if (!rx_setFreq(wFreq-2*LO_OFFSET,&actFreq)) return false;
   bool retVal = m_uRx->set_rx_freq(0,(wFreq-actFreq));
   LOG(DEBUG) << "set RX: " << wFreq-actFreq << " actual RX: " << m_uRx->rx_freq(0);
   return retVal;
