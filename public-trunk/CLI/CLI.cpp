@@ -290,6 +290,19 @@ int tmsis(int argc, char** argv, ostream& os, istream& is)
 }
 
 
+/** Print the transactions table. */
+int trans(int argc, char** argv, ostream& os, istream& is)
+{
+   if (argc!=1) return BAD_NUM_ARGS;
+
+//   os << "TMSI       IMSI            IMEI              age  used" << endl;
+   gTransactionTable.dump(os);
+   os << endl << gTransactionTable.size() << " transactions in table" << endl;
+   return SUCCESS;
+}
+
+
+
 
 int findimsi(int argc, char** argv, ostream& os, istream& is)
 {
@@ -759,6 +772,7 @@ Parser::Parser()
 	addCommand("help", showHelp, "[command] -- list available commands or gets help on a specific command.");
 	addCommand("exit", exit_function, "[wait] -- exit the application, either immediately, or waiting for existing calls to clear with a timeout in seconds");
 	addCommand("tmsis", tmsis, "[\"clear\"] or [\"dump\" filename] -- print/clear the TMSI table or dump it to a file.");
+	addCommand("trans", trans, "-- print the transactions table.");
 	addCommand("findimsi", findimsi, "[IMSIPrefix] -- prints all imsi's that are prefixed by IMSIPrefix");
 	addCommand("sendsms", sendsms, "<IMSI> <src> -- send SMS to <IMSI>, addressed from <src>, after prompting.");
 	addCommand("sendrrlp", sendrrlp, "<IMSI> <hexstring> -- send RRLP message <hexstring> to <IMSI>.");

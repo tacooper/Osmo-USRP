@@ -343,6 +343,18 @@ size_t TransactionTable::size()
 }
 
 
+void TransactionTable::dump(ostream& os) const
+{
+	mLock.lock();
+	TransactionMap::const_iterator tp = mTable.begin();
+	while (tp != mTable.end()) {
+		os << hex << "0x" << tp->first << " " << dec << tp->second << endl;
+		++tp;
+	}
+	mLock.unlock();
+}
+
+
 void Control::clearTransactionHistory( TransactionEntry& transaction )
 {
 	SIP::SIPEngine& engine = transaction.SIP();
