@@ -177,6 +177,21 @@ SMS.DefaultDestSMSC 0000
 #SMS.HTTP.AccessString sendmsg?user=xxxx&password=xxxx&api_id=xxxx
 
 
+#
+# USSD parameters
+#
+# USSD timeout for waiting MS response
+USSD.timeout 100000
+
+# USSD MO Handler (HTTP, CLI or Test)
+USSD.Handler.MO CLI
+
+# The USSD HTTP gateway.
+USSD.HTTP.Gateway api.clickatell.com
+
+# IF USSD.HTTP.Gateway IS DEFINED, USSD.HTTP.AccessString MUST ALSO BE DEFINED.
+USSD.HTTP.AccessString sendmsg?user=xxxx&password=xxxx&api_id=xxxx
+
 
 
 # Things to query during registration updates.

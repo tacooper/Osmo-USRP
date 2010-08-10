@@ -96,6 +96,7 @@ am_libGSM_la_OBJECTS = GSM610Tables.lo GSMCommon.lo GSMConfig.lo \
 	GSML1FEC.lo GSML2LAPDm.lo GSML3CCElements.lo \
 	GSML3CCMessages.lo GSML3CommonElements.lo GSML3Message.lo \
 	GSML3MMElements.lo GSML3MMMessages.lo GSML3RRElements.lo \
+	GSML3NonCallSSComponents.lo GSML3NonCallSSElements.lo GSML3NonCallSSMessages.lo \
 	GSML3RRMessages.lo GSMLogicalChannel.lo GSMSAPMux.lo \
 	GSMTDMA.lo GSMTransfer.lo GSMTAPDump.lo PowerManager.lo
 libGSM_la_OBJECTS = $(am_libGSM_la_OBJECTS)
@@ -282,6 +283,9 @@ libGSM_la_SOURCES = \
 	GSML3Message.cpp \
 	GSML3MMElements.cpp \
 	GSML3MMMessages.cpp \
+	GSML3NonCallSSComponents.cpp \
+	GSML3NonCallSSElements.cpp \
+	GSML3NonCallSSMessages.cpp \
 	GSML3RRElements.cpp \
 	GSML3RRMessages.cpp \
 	GSMLogicalChannel.cpp \
@@ -303,6 +307,9 @@ noinst_HEADERS = \
 	GSML3Message.h \
 	GSML3MMElements.h \
 	GSML3MMMessages.h \
+	GSML3NonCallSSComponents.h \
+	GSML3NonCallSSElements.h \
+	GSML3NonCallSSMessages.h \
 	GSML3RRElements.h \
 	GSML3RRMessages.h \
 	GSMLogicalChannel.h \
@@ -374,6 +381,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3CommonElements.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3MMElements.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3MMMessages.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3NonCallSSComponents.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3NonCallSSElements.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3NonCallSSMessages.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3Message.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3RRElements.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/GSML3RRMessages.Plo@am__quote@

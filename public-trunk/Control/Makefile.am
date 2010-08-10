@@ -30,12 +30,13 @@ noinst_LTLIBRARIES = libcontrol.la
 libcontrol_la_SOURCES = \
 	CallControl.cpp \
 	SMSControl.cpp \
+	USSDControl.cpp \
 	ControlCommon.cpp \
 	MobilityManagement.cpp \
 	RadioResource.cpp \
 	DCCHDispatch.cpp \
 	CollectMSInfo.cpp \
-    RRLPQueryController.cpp
+	RRLPQueryController.cpp 
 
 # TODO - move CollectMSInfo.cpp and RRLPQueryController.cpp to RRLP directory.
 

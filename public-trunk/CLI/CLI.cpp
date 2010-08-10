@@ -363,7 +363,17 @@ int sendrrlp(int argc, char** argv, ostream& os, istream& is)
 	return SUCCESS;
 }
 
-
+/** Send USSD to an IMSI. */
+int sendUSSD(int argc, char** argv, ostream& os, istream& is)
+{
+	if (argc!=2) return BAD_NUM_ARGS;
+	char *IMSI = argv[1];
+	GSM::L3MobileIdentity mobileIdentity(IMSI);
+	Control::MTTestHandler handler(mobileIdentity, (unsigned)1, (unsigned)0, Control::USSDData::REGrequest, std::string("REGrequest"));
+	handler.run();
+	os << "MT USSD session end." << endl;
+	return SUCCESS;
+}
 
 /** Print current usage loads. */
 int printStats(int argc, char** argv, ostream& os, istream& is)
@@ -762,6 +772,7 @@ Parser::Parser()
 	addCommand("findimsi", findimsi, "[IMSIPrefix] -- prints all imsi's that are prefixed by IMSIPrefix");
 	addCommand("sendsms", sendsms, "<IMSI> <src> -- send SMS to <IMSI>, addressed from <src>, after prompting.");
 	addCommand("sendrrlp", sendrrlp, "<IMSI> <hexstring> -- send RRLP message <hexstring> to <IMSI>.");
+	addCommand("sendussd", sendUSSD, "<IMSI> -- send USSD to <IMSI>");
 	addCommand("load", printStats, "-- print the current activity loads.");
 	addCommand("cellid", cellID, "[MCC MNC LAC CI] -- get/set location area identity (MCC, MNC, LAC) and cell ID (CI)");
 	addCommand("calls", calls, "-- print the transaction table");

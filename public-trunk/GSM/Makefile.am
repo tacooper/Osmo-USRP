@@ -37,6 +37,9 @@ libGSM_la_SOURCES = \
 	GSML3Message.cpp \
 	GSML3MMElements.cpp \
 	GSML3MMMessages.cpp \
+	GSML3NonCallSSComponents.cpp \
+	GSML3NonCallSSElements.cpp \
+	GSML3NonCallSSMessages.cpp \
 	GSML3RRElements.cpp \
 	GSML3RRMessages.cpp \
 	GSMLogicalChannel.cpp \
@@ -58,6 +61,9 @@ noinst_HEADERS = \
 	GSML3Message.h \
 	GSML3MMElements.h \
 	GSML3MMMessages.h \
+	GSML3NonCallSSComponents.h \
+	GSML3NonCallSSElements.h \
+	GSML3NonCallSSMessages.h \
 	GSML3RRElements.h \
 	GSML3RRMessages.h \
 	GSMLogicalChannel.h \

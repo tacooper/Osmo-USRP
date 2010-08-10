@@ -980,9 +980,10 @@ void L2LAPDm::sendIFrame(const BitVector& payload, bool MBit)
 bool L2LAPDm::stuckChannel(const L2Frame& frame)
 {
 	// Check for excessive idling.
-	if (frame.DCCHIdle()) mIdleCount++;
-	else mIdleCount=0;
-	return mIdleCount > maxIdle();
+	//if (frame.DCCHIdle()) mIdleCount++;
+	//else mIdleCount=0;
+	//return mIdleCount > maxIdle();
+	return false;
 }
 
 

@@ -92,7 +92,7 @@ CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libcontrol_la_LIBADD =
-am_libcontrol_la_OBJECTS = CallControl.lo SMSControl.lo \
+am_libcontrol_la_OBJECTS = CallControl.lo SMSControl.lo USSDControl.lo\
 	ControlCommon.lo MobilityManagement.lo RadioResource.lo \
 	DCCHDispatch.lo CollectMSInfo.lo RRLPQueryController.lo
 libcontrol_la_OBJECTS = $(am_libcontrol_la_OBJECTS)
@@ -271,6 +271,7 @@ noinst_LTLIBRARIES = libcontrol.la
 libcontrol_la_SOURCES = \
 	CallControl.cpp \
 	SMSControl.cpp \
+	USSDControl.cpp \
 	ControlCommon.cpp \
 	MobilityManagement.cpp \
 	RadioResource.cpp \
@@ -344,6 +345,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/RRLPQueryController.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/RadioResource.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/SMSControl.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/USSDControl.Plo@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	if $(CXXCOMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" -c -o $@ $<; \

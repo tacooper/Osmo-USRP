@@ -145,7 +145,14 @@ void clearTransactionHistory(unsigned transactionID);
 
 //@}
 
+/**@name USSD */
+//@{
+/** MO USSD controller */
+void MOUSSDController(const GSM::L3CMServiceRequest *req, GSM::LogicalChannel *LCH);
 
+/** MTUSSD controller */
+void MTUSSDController(TransactionEntry& transaction, GSM::LogicalChannel *LCH);
+//@}
 
 /**@name Functions for mobility manangement operations. */
 //@{
@@ -208,6 +215,8 @@ void MTSMSController(TransactionEntry& transaction,
 						GSM::LogicalChannel *LCH);
 //@}
 
+
+
 /** Create a new transaction entry and start paging. */
 void initiateMTTransaction(TransactionEntry& transaction,
 		GSM::ChannelType chanType, unsigned pageTime);
@@ -239,7 +248,6 @@ unsigned  resolveIMSI(bool sameLAI, GSM::L3MobileIdentity& mobID, GSM::LogicalCh
 	@param SDCCH The Dm channel to the mobile.
 */
 void  resolveIMSI(GSM::L3MobileIdentity& mobID, GSM::LogicalChannel* LCH);
-
 
 
 
@@ -365,8 +373,59 @@ void *PagerServiceLoopAdapter(Pager*);
 //@}	// paging mech
 
 
+/**@name USSD data */
+//@{
+
+class USSDData {
+
+	public:
+	/** USSD message types based on GSM 03.09 */
+	enum USSDMessageType {
+		REGrequest,
+		request,
+		notify,
+		response,
+		error,
+		release
+	};
+	
+	private:
+
+	ThreadSemaphore mSemWaitMS;
+	ThreadSemaphore mSemWaitNW;	
+	USSDMessageType mType; // USSD message type
+	std::string mUSSDString; // USSD message string
+
+	public:
+
+	USSDData(const USSDMessageType& wType)
+		:mType(wType)
+		{}
+
+	void MessageType(USSDMessageType wType) { mType=wType; } 
+	USSDMessageType MessageType() const { return mType; }
+	std::string USSDString() const { return mUSSDString; }
+	void USSDString(std::string wUSSDString) { mUSSDString = wUSSDString; }
+	
+	int waitMS() { return mSemWaitMS.wait(); }
+	int waitNW() { return mSemWaitNW.wait(); }
+
+	int waitMS(unsigned timeout) { return mSemWaitMS.wait(timeout); }
+	int waitNW(unsigned timeout) { return mSemWaitNW.wait(timeout); }
+
+	int trywaitMS() { return mSemWaitMS.trywait(); }
+	int trywaitNW() { return mSemWaitNW.trywait(); }
 
 
+	int postMS() { return mSemWaitMS.post(); }
+	int postNW() { return mSemWaitNW.post(); }
+	
+};
+
+std::ostream& operator<<(std::ostream& os, USSDData::USSDMessageType);
+std::ostream& operator<<(std::ostream& os, const USSDData&);
+
+//@}
 
 /**@name Transaction Table mechanisms. */
 //@{
@@ -395,6 +454,8 @@ class TransactionEntry {
 		ReleaseRequest,
 		SMSDelivering,
 		SMSSubmitting,
+		USSDworking,
+		USSDclosing
 	};
 
 	private:
@@ -411,6 +472,8 @@ class TransactionEntry {
 	SIP::SIPEngine mSIP;					///< the SIP IETF RFC-3621 protocol engine
 	Q931CallState mQ931State;				///< the GSM/ISDN/Q.931 call state
 	Timeval mStateTimer;					///< timestamp of last state change.
+
+	USSDData* mUSSDData;					///< USSD message data
 
 	char mMessage[256];						///< text messaging payload
 
@@ -452,6 +515,13 @@ class TransactionEntry {
 		unsigned wTIValue,
 		const GSM::L3CallingPartyBCDNumber& wCalling);
 
+	/** This form is used for USSD. */
+	TransactionEntry(const GSM::L3MobileIdentity& wSubscriber,
+		const GSM::L3CMServiceType& wService,
+		unsigned wTIFlag,
+		unsigned wTIValue,
+		USSDData* wUSSDData);
+
 	/**@name Accessors. */
 	//@{
 	unsigned TIValue() const { return mTIValue; }
@@ -487,6 +557,9 @@ class TransactionEntry {
 	}
 
 	Q931CallState Q931State() const { return mQ931State; }
+
+	void ussdData(USSDData* wUSSDData) { mUSSDData=wUSSDData; }
+	USSDData* ussdData() const { return mUSSDData; }
 
 	unsigned stateAge() const { return mStateTimer.elapsed(); }
 
@@ -695,7 +768,7 @@ class TMSITable {
 	/**
 		Find an IMSI in the table.
 		This is a log-time operation.
-		@param TMSI The TMSI to find.
+		@param TMSI The TMSI to find.post to
 		@return Pointer to c-string IMSI or NULL.
 	*/
 	const char* IMSI(unsigned TMSI) const;
@@ -783,9 +856,10 @@ class ControlLayerException {
 /** Thrown when the control layer gets the wrong message */
 class UnexpectedMessage : public ControlLayerException {
 	public:
-	UnexpectedMessage(unsigned wTransactionID=0)
-		:ControlLayerException(wTransactionID)
+	UnexpectedMessage(unsigned wTransactionID=0, const GSM::L3Frame *pFrame=NULL)
+		:ControlLayerException(wTransactionID), mpFrame(pFrame)
 	{}
+	const GSM::L3Frame *mpFrame;
 };
 
 /** Thrown when recvL3 returns NULL */
@@ -819,13 +893,7 @@ class Q931TimerExpired : public ControlLayerException {
 		:ControlLayerException(wTransactionID)
 	{}
 };
-
-
-//@}
-
-
-}	//Control
-
+}
 
 
 /**@addtogroup Globals */
@@ -835,6 +903,93 @@ extern Control::TransactionTable gTransactionTable;
 /** A single global TMSI table in the global namespace. */
 extern Control::TMSITable gTMSITable;
 //@}
+
+
+namespace Control {
+
+unsigned USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,	unsigned TIFlag, unsigned TIValue, Control::USSDData::USSDMessageType messageType, std::string ussdString, bool MO);
+
+
+class USSDHandler {
+
+	public:
+	enum USSDtimeout {
+		trywait = 0,
+		infinitely = 120000
+	};
+	private:
+	unsigned mTransactionID;
+
+	protected:
+	std::string mString;
+
+	public:
+		/** This form is used for MO USSD */
+		USSDHandler(unsigned wTransactionID)
+			:mTransactionID(wTransactionID),
+			mString("")
+		{}
+		/** This form is used for MT USSD */
+		USSDHandler(GSM::L3MobileIdentity &mobileIdentity, unsigned TIFlag, unsigned TIValue, Control::USSDData::USSDMessageType messageType, std::string ussdString)
+			:mString("")
+		{
+			mTransactionID = USSDDispatcher(mobileIdentity, TIFlag, TIValue, messageType, ussdString, false);
+		}
+		/** Wait USSD data from MS. Return: 0 - successful, 1 - clear transaction, 2 - error or timeout */
+		unsigned  waitUSSDData(Control::USSDData::USSDMessageType* messageType, std::string* USSDString, unsigned timeout);
+		/** Post USSD data and update transaction with new USSDData (messageType and USSDString)*/
+		void postUSSDData( Control::USSDData::USSDMessageType messageType, std::string USSDString);
+		unsigned transactionID() { return mTransactionID; }
+		void transactionID(unsigned wTransactionID) { wTransactionID = mTransactionID; }
+		static void *runWrapper(void *pThis);
+
+	protected:
+		virtual void run() = 0;	
+
+};
+
+
+class MOTestHandler : public USSDHandler {
+	public:
+		MOTestHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
+		{}
+		void run();
+};
+
+class MOHttpHandler : public USSDHandler {
+	public:
+		MOHttpHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
+		{}
+	
+		void run();
+};
+
+class MOCLIHandler : public USSDHandler {
+	public:
+		MOCLIHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
+		{}
+	
+		void run();
+};
+
+class MTTestHandler : public USSDHandler {
+	public:
+		MTTestHandler(GSM::L3MobileIdentity &mobileIdentity, unsigned TIFlag, unsigned TIValue, Control::USSDData::USSDMessageType messageType, std::string ussdString)
+			:USSDHandler(mobileIdentity,TIFlag, TIValue, messageType, ussdString)
+		{}	
+	
+		void run();
+};
+
+//@}
+
+
+}	//Control
+
+
 
 
 

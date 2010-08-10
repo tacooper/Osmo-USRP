@@ -28,6 +28,7 @@
 #include "GSML3RRMessages.h"
 #include "GSML3MMMessages.h"
 #include "GSML3CCMessages.h"
+#include "GSML3NonCallSSMessages.h"
 #include <Logger.h>
 
 
@@ -148,6 +149,7 @@ GSM::L3Message* GSM::parseL3(const GSM::L3Frame& source)
 			case L3RadioResourcePD: retVal=parseL3RR(source); break;
 			case L3MobilityManagementPD: retVal=parseL3MM(source); break;
 			case L3CallControlPD: retVal=parseL3CC(source); break;
+			case L3NonCallSSPD: retVal=parseL3NonCallSS(source); break;
 			//case L3SMSPD: return parseSMS(source);
 			default:
 				LOG(NOTICE) << "L3 parsing failed for unsupported protocol " << PD;
