@@ -61,6 +61,9 @@ class L3IMSIDetachIndication;
 class L3PagingResponse;
 };
 
+// Reference to a global config table, used all over the system.
+extern ConfigurationTable gConfig;
+
 
 /**@namespace Control This namepace is for use by the control layer. */
 namespace Control {
@@ -920,24 +923,32 @@ class USSDHandler {
 		trywait = 0,
 		infinitely = 120000
 	};
+	enum
+	{
+		USSD_MAX_CHARS_7BIT = 182    ///< See GSM 03.38 5 Cell Broadcast Data Coding Scheme
+	};
+
 	private:
 	unsigned mTransactionID;
 
 	protected:
 	std::string mString;
+	std::string mContinueStr;
 
 	public:
 		/** This form is used for MO USSD */
 		USSDHandler(unsigned wTransactionID)
 			:mTransactionID(wTransactionID),
-			mString("")
+			mContinueStr(gConfig.getStr("USSD.ContinueStr"))
 		{}
+
 		/** This form is used for MT USSD */
 		USSDHandler(GSM::L3MobileIdentity &mobileIdentity, unsigned TIFlag, unsigned TIValue, Control::USSDData::USSDMessageType messageType, std::string ussdString)
-			:mString("")
+			:mContinueStr(gConfig.getStr("USSD.ContinueStr"))
 		{
 			mTransactionID = USSDDispatcher(mobileIdentity, TIFlag, TIValue, messageType, ussdString, false);
 		}
+
 		/** Wait USSD data from MS. Return: 0 - successful, 1 - clear transaction, 2 - error or timeout */
 		unsigned  waitUSSDData(Control::USSDData::USSDMessageType* messageType, std::string* USSDString, unsigned timeout);
 		/** Post USSD data and update transaction with new USSDData (messageType and USSDString)*/

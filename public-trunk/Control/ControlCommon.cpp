@@ -670,12 +670,13 @@ unsigned USSDHandler::waitUSSDData(Control::USSDData::USSDMessageType* messageTy
 
 void USSDHandler::postUSSDData(Control::USSDData::USSDMessageType messageType, std::string USSDString)
 {
-		if (USSDString.length()>183)
+		if (USSDString.length()>USSD_MAX_CHARS_7BIT)
 		{
-			mString = USSDString;	
-			mString.erase(mString.begin(), mString.begin()+181);
-			USSDString.erase(USSDString.begin()+181, USSDString.end());
-			USSDString+=">";
+			int contLen = mContinueStr.length();
+			mString = USSDString.substr(USSD_MAX_CHARS_7BIT-contLen,
+			                            USSDString.length()-USSD_MAX_CHARS_7BIT-contLen);
+			USSDString.erase(USSDString.begin()+USSD_MAX_CHARS_7BIT-contLen, USSDString.end());
+			USSDString += mContinueStr;
 		}
 		else mString = "";
 		TransactionEntry transaction;

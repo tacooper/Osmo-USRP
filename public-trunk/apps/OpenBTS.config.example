@@ -192,6 +192,9 @@ USSD.HTTP.Gateway api.clickatell.com
 # IF USSD.HTTP.Gateway IS DEFINED, USSD.HTTP.AccessString MUST ALSO BE DEFINED.
 USSD.HTTP.AccessString sendmsg?user=xxxx&password=xxxx&api_id=xxxx
 
+# We split long messages into few screens. This string is appended
+# to the end of each screen to notify user that text is to be continued.
+USSD.ContinueStr ...1>
 
 
 # Things to query during registration updates.
