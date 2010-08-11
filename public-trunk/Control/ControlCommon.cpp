@@ -674,7 +674,7 @@ void USSDHandler::postUSSDData(Control::USSDData::USSDMessageType messageType, s
 		{
 			int contLen = mContinueStr.length();
 			mString = USSDString.substr(USSD_MAX_CHARS_7BIT-contLen,
-			                            USSDString.length()-USSD_MAX_CHARS_7BIT-contLen);
+			                            USSDString.length()-(USSD_MAX_CHARS_7BIT-contLen));
 			USSDString.erase(USSDString.begin()+USSD_MAX_CHARS_7BIT-contLen, USSDString.end());
 			USSDString += mContinueStr;
 		}
