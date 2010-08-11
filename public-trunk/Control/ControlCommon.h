@@ -596,7 +596,7 @@ class TransactionTable {
 		Also clears dead entries during search.
 		@param mobileID The mobile at to search for.
 		@param target A TransactionEntry to accept the found record.
-		@return true is the mobile ID was foind.
+		@return true is the mobile ID was found.
 	*/
 	bool find(const GSM::L3MobileIdentity& mobileID, TransactionEntry& target);
 
