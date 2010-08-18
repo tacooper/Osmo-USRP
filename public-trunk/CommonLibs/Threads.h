@@ -29,6 +29,7 @@
 #include <pthread.h>
 #include <iostream>
 #include <assert.h>
+#include <semaphore.h>
 
 class Mutex;
 
@@ -120,7 +121,37 @@ class Signal {
 
 };
 
+/** Semaphore */
+class ThreadSemaphore {
 
+	private:
+
+	mutable sem_t mSem;
+
+	public:
+
+	ThreadSemaphore(int pshared = 0, unsigned value = 0) { assert(sem_init(&mSem,pshared,value)!=-1); }
+
+	~ThreadSemaphore() { sem_destroy(&mSem); }
+
+	/** Wait for semaphore to be signaled with timeout.
+	* @returns 0 on success, -1 on error or timeout.
+	*/
+	int wait (unsigned timeout) const;
+
+	/** Wait for semaphore to be signaled infinitely.
+	* @returns 0 on success, -1 on error.
+	*/
+	int wait() const { return sem_wait(&mSem); }
+
+	/** Check if semaphore has been signaled and disarm it.
+	* @returns 0 if semaphore has been signaled, -1 in other cases.
+	*/
+	int trywait() const { return sem_trywait(&mSem); }
+
+	int post() { return sem_post (&mSem); }
+
+};
 
 #define START_THREAD(thread,function,argument) \
 	thread.start((void *(*)(void*))function, (void*)argument);
