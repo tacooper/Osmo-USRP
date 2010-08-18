@@ -95,6 +95,15 @@ void Signal::wait(Mutex& wMutex, unsigned timeout) const
 	pthread_cond_timedwait(&mSignal,&wMutex.mMutex,&waitTime);
 }
 
+/** Wait for semaphore to be signaled with timeout.
+* @returns 0 on success, -1 on error or timeout.
+*/
+int ThreadSemaphore::wait(unsigned timeout) const
+{
+	Timeval then(timeout);
+	struct timespec waitTime = then.timespec();
+	return sem_timedwait(&mSem,&waitTime);
+}
 
 void Thread::start(void *(*task)(void*), void *arg)
 {
