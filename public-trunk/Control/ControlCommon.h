@@ -913,7 +913,10 @@ extern Control::TMSITable gTMSITable;
 
 namespace Control {
 
-unsigned USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,	unsigned TIFlag, unsigned TIValue, Control::USSDData::USSDMessageType messageType, std::string ussdString, bool MO);
+bool USSDMatchHandler(const std::string &handlerName, const std::string &ussdString);
+unsigned USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,	unsigned TIFlag,
+                        unsigned TIValue, Control::USSDData::USSDMessageType messageType,
+                        const std::string &ussdString, bool MO);
 
 
 class USSDHandler {

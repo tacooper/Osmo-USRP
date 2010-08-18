@@ -183,8 +183,15 @@ SMS.DefaultDestSMSC 0000
 # USSD timeout for waiting MS response
 USSD.timeout 100000
 
-# USSD MO Handler (HTTP, CLI or Test)
-USSD.Handler.MO CLI
+# USSD handlers map.
+# Option key has form USSD.Handler.<handler>, where <handler> is
+# one of the following: HTTP, CLI and Test.
+# Option value is a regexp. If it matches initial MO-USSD request,
+# then request is passed for processing to according USSD handler.
+# Comment out a handler option to completely disable the handler.
+USSD.Handler.CLI \*101#
+USSD.Handler.Test \*(100|1011|102)#
+#USSD.Handler.HTTP 
 
 # The USSD HTTP gateway.
 USSD.HTTP.Gateway api.clickatell.com

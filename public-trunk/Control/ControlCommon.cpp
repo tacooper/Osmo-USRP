@@ -37,6 +37,7 @@
 #include <SIPEngine.h>
 #include <SIPInterface.h>
 
+#include <Regexp.h>
 
 using namespace std;
 using namespace GSM;
@@ -1051,7 +1052,30 @@ void  Control::resolveIMSI(L3MobileIdentity& mobileIdentity, LogicalChannel* LCH
 	}
 }
 
-unsigned Control::USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,	unsigned TIFlag, unsigned TIValue,Control::USSDData::USSDMessageType messageType, string ussdString, bool MO)
+bool USSDMatchHandler(const std::string &handlerName, const std::string &ussdString)
+{
+	std::string handlerKeyName("USSD.Handler.");
+	handlerKeyName += handlerName;
+	if (gConfig.defines(handlerKeyName))
+	{
+		std::string handlerRegexpStr = gConfig.getStr(handlerKeyName);
+		Regexp handlerRegexp(handlerRegexpStr.data());
+		if (handlerRegexp.match(ussdString.data()))
+		{
+			LOG(DEBUG) << "Request " << ussdString << " matches regexp \""
+			           << handlerRegexpStr << "\" for USSD handler " << handlerName;
+			return true;
+		}
+	}
+	return false;
+}
+
+unsigned Control::USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,
+                                 unsigned TIFlag,
+                                 unsigned TIValue,
+                                 Control::USSDData::USSDMessageType messageType,
+                                 const std::string &ussdString,
+                                 bool MO)
 {
 	TransactionEntry transaction(mobileIdentity, GSM::L3CMServiceType::SupplementaryService, TIFlag, TIValue, new USSDData(messageType));
 	gTransactionTable.add(transaction);
@@ -1063,19 +1087,19 @@ unsigned Control::USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,	unsigned
 		transaction.Q931State(Control::TransactionEntry::USSDworking);
 		transaction.ussdData()->postMS();
 		gTransactionTable.update(transaction);
-		std::string handleName = gConfig.getStr("USSD.Handler.MO");
+
 		Thread* thread = new Thread;
-		if (handleName=="HTTP")
+		if (USSDMatchHandler("HTTP", ussdString))
 		{
 			 MOHttpHandler* handler = new MOHttpHandler(transaction.ID());
 			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
 		}
-		else if (handleName=="CLI")
+		else if (USSDMatchHandler("CLI", ussdString))
 		{
 			 MOCLIHandler* handler = new MOCLIHandler(transaction.ID());
 			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
 		}
-		else if (handleName=="Test")
+		else if (USSDMatchHandler("Test", ussdString))
 		{
 			MOTestHandler* handler = new MOTestHandler(transaction.ID());
 			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
