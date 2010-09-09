@@ -184,7 +184,8 @@ void USSDSend(string USSDString, unsigned InvokeID, unsigned TI, unsigned TIFlag
 		//       recommend to set this string to an empty string.
 		L3NonCallSSComponentReturnResult* ComponentPtr = new L3NonCallSSComponentReturnResult(L3NonCallSSInvokeID(InvokeID)); 
 		ComponentPtr->operationCode(L3NonCallSSOperationCode(GSM::L3NonCallSSOperationCode::ProcessUnstructuredSSRequest));
-		ComponentPtr->parameters(L3NonCallSSParameters("release"));
+		// TODO:: How to drop session silently?
+		ComponentPtr->parameters(L3NonCallSSParameters(USSDString.c_str()));
 		L3NonCallSSReleaseCompleteMessage ReleaseCompleteMessage(TIFlag, TI);
 		if (TIFlag == 1)
 		{
