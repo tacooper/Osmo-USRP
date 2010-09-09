@@ -169,16 +169,16 @@ void USSDSend(string USSDString, unsigned InvokeID, unsigned TI, unsigned TIFlag
 	{
 		//send error
 		L3NonCallSSComponentReturnError* ComponentPtr = new L3NonCallSSComponentReturnError(L3NonCallSSInvokeID(InvokeID),
-									L3NonCallSSErrorCode(GSM::L3NonCallSSErrorCode::SystemFailure));
+								L3NonCallSSErrorCode(GSM::L3NonCallSSErrorCode::SystemFailure));
 		L3NonCallSSFacilityMessage FacilityMessage(TIFlag, TI, ComponentPtr);
 		FacilityMessage.write(Frame);
 		LOG(DEBUG) << "Sending Facility Message with error System Failure: " << FacilityMessage;
 		LCH->send(Frame);
 	}
 
-        else if(messageType == Control::USSDData::release)
+	else if(messageType == Control::USSDData::release)
 	{
-		// NOTE: On some phones (e.g. Nokia 3310, Alcatel BG3) if this parameteris set to a non-empty string,
+		// NOTE: On some phones (e.g. Nokia 3310, Alcatel BG3) if this parameter is set to a non-empty string,
 		//       when it is sent after Notify USSD, this string is shown on the screen after showing Notify
 		//       message just for a second. I.e. it replaces (obscures) original Notify message. Thus we
 		//       recommend to set this string to an empty string.
@@ -206,7 +206,7 @@ Control::USSDData::USSDMessageType USSDParse(L3NonCallSSMessage* Message, string
 {
 	L3Frame Frame;
 	Control::USSDData::USSDMessageType messageType = Control::USSDData::error;
-	// Low-level mesage flow is described at GSM 04.90 6.1.
+	// Low-level message flow is described at GSM 04.90 6.1.
 	// High-level message flow is described at GSM 03.90 6.2.
 
 	// Process REQUEST message
