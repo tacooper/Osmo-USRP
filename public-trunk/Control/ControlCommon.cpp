@@ -628,54 +628,81 @@ void TMSITable::load(const char* filename)
 	fclose(fp);
 }
 
-unsigned USSDHandler::waitUSSDData(Control::USSDData::USSDMessageType* messageType, std::string* USSDString, unsigned timeout = USSDHandler::infinitely)
+USSDHandler::ResultCode USSDHandler::waitUSSDData(Control::USSDData::USSDMessageType* messageType,
+                                                  std::string* USSDString,
+                                                  unsigned timeout)
 {
 	TransactionEntry transaction;
-	// Wait for MS to signal that data is ready
-	gTransactionTable.find(mTransactionID, transaction);
-	
+	USSDData *pUssdData = NULL;
+
+	// Step 1 -- Find transaction
+	if (!gTransactionTable.find(mTransactionID, transaction))
+	{
+		LOG(DEBUG) << "Transaction with ID=" << mTransactionID << " not found";
+		return USSD_NO_TRANSACTION;
+	}
+	if ((pUssdData = transaction.ussdData()) == NULL)
+	{
+		LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
+		return USSD_BAD_STATE;
+	}
+
+	// Step 2 -- Wait for MS to signal that data is ready
 	if (timeout >= USSDHandler::infinitely)
 	{
-		if (transaction.ussdData()->waitMS()!=0)
+		// wait infinitely
+		if (pUssdData->waitMS()!=0)
 		{
 			LOG(ERROR) << "USSDDate semaphore returned error: " << errno;
-			return 2;
+			return USSD_ERROR;
 		}
 	}
-	else if((timeout > USSDHandler::trywait) && (timeout < USSDHandler::infinitely))
+	else if ((timeout > USSDHandler::trywait) && (timeout < USSDHandler::infinitely))
 	{
-		//wait
-		if (transaction.ussdData()->waitMS(timeout)!=0)
+		// wait
+		if (pUssdData->waitMS(timeout)!=0)
 		{
 			LOG(DEBUG) << "USSDDate semaphore returned error or timeout";
-			return 2;
+			return USSD_TIMEOUT;
 		}
 	}
 	else
 	{
-		//trywait
-		if (transaction.ussdData()->trywaitMS()!=0)
+		// trywait
+		if (pUssdData->trywaitMS()!=0)
 		{
 			LOG(DEBUG) << "USSDDate semaphore returned error";
-			return 2;
+			return USSD_TIMEOUT;
 		}
 	}
 
-	// Get data from MS and check for closing condition
-	gTransactionTable.find(mTransactionID, transaction);
+	// Step 3 -- Get data from MS and check for closing condition
+	if (!gTransactionTable.find(mTransactionID, transaction))
+	{
+		LOG(DEBUG) << "Transaction with ID=" << mTransactionID << " not found";
+		return USSD_NO_TRANSACTION;
+	}
+	if ((pUssdData = transaction.ussdData()) == NULL)
+	{
+		LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
+		return USSD_BAD_STATE;
+	}
 	if (transaction.Q931State() == Control::TransactionEntry::USSDclosing)
 	{
 		clearTransactionHistory(transaction);
-		LOG(DEBUG) << "USSD clearing....";
-		return 1;
+		LOG(DEBUG) << "Clearing USSD transaction: " << transaction;
+		return USSD_CLEARED;
 	}
-	*messageType = transaction.ussdData()->MessageType();
-	*USSDString = transaction.ussdData()->USSDString();
-	return 0;
+	*messageType = pUssdData->MessageType();
+	*USSDString = pUssdData->USSDString();
+	return USSD_OK;
 }
 
-void USSDHandler::postUSSDData(Control::USSDData::USSDMessageType messageType, std::string USSDString)
+USSDHandler::ResultCode USSDHandler::postUSSDData(Control::USSDData::USSDMessageType messageType,
+                                                  const std::string &iUSSDString)
 {
+	// Step 0 -- Prepare long strings for continuation
+	std::string USSDString(iUSSDString);
 	if (USSDString.length()>USSD_MAX_CHARS_7BIT)
 	{
 		int contLen = mContinueStr.length();
@@ -691,15 +718,31 @@ void USSDHandler::postUSSDData(Control::USSDData::USSDMessageType messageType, s
 
 	// Step 1 -- Find transaction
 	TransactionEntry transaction;
-	gTransactionTable.find(mTransactionID, transaction);
+	USSDData *pUssdData = NULL;
+	if (!gTransactionTable.find(mTransactionID, transaction))
+	{
+		LOG(DEBUG) << "Transaction with ID=" << mTransactionID << " not found";
+		return USSD_NO_TRANSACTION;
+	}
+	if ((pUssdData = transaction.ussdData()) == NULL)
+	{
+		LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
+		return USSD_BAD_STATE;
+	}
 
 	// Step 2 -- Update transaction with the data to send
-	transaction.ussdData()->MessageType(messageType);
-	transaction.ussdData()->USSDString(USSDString);
+	pUssdData->MessageType(messageType);
+	pUssdData->USSDString(USSDString);
 	gTransactionTable.update(transaction);
 
 	// Step 3 -- Notify the dispatcher thread that data is ready to be sent
-	transaction.ussdData()->postNW();
+	if (pUssdData->postNW() != 0)
+	{
+		return USSD_ERROR;
+	}
+
+	// Success.
+	return USSD_OK;
 }
 
 void *USSDHandler::runWrapper(void *pThis)

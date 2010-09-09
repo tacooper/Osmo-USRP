@@ -410,19 +410,21 @@ class USSDData {
 	std::string USSDString() const { return mUSSDString; }
 	void USSDString(std::string wUSSDString) { mUSSDString = wUSSDString; }
 	
-	int waitMS() { return mSemWaitMS.wait(); }
-	int waitNW() { return mSemWaitNW.wait(); }
+	ThreadSemaphore::Result waitMS() { return mSemWaitMS.wait(); }
+	ThreadSemaphore::Result waitNW() { return mSemWaitNW.wait(); }
+	ThreadSemaphore::Result waitIncomingData() { return mSemIncomingData.wait(); }
 
-	int waitMS(unsigned timeout) { return mSemWaitMS.wait(timeout); }
-	int waitNW(unsigned timeout) { return mSemWaitNW.wait(timeout); }
+	ThreadSemaphore::Result waitMS(unsigned timeout) { return mSemWaitMS.wait(timeout); }
+	ThreadSemaphore::Result waitNW(unsigned timeout) { return mSemWaitNW.wait(timeout); }
+	ThreadSemaphore::Result waitIncomingData(unsigned timeout) { return mSemIncomingData.wait(timeout); }
 
-	int trywaitMS() { return mSemWaitMS.trywait(); }
-	int trywaitNW() { return mSemWaitNW.trywait(); }
+	ThreadSemaphore::Result trywaitMS() { return mSemWaitMS.trywait(); }
+	ThreadSemaphore::Result trywaitNW() { return mSemWaitNW.trywait(); }
+	ThreadSemaphore::Result trywaitIncomingData() { return mSemIncomingData.trywait(); }
 
-
-	int postMS() { return mSemWaitMS.post(); }
-	int postNW() { return mSemWaitNW.post(); }
-	
+	ThreadSemaphore::Result postMS() { return mSemWaitMS.post(); }
+	ThreadSemaphore::Result postNW() { return mSemWaitNW.post(); }
+	ThreadSemaphore::Result signalIncomingData() { return mSemIncomingData.post(); }
 };
 
 std::ostream& operator<<(std::ostream& os, USSDData::USSDMessageType);
@@ -930,6 +932,16 @@ class USSDHandler {
 	{
 		USSD_MAX_CHARS_7BIT = 182    ///< See GSM 03.38 5 Cell Broadcast Data Coding Scheme
 	};
+	enum ResultCode {
+		USSD_OK = 0,   ///< Operation performed
+
+		USSD_CLEARED,  ///< USSD state has been cleared as a result of operation
+		USSD_TIMEOUT,  ///< USSD operation timed out
+
+		USSD_NO_TRANSACTION, ///< Can't find transaction
+		USSD_BAD_STATE,      ///< Wrong transaction state
+		USSD_ERROR           ///< Generic error
+	};
 
 	private:
 	unsigned mTransactionID;
@@ -946,9 +958,9 @@ class USSDHandler {
 		{}
 
 		/** Wait USSD data from MS. Return: 0 - successful, 1 - clear transaction, 2 - error or timeout */
-		unsigned  waitUSSDData(Control::USSDData::USSDMessageType* messageType, std::string* USSDString, unsigned timeout);
+		USSDHandler::ResultCode waitUSSDData(Control::USSDData::USSDMessageType* messageType, std::string* USSDString, unsigned timeout = USSDHandler::infinitely);
 		/** Post USSD data and update transaction with new USSDData (messageType and USSDString)*/
-		void postUSSDData( Control::USSDData::USSDMessageType messageType, std::string USSDString);
+		USSDHandler::ResultCode postUSSDData( Control::USSDData::USSDMessageType messageType, const std::string &USSDString);
 		unsigned transactionID() { return mTransactionID; }
 		void transactionID(unsigned wTransactionID) { wTransactionID = mTransactionID; }
 		static void *runWrapper(void *pThis);
