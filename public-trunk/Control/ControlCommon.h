@@ -392,12 +392,13 @@ class USSDData {
 		release
 	};
 	
-	private:
+	protected:
 
 	ThreadSemaphore mSemWaitMS;
-	ThreadSemaphore mSemWaitNW;	
-	USSDMessageType mType; // USSD message type
-	std::string mUSSDString; // USSD message string
+	ThreadSemaphore mSemWaitNW;
+	ThreadSemaphore mSemIncomingData; ///< External entity has sent us some data
+	USSDMessageType mType; ///< USSD message type
+	std::string mUSSDString; ///< USSD message string
 
 	public:
 

@@ -801,6 +801,7 @@ void MOTestHandler::run()
 		}
 		else
 		{
+			USSDString = "";
 			messageType = USSDData::release;
 		}
 
@@ -848,7 +849,7 @@ void MOHttpHandler::run()
 			if (!wget) {
 				LOG(NOTICE) << "cannot open wget with " << command;
 				USSDString = "cannot open wget";
-				messageType = USSDData::release;
+				messageType = USSDData::error;
 			}
 			fgets (mystring , 182 , wget);
 			LOG(NOTICE) << "wget response " << mystring;
@@ -1100,7 +1101,7 @@ void  Control::resolveIMSI(L3MobileIdentity& mobileIdentity, LogicalChannel* LCH
 	}
 }
 
-bool USSDMatchHandler(const std::string &handlerName, const std::string &ussdString)
+bool Control::USSDMatchHandler(const std::string &handlerName, const std::string &ussdString)
 {
 	std::string handlerKeyName("USSD.Handler.");
 	handlerKeyName += handlerName;
