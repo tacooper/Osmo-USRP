@@ -72,16 +72,17 @@ void unlockCerr()
 
 Mutex::Mutex()
 {
-	assert(!pthread_mutexattr_init(&mAttribs));
-	assert(!pthread_mutexattr_settype(&mAttribs,PTHREAD_MUTEX_RECURSIVE));
-	assert(!pthread_mutex_init(&mMutex,&mAttribs));
+	pthread_mutexattr_init(&mAttribs);
+	int s = pthread_mutexattr_settype(&mAttribs,PTHREAD_MUTEX_RECURSIVE);
+	assert(s!=0);
+	pthread_mutex_init(&mMutex,&mAttribs);
 }
 
 
 Mutex::~Mutex()
 {
 	pthread_mutex_destroy(&mMutex);
-	assert(!pthread_mutexattr_destroy(&mAttribs));
+	pthread_mutexattr_destroy(&mAttribs);
 }
 
 
@@ -107,10 +108,15 @@ int ThreadSemaphore::wait(unsigned timeout) const
 
 void Thread::start(void *(*task)(void*), void *arg)
 {
+	int s;
 	assert(mThread==((pthread_t)0));
-	assert(!pthread_attr_init(&mAttrib));
-	assert(!pthread_attr_setstacksize(&mAttrib, mStackSize));
-	assert(!pthread_create(&mThread, &mAttrib, task, arg));
+
+	s = pthread_attr_init(&mAttrib);
+	assert(s == 0);
+	s = pthread_attr_setstacksize(&mAttrib, mStackSize);
+	assert(s == 0);
+	s = pthread_create(&mThread, &mAttrib, task, arg);
+	assert(s == 0);
 }
 
 
