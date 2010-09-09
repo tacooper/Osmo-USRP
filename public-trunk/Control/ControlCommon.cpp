@@ -386,6 +386,34 @@ bool TransactionTable::find(const L3MobileIdentity& mobileID, TransactionEntry& 
 	return foundIt;
 }
 
+
+
+bool TransactionTable::find(const L3MobileIdentity& mobileID, GSM::L3CMServiceType serviceType, TransactionEntry& target)
+{
+	// Yes, it's linear time.
+	// Even in a 6-ARFCN system, it should rarely be more than a dozen entries.
+
+	// Since clearDeadEntries is also linear, do that here, too.
+
+	// Brute force search.
+	bool foundIt = false;
+	mLock.lock();
+	clearDeadEntries();
+	TransactionMap::const_iterator itr = mTable.begin();
+	while (itr!=mTable.end()) {
+		const TransactionEntry& transaction = itr->second;
+		if (transaction.subscriber()==mobileID && transaction.service()==serviceType) {
+			// No need to check dead(), since we just cleared the table.
+			foundIt = true;
+			target = transaction;
+			break;
+		}
+		++itr;
+	}
+	mLock.unlock();
+	return foundIt;
+}
+
 size_t TransactionTable::size()
 {
 	return mTable.size();

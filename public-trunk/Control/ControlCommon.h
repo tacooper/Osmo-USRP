@@ -680,6 +680,16 @@ class TransactionTable {
 	bool find(const GSM::L3MobileIdentity& mobileID, TransactionEntry& target);
 
 	/**
+		Find an entry by its mobile ID and service type.
+		Also clears dead entries during search.
+		@param mobileID The mobile at to search for.
+		@param serviceType Service type we're looking for.
+		@param target A TransactionEntry to accept the found record.
+		@return true is the mobile ID was found.
+	*/
+	bool find(const GSM::L3MobileIdentity& mobileID, GSM::L3CMServiceType serviceType, TransactionEntry& target);
+
+	/**
 		Remove "dead" entries from the table.
 		A "dead" entry is a transaction that is no longer active.
 	*/
