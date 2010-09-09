@@ -945,13 +945,6 @@ class USSDHandler {
 			mContinueStr(gConfig.getStr("USSD.ContinueStr"))
 		{}
 
-		/** This form is used for MT USSD */
-		USSDHandler(GSM::L3MobileIdentity &mobileIdentity, unsigned TIFlag, unsigned TIValue, Control::USSDData::USSDMessageType messageType, std::string ussdString)
-			:mContinueStr(gConfig.getStr("USSD.ContinueStr"))
-		{
-			mTransactionID = USSDDispatcher(mobileIdentity, TIFlag, TIValue, messageType, ussdString, false);
-		}
-
 		/** Wait USSD data from MS. Return: 0 - successful, 1 - clear transaction, 2 - error or timeout */
 		unsigned  waitUSSDData(Control::USSDData::USSDMessageType* messageType, std::string* USSDString, unsigned timeout);
 		/** Post USSD data and update transaction with new USSDData (messageType and USSDString)*/
@@ -994,8 +987,8 @@ class MOCLIHandler : public USSDHandler {
 
 class MTTestHandler : public USSDHandler {
 	public:
-		MTTestHandler(GSM::L3MobileIdentity &mobileIdentity, unsigned TIFlag, unsigned TIValue, Control::USSDData::USSDMessageType messageType, std::string ussdString)
-			:USSDHandler(mobileIdentity,TIFlag, TIValue, messageType, ussdString)
+		MTTestHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
 		{}	
 	
 		void run();

@@ -382,7 +382,8 @@ int sendUSSD(int argc, char** argv, ostream& os, istream& is)
 	if (argc!=2) return BAD_NUM_ARGS;
 	char *IMSI = argv[1];
 	GSM::L3MobileIdentity mobileIdentity(IMSI);
-	Control::MTTestHandler handler(mobileIdentity, (unsigned)1, (unsigned)0, Control::USSDData::REGrequest, std::string("REGrequest"));
+	unsigned transactionId = USSDDispatcher(mobileIdentity, (unsigned)1, (unsigned)0, Control::USSDData::REGrequest, std::string("REGrequest"), false);
+	Control::MTTestHandler handler(transactionId);
 	handler.run();
 	os << "MT USSD session end." << endl;
 	return SUCCESS;
