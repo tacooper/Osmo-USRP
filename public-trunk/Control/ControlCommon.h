@@ -999,6 +999,19 @@ class MOHttpHandler : public USSDHandler {
 		void run();
 };
 
+class UssdSipHandler : public USSDHandler {
+	private:
+	   std::string mStr;
+	   unsigned mNum;
+	public:
+
+	   UssdSipHandler(unsigned wTransactionID)
+	   : USSDHandler(wTransactionID)
+	   {}
+
+	   void run();
+};
+
 class MOCLIHandler : public USSDHandler {
 	public:
 		MOCLIHandler(unsigned wTransactionID)

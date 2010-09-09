@@ -973,7 +973,119 @@ void MTTestHandler::run()
 		}
 	
 		postUSSDData(messageType, USSDString);
-	}	
+	}
+}
+
+void UssdSipHandler::run()
+{
+	LOG(DEBUG) << "USSD SIP Handler RUN";
+	mNum = 0;
+	while(true)
+	{
+		Control::USSDData::USSDMessageType messageType;
+		std::string USSDString;
+		unsigned timeout = 100000;
+
+		// Get next data string from ME
+		ResultCode result = waitUSSDData(&messageType, &USSDString, timeout);
+		if (result != USSD_OK)
+		{
+			// Operation has been canceled by ME or timed out.
+			// Finish USSD session if it hasn't been not cleared in waitUSSDData();
+			postUSSDData(USSDData::error, "");
+
+			// TODO:: Send error to SIP side too?
+			break;
+		}
+
+		if (USSDString == ">")
+		{
+			if (mString == "")
+			{
+				messageType = USSDData::release;
+			}
+			else
+			{
+				USSDString = mString;
+				messageType = USSDData::request;
+			}
+		} else {
+			// Steps:
+			// 1 -- Setup SIP part of the transaction record.
+			// 2 -- Send the message to the server.
+			// 3 -- Wait for a response message and parse it.
+
+			// Step 1 -- Setup SIP part of the transaction record.
+			TransactionEntry transaction;
+			if (!gTransactionTable.find(transactionID(), transaction))
+			{
+				// Transaction not found. Something is wrong. Bail out.
+				break;
+			}
+			SIP::SIPEngine& engine = transaction.SIP();
+
+			// If we got a TMSI, find the IMSI.
+			L3MobileIdentity mobileID = transaction.subscriber();
+			if (mobileID.type()==TMSIType) {
+				const char *IMSI = gTMSITable.IMSI(mobileID.TMSI());
+				if (IMSI) mobileID = L3MobileIdentity(IMSI);
+				else {
+					// Something is wrong on the ME side.
+					postUSSDData(USSDData::error, "");
+					break;
+				}
+			}
+
+			engine.User(mobileID.digits());
+			LOG(DEBUG) << "MOUSSD: transaction: " << transaction;
+
+			// Step 2 -- Send the message to the server.
+			std::ostringstream outSipBody;
+			outSipBody << (int)messageType << std::endl << USSDString;
+			LOG(DEBUG) << "Created USSD SIP message: " << outSipBody.str();
+			engine.MOSMSSendMESSAGE(gConfig.getStr("USSD.SIP.user"),
+				gConfig.getStr("USSD.SIP.domain"),
+				outSipBody.str().c_str());
+			SIP::SIPState state = engine.MOSMSWaitForSubmit();
+
+			LOG(DEBUG) << "Clearing call ID " << engine.callID()
+			           << " from transaction " << transaction.ID();
+			gSIPInterface.removeCall(engine.callID());
+
+			if (state != SIP::Cleared)
+			{
+				// Something is wrong on the SIP side.
+				postUSSDData(USSDData::error, "");
+				break;
+			}
+
+			// Step 3 -- Wait for a response SIP message and ACK it.
+			transaction.ussdData()->waitIncomingData(/*TODO:: timeout */);
+			engine.MTSMSSendOK();
+			LOG(DEBUG) << "Clearing call ID " << engine.callID()
+			           << " from transaction " << transaction.ID();
+			gSIPInterface.removeCall(engine.callID());
+
+			// Step 4 -- Get response and parse it.
+			if (!gTransactionTable.find(transactionID(), transaction))
+			{
+				// Transaction not found. Something is wrong. Bail out.
+				break;
+			}
+			std::istringstream inSipBody(transaction.message());
+			std::stringbuf messageText;
+			int tmp;
+			inSipBody >> tmp >> &messageText;
+			messageType = (Control::USSDData::USSDMessageType)tmp;
+			USSDString = messageText.str();
+			LOG(DEBUG) << "Parsed USSD server response. messageType=" << messageType
+			           << "(" << tmp << ")"
+			           << " string=\"" << USSDString << "\"";
+
+		}
+
+		postUSSDData(messageType, USSDString);
+	}
 }
 
 
@@ -1180,6 +1292,11 @@ unsigned Control::USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,
 		else if (USSDMatchHandler("Test", ussdString))
 		{
 			MOTestHandler* handler = new MOTestHandler(transaction.ID());
+			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
+		}
+		else if (USSDMatchHandler("SIP", ussdString))
+		{
+			UssdSipHandler* handler = new UssdSipHandler(transaction.ID());
 			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
 		}
 		else
