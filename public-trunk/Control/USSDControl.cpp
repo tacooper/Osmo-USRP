@@ -297,49 +297,68 @@ void Control::MOUSSDController(const L3CMServiceRequest *request, LogicalChannel
 	TransactionEntry transaction;
 	while(gTransactionTable.find(transactionID, transaction))
 	{
-		if (transaction.Q931State() == Control::TransactionEntry::USSDclosing)
+		USSDData *pUssdData = NULL;
+
+		// Wait for handler
+		if ((pUssdData = transaction.ussdData()) == NULL)
 		{
+			LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
 			break;
 		}
-		else if (transaction.ussdData()->waitNW()==0)
-   		{
-			gTransactionTable.find(transactionID, transaction);
-			//SEND
-			USSDSend(transaction.ussdData()->USSDString(), InvokeID, TI, 0, LCH, transaction.ussdData()->MessageType());
-			if((transaction.ussdData()->MessageType() == Control::USSDData::response)||
-				(transaction.ussdData()->MessageType() == Control::USSDData::release))
-			{ 
-				LOG(DEBUG) << "USSD waitMS response||relese";
-				transaction.Q931State(Control::TransactionEntry::USSDclosing);
-			}
-			else
-			{		
-				//RECV
-				L3Frame *USSDFrame = getFrameUSSD(LCH);
-				if (USSDFrame == NULL) 
-				{
-					USSDSend(transaction.ussdData()->USSDString(), InvokeID, TI, 0, LCH, Control::USSDData::release);
-					transaction.Q931State(Control::TransactionEntry::USSDclosing);
-				}
-				else
-				{
-					//Parse USSD frame
-					L3NonCallSSMessage* USSDMessage = parseL3NonCallSS(*USSDFrame);
-					TI = USSDMessage->TIValue();
-					LOG(INFO) << "USSD message before PARSE:"<<*USSDMessage;
-					Control::USSDData::USSDMessageType messageType = USSDParse(USSDMessage, &USSDString, &InvokeID);
-					LOG(INFO) << "MO USSD message: "<< *USSDMessage << " MO USSD type: "<< messageType
-					          << " USSD string: " << USSDString << " InvokeID: " << InvokeID;
-					transaction.ussdData()->USSDString(USSDString);
-					transaction.ussdData()->MessageType(messageType);
-					delete USSDMessage;
-				}
-				delete USSDFrame;
-								
-			}
-			gTransactionTable.update(transaction);
-			transaction.ussdData()->postMS();
+		if (pUssdData->waitNW()!=0)
+   	{
+			LOG(DEBUG) << "waitNW() returned error for USSD transaction: " << transaction;
+			clearTransactionHistory(transaction);
+			break;
 		}
+
+		// Send to ME
+		if (!gTransactionTable.find(transactionID, transaction))
+		{
+			LOG(DEBUG) << "Transaction with ID=" << transactionID << " not found";
+			break;
+		}
+		if ((pUssdData = transaction.ussdData()) == NULL)
+		{
+			LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
+			break;
+		}
+		USSDSend(pUssdData->USSDString(), InvokeID, TI, 0, LCH, pUssdData->MessageType());
+		if((pUssdData->MessageType() == Control::USSDData::response)||
+			(pUssdData->MessageType() == Control::USSDData::release))
+		{
+			LOG(DEBUG) << "waitMS received response or release. Closing";
+			transaction.Q931State(Control::TransactionEntry::USSDclosing);
+			LOG(DEBUG) << "Clearing USSD transaction: " << transaction;
+			clearTransactionHistory(transaction);
+			break;
+		}
+
+		// Receive from ME
+		L3Frame *USSDFrame = getFrameUSSD(LCH);
+		if (USSDFrame == NULL) 
+		{
+			USSDSend(pUssdData->USSDString(), InvokeID, TI, 0, LCH, Control::USSDData::release);
+			transaction.Q931State(Control::TransactionEntry::USSDclosing);
+		}
+		else
+		{
+			//Parse USSD frame
+			L3NonCallSSMessage* USSDMessage = parseL3NonCallSS(*USSDFrame);
+			TI = USSDMessage->TIValue();
+			LOG(INFO) << "USSD message before PARSE:"<<*USSDMessage;
+			Control::USSDData::USSDMessageType messageType = USSDParse(USSDMessage, &USSDString, &InvokeID);
+			LOG(INFO) << "MO USSD message: "<< *USSDMessage << " MO USSD type: "<< messageType
+					      << " USSD string: " << USSDString << " InvokeID: " << InvokeID;
+			pUssdData->USSDString(USSDString);
+			pUssdData->MessageType(messageType);
+			delete USSDMessage;
+		}
+		delete USSDFrame;
+
+		// Notify handler
+		gTransactionTable.update(transaction);
+		pUssdData->postMS();
 	}
 }
 
