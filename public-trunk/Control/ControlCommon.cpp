@@ -822,6 +822,7 @@ void MOTestHandler::run()
 		}
 		else if(USSDString == "*103#")
 		{
+			USSDString = "";
 			messageType = USSDData::release;
 		}
 		else if(USSDString == "*104#")
@@ -830,7 +831,6 @@ void MOTestHandler::run()
 		}
 		else
 		{
-			USSDString = "";
 			messageType = USSDData::release;
 		}
 
