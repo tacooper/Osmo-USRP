@@ -270,8 +270,11 @@ void Control::MOUSSDController(const L3CMServiceRequest *request, LogicalChannel
 	assert(LCH);
 	
 	LOG(DEBUG) << "Get L3 CM Service Request: " << *request;
+	// If we got a TMSI, find the IMSI.
+	// Note that this is a copy, not a reference.
 	L3MobileIdentity mobileIdentity = request->mobileIdentity();
-	LOG(DEBUG) << "mobileIdentity: "<<mobileIdentity;
+	resolveIMSI(mobileIdentity,LCH);
+	LOG(DEBUG) << "mobileIdentity: "<<request->mobileIdentity()<<" IMSI:"<<mobileIdentity;
 	LOG(DEBUG) << "Send L3 CM Service Accept";
 	LCH->send(L3CMServiceAccept());
 
