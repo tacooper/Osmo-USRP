@@ -516,7 +516,7 @@ class TransactionEntry {
 	/** Reset all Q.931 timers. */
 	void resetTimers();
 
-	/** Retrns true if the transaction is "dead". */
+	/** Returns true if the transaction is "dead". */
 	bool dead() const;
 
 	private:
