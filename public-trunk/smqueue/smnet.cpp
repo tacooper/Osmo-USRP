@@ -420,8 +420,9 @@ SMnet::string_addr (struct sockaddr *sa, socklen_t len, bool withport)
 bool
 SMnet::parse_addr (const char *str, char *sockad, socklen_t maxlen, socklen_t *len)
 {
-	char *p = strchr(str, ':');
-	char *host, *port;
+	const char *p = strchr(str, ':');
+	char *host;
+	const char *port;
 
 	if (p == NULL)
 		return false;
