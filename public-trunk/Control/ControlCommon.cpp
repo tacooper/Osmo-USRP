@@ -266,6 +266,7 @@ ostream& Control::operator<<(ostream& os, const TransactionEntry& entry)
 	if (entry.calling().digits()[0]) os << " from=" << entry.calling().digits();
 	os << " Q.931State=" << entry.Q931State();
 	os << " SIPState=" << entry.SIP().state();
+	os << " USSDData=" << entry.ussdData();
 	os << " (" << (entry.stateAge()+500)/1000 << " sec)";
 	if (entry.message()[0]) os << " message=\"" << entry.message() << "\"";
 	return os;
