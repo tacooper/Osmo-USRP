@@ -82,6 +82,18 @@ shortcode_quick_chk (const char *imsi, const char *msgtext,
 	return SCA_REPLY;
 }
 
+enum short_code_action
+shortcode_ussd_test (const char *imsi, const char *msgtext,
+                     short_code_params *scp)
+{
+	ostringstream answer;
+
+	answer << "3" << endl;
+	answer << "USSD test ok!";
+	scp->scp_reply = new_strdup(answer.str().c_str());
+	return SCA_REPLY;
+}
+
 /*
  * 411 -- information.
  * Start by telling people their phone number.
@@ -379,5 +391,6 @@ SMqueue::init_smcommands (short_code_map_t *scm)
 		(*scm)[gConfig.getStr("SC.ZapQueued.Code")] = shortcode_zap_queued;
 	if (gConfig.defines("SC.WhiplashQuit.Code"))
 		(*scm)[gConfig.getStr("SC.WhiplashQuit.Code")] = whiplash_quit;
+	(*scm)["USSD"] = shortcode_ussd_test;
 //	(*scm)["666"]    = shortcode_text_access;
 }
