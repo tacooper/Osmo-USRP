@@ -589,7 +589,7 @@ class TransactionEntry {
 	/** Reset all Q.931 timers. */
 	void resetTimers();
 
-	/** Retrns true if the transaction is "dead". */
+	/** Returns true if the transaction is "dead". */
 	bool dead() const;
 
 	private:
@@ -669,7 +669,7 @@ class TransactionTable {
 		Also clears dead entries during search.
 		@param mobileID The mobile at to search for.
 		@param target A TransactionEntry to accept the found record.
-		@return true is the mobile ID was foind.
+		@return true is the mobile ID was found.
 	*/
 	bool find(const GSM::L3MobileIdentity& mobileID, TransactionEntry& target);
 
@@ -686,6 +686,9 @@ class TransactionTable {
 	//@}
 
 	size_t size();
+
+	/** Write entries as text to a stream. */
+	void dump(std::ostream&) const;
 };
 
 //@} // Transaction Table

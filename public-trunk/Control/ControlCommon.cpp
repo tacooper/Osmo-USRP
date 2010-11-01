@@ -360,7 +360,7 @@ bool TransactionTable::find(const L3MobileIdentity& mobileID, TransactionEntry& 
 
 	// Since clearDeadEntries is also linear, do that here, too.
 
-	// Brtue force search.
+	// Brute force search.
 	bool foundIt = false;
 	mLock.lock();
 	clearDeadEntries();
@@ -382,6 +382,18 @@ bool TransactionTable::find(const L3MobileIdentity& mobileID, TransactionEntry& 
 size_t TransactionTable::size()
 {
 	return mTable.size();
+}
+
+
+void TransactionTable::dump(ostream& os) const
+{
+	mLock.lock();
+	TransactionMap::const_iterator tp = mTable.begin();
+	while (tp != mTable.end()) {
+		os << hex << "0x" << tp->first << " " << dec << tp->second << endl;
+		++tp;
+	}
+	mLock.unlock();
 }
 
 

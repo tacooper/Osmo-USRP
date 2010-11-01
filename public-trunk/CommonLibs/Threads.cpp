@@ -28,6 +28,7 @@
 #include "Threads.h"
 #include "Timeval.h"
 
+#include <errno.h>
 
 using namespace std;
 
@@ -72,16 +73,17 @@ void unlockCerr()
 
 Mutex::Mutex()
 {
-	assert(!pthread_mutexattr_init(&mAttribs));
-	assert(!pthread_mutexattr_settype(&mAttribs,PTHREAD_MUTEX_RECURSIVE));
-	assert(!pthread_mutex_init(&mMutex,&mAttribs));
+	pthread_mutexattr_init(&mAttribs);
+	int s = pthread_mutexattr_settype(&mAttribs,PTHREAD_MUTEX_RECURSIVE);
+	assert(s!=0);
+	pthread_mutex_init(&mMutex,&mAttribs);
 }
 
 
 Mutex::~Mutex()
 {
 	pthread_mutex_destroy(&mMutex);
-	assert(!pthread_mutexattr_destroy(&mAttribs));
+	pthread_mutexattr_destroy(&mAttribs);
 }
 
 
@@ -95,22 +97,79 @@ void Signal::wait(Mutex& wMutex, unsigned timeout) const
 	pthread_cond_timedwait(&mSignal,&wMutex.mMutex,&waitTime);
 }
 
-/** Wait for semaphore to be signaled with timeout.
-* @returns 0 on success, -1 on error or timeout.
-*/
-int ThreadSemaphore::wait(unsigned timeout) const
+ThreadSemaphore::Result ThreadSemaphore::wait(unsigned timeoutMs)
 {
-	Timeval then(timeout);
+	Timeval then(timeoutMs);
 	struct timespec waitTime = then.timespec();
-	return sem_timedwait(&mSem,&waitTime);
+	int s;
+	while ((s = sem_timedwait(&mSem,&waitTime)) == -1 && errno == EINTR)
+		continue;
+
+	if (s == -1)
+	{
+		if (errno == ETIMEDOUT)
+		{
+			return TSEM_TIMEOUT;
+		}
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
+}
+
+ThreadSemaphore::Result ThreadSemaphore::wait()
+{
+	int s;
+	while ((s = sem_wait(&mSem)) == -1 && errno == EINTR)
+		continue;
+
+	if (s == -1)
+	{
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
+}
+
+ThreadSemaphore::Result ThreadSemaphore::trywait() 
+{
+	int s;
+	while ((s = sem_trywait(&mSem)) == -1 && errno == EINTR)
+		continue;
+
+	if (s == -1)
+	{
+		if (errno == EAGAIN)
+		{
+			return TSEM_TIMEOUT;
+		}
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
+}
+
+ThreadSemaphore::Result ThreadSemaphore::post()
+{
+	if (sem_post(&mSem) != 0)
+	{
+		if (errno == EOVERFLOW)
+		{
+			return TSEM_OVERFLOW;
+		}
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
 }
 
 void Thread::start(void *(*task)(void*), void *arg)
 {
+	int s;
 	assert(mThread==((pthread_t)0));
-	assert(!pthread_attr_init(&mAttrib));
-	assert(!pthread_attr_setstacksize(&mAttrib, mStackSize));
-	assert(!pthread_create(&mThread, &mAttrib, task, arg));
+
+	s = pthread_attr_init(&mAttrib);
+	assert(s == 0);
+	s = pthread_attr_setstacksize(&mAttrib, mStackSize);
+	assert(s == 0);
+	s = pthread_create(&mThread, &mAttrib, task, arg);
+	assert(s == 0);
 }
 
 

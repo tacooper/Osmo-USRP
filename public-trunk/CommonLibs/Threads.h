@@ -98,7 +98,7 @@ class Signal {
 
 	public:
 
-	Signal() { assert(!pthread_cond_init(&mSignal,NULL)); }
+	Signal() { int s = pthread_cond_init(&mSignal,NULL); assert(s == 0); }
 
 	~Signal() { pthread_cond_destroy(&mSignal); }
 
@@ -126,30 +126,55 @@ class ThreadSemaphore {
 
 	private:
 
-	mutable sem_t mSem;
+	sem_t mSem;
 
 	public:
 
-	ThreadSemaphore(int pshared = 0, unsigned value = 0) { assert(sem_init(&mSem,pshared,value)!=-1); }
+	enum Result {
+		TSEM_OK,       ///< Success.
+		TSEM_TIMEOUT,  ///< wait() or trywait() timed out.
+		TSEM_OVERFLOW, ///< post() overflows a semaphore
+		TSEM_ERROR     ///< Generic error.
+	};
+
+	/** Create and initialize semaphore.
+	* @param[in] value - initial semaphore value.
+	*/
+	ThreadSemaphore(unsigned value = 0)
+	{
+		int s = sem_init(&mSem,0,value);
+		assert(s == 0);
+	}
 
 	~ThreadSemaphore() { sem_destroy(&mSem); }
 
 	/** Wait for semaphore to be signaled with timeout.
-	* @returns 0 on success, -1 on error or timeout.
+	* @param[in] timeoutMs - timeout in milliseconds
+	*
+	* @retval TSEM_OK on success.
+	* @retval TSEM_TIMEOUT on timeout.
+	* @retval TSEM_ERROR on error.
 	*/
-	int wait (unsigned timeout) const;
+	Result wait(unsigned timeoutMs);
 
 	/** Wait for semaphore to be signaled infinitely.
-	* @returns 0 on success, -1 on error.
+	* @retval TSEM_OK on success.
+	* @retval TSEM_ERROR on error.
 	*/
-	int wait() const { return sem_wait(&mSem); }
-	
-	/** Check if semaphore has been signaled and disarm it.
-	* @returns 0 if semaphore has been signaled, -1 in other cases.
-	*/
-	int trywait() const { return sem_trywait(&mSem); }
+	Result wait();
 
-	int post() { return sem_post (&mSem); }
+	/** Check if semaphore has been signaled and disarm it.
+	* @retval TSEM_OK is semaphore is signaled.
+	* @retval TSEM_TIMEOUT if semaphore is not signaled.
+	* @retval TSEM_ERROR on error.
+	*/
+	Result trywait();
+
+	/** Signal semaphore.
+	* @retval TSEM_OK on success.
+	* @retval TSEM_ERROR on error.
+	*/
+	Result post();
 
 };
 
@@ -176,14 +201,14 @@ class Thread {
 		Destroy the Thread.
 		It should be stopped and joined.
 	*/
-	~Thread() { assert(!pthread_attr_destroy(&mAttrib)); }
+	~Thread() { int s = pthread_attr_destroy(&mAttrib); assert(s==0); }
 
 
 	/** Start the thread on a task. */
 	void start(void *(*task)(void*), void *arg);
 
 	/** Join a thread that will stop on its own. */
-	void join() { assert(!pthread_join(mThread,NULL)); }
+	void join() { int s = pthread_join(mThread,NULL); assert(s==0); }
 
 };
 
