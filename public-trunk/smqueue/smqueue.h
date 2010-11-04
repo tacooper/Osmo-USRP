@@ -51,9 +51,12 @@ char *new_strdup(const char *orig);
 /*
  * States that a message can be in, while processed.
  * Messages come in, they need various lookups, then they go out.
- * Then they sit pending acknowledgement that they were successful.
+ * Then they sit pending acknowledgment that they were successful.
  * The state machine is driven by incoming packets or information,
  * and in the absence of such incoming info, by timeouts.
+ *
+ * Note: If you change this enum, you MUST CHANGE SMqueue::timeouts and
+ *       SMqueue::sm_state_strings.
  */
 
 enum sm_state {				// timeout, next-state-if-timeout
