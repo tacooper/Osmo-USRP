@@ -40,7 +40,7 @@ osip_message_t * sip_unregister( const char * sip_username, short local_port, co
 const char * proxy_ip, const char * from_tag, const char * via_branch, const char * call_id, int cseq);
 
 
-osip_message_t * sip_message( const char * dialed_number, const char * sip_username, short local_port, const char * local_ip, const char * proxy_ip, const char * from_tag, const char * via_branch, const char * call_id, int cseq, const char* message);
+osip_message_t * sip_message( const char * dialed_number, const char * sip_username, short local_port, const char * local_ip, const char * proxy_ip, const char * from_tag, const char * via_branch, const char * call_id, int cseq, const char* message, const char* content_type=NULL);
 
 osip_message_t * sip_invite( const char * dialed_number, short rtp_port,const char * sip_username, short local_port, const char * local_ip, const char * proxy_ip, const char * from_tag, const char * via_branch, const char * call_id, int cseq, unsigned codec);
 

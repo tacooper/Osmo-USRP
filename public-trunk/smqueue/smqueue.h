@@ -23,7 +23,7 @@
 #define SM_QUEUE_H
 
 #include <time.h>
-#include <osipparser2/osip_message.h>	/* from osipparser2 */
+//#include <osipparser2/osip_message.h>	/* from osipparser2 */
 #include <stdlib.h>			/* for osipparser2 */
 #include <sys/time.h>			/* for osip_init */
 #include <osip2/osip.h>			/* for osip_init */
@@ -34,6 +34,14 @@
 
 #include "smnet.h"			// My network support
 #include "HLR.h"			// My home location register
+
+// That's awful OSIP has a CR define.
+// It clashes with our innocent L2Address::CR().
+// Don't create 2-letter #defines, ever!
+#undef CR
+#include "SMSMessages.h"
+using namespace SMS;
+
 
 namespace SMqueue {
 
@@ -60,33 +68,33 @@ char *new_strdup(const char *orig);
  */
 
 enum sm_state {				// timeout, next-state-if-timeout
-	NO_STATE = 0,
-	REQUEST_FROM_ADDRESS_LOOKUP = 1,
-	ASKED_FOR_FROM_ADDRESS_LOOKUP = 2,
+	NO_STATE,
+	INITIAL_STATE,
+	REQUEST_FROM_ADDRESS_LOOKUP,
+	ASKED_FOR_FROM_ADDRESS_LOOKUP,
 
-	AWAITING_TRY_DESTINATION_IMSI = 3,
-	REQUEST_DESTINATION_IMSI = 4,
-	ASKED_FOR_DESTINATION_IMSI = 5,
+	AWAITING_TRY_DESTINATION_IMSI,
+	REQUEST_DESTINATION_IMSI,
+	ASKED_FOR_DESTINATION_IMSI,
 
-	AWAITING_TRY_DESTINATION_SIPURL = 6,
-	REQUEST_DESTINATION_SIPURL = 7,
-	ASKED_FOR_DESTINATION_SIPURL = 8,
+	AWAITING_TRY_DESTINATION_SIPURL,
+	REQUEST_DESTINATION_SIPURL,
+	ASKED_FOR_DESTINATION_SIPURL,
 
-	AWAITING_TRY_MSG_DELIVERY = 9,
-	REQUEST_MSG_DELIVERY = 10,
-	ASKED_FOR_MSG_DELIVERY = 11,
+	AWAITING_TRY_MSG_DELIVERY,
+	REQUEST_MSG_DELIVERY,
+	ASKED_FOR_MSG_DELIVERY,
 
-	DELETE_ME_STATE = 12,
+	DELETE_ME_STATE,
 
-	AWAITING_REGISTER_HANDSET = 13,
-	REGISTER_HANDSET = 14,
-	ASKED_TO_REGISTER_HANDSET = 15,
-	
+	AWAITING_REGISTER_HANDSET,
+	REGISTER_HANDSET,
+	ASKED_TO_REGISTER_HANDSET,
+
 	STATE_MAX_PLUS_ONE,		/* Keep this one last! */
 };
 
 #define STATE_MAX  (STATE_MAX_PLUS_ONE - 1)
-#define	INITIAL_STATE	REQUEST_FROM_ADDRESS_LOOKUP
 
 // How to print a state
 extern std::string sm_state_strings[STATE_MAX_PLUS_ONE];
@@ -102,6 +110,13 @@ extern struct osip *osipptr;
    term storage in the queue.  */
 class short_msg {
   public:
+
+	enum ContentType {
+		UNSUPPORTED_CONTENT,
+		TEXT_PLAIN,
+		VND_3GPP_SMS
+	};
+
 	/* First just the text string.   A SIP message including body. */
 	unsigned short text_length;
 	char *text /* [text_length] */;  // C++ doesn't make it simple
@@ -116,13 +131,32 @@ class short_msg {
 	// to;
 	// time_t date;
 	// expiration;
+	ContentType content_type; // Content-Type of the message
+
+	RPData *rp_data; // Parsed RP-DATA of an SMS. It's read from MESSAGE body if
+	                 // it has application/vnd.3gpp.sms MIME-type. Note, that
+	                 // it's parsed on request and may be NULL at any point.
+	TLMessage *tl_message; // Parsed RPDU of an SMS. It's read from rp_data. Note,
+	                       // that it's parsed on request and may be NULL at
+	                       // any point.
+	bool ms_to_sc; // Direction of the message. True is this is MS->SC SMS, false
+	               // otherwise.
+	bool need_repack; // Message should be packed into TPDU for delivery. E.g.
+	                  // SIP MESSAGE sent to MS should be packed, while SIP
+	                  // REGISTER should not.
 
 	short_msg () :
 		text_length (0),
 		text (NULL),
 		parsed_is_valid (false),
 		parsed_is_better (false),
-		parsed (NULL) {
+		parsed (NULL),
+		content_type(UNSUPPORTED_CONTENT),
+		rp_data(NULL),
+		tl_message(NULL),
+		ms_to_sc(false),
+		need_repack(true)
+	{
 	}
 	// Make a short message, perhaps taking responsibility for deleting
 	// the "new"-allocated memory passed in.
@@ -131,7 +165,12 @@ class short_msg {
 		text (cstr),
 		parsed_is_valid (false),
 		parsed_is_better (false),
-		parsed (NULL)
+		parsed (NULL),
+		content_type(UNSUPPORTED_CONTENT),
+		rp_data(NULL),
+		tl_message(NULL),
+		ms_to_sc(false),
+		need_repack(true)
 	{
 		if (!use_my_memory) {
 			text = new char [text_length+1];
@@ -151,7 +190,12 @@ class short_msg {
 		text (0),
 		parsed_is_valid (false),
 		parsed_is_better (false),
-		parsed (NULL)
+		parsed (NULL),
+		content_type(UNSUPPORTED_CONTENT),
+		rp_data(NULL),
+		tl_message(NULL),
+		ms_to_sc(false),
+		need_repack(true)
 	{
 		if (text_length) {
 			text = new char [text_length+1];
@@ -159,14 +203,19 @@ class short_msg {
 			text[text_length] = '\0';
 		}
 	};
-	public:
+
 #if 0
 	short_msg (std::string str) :
 		text_length (str.length()),
 		text (0),
 		parsed_is_valid (false),
 		parsed_is_better (false),
-		parsed (NULL)
+		parsed (NULL),
+		content_type(UNSUPPORTED_CONTENT),
+		rp_data(NULL),
+		tl_message(NULL),
+		ms_to_sc(false),
+		need_repack(false)
 	{
 		text = new char [text_length+1];
 		strncpy(text, str.data(), text_length);
@@ -174,35 +223,26 @@ class short_msg {
 	};
 #endif
 	
-	/* Override operator= to avoid pointer-sharing problems */
+	/* Disable operator= to avoid pointer-sharing problems */
 	private:
 	short_msg & operator= (const short_msg &rvalue);
 	public:
-/*
-	{
-		this->text_length = rvalue.text_length;
-		this->text = new char [rvalue.text_length+1];
-		strncpy(this->text, rvalue.text, rvalue.text_length);
-		this->text[rvalue.text_length] = '\0';
-		this->parsed_is_valid = rvalue.parsed_is_valid;
-		this->parsed_is_better = rvalue.parsed_is_better;
-		osip_message_clone (rvalue.parsed, &this->parsed);
-		return *this;
-	} */
 
 	/* Destructor */
-	virtual ~short_msg () { unparse(); delete [] text; };
+	virtual ~short_msg ()
+	{
+		if (parsed)
+			osip_message_free(parsed);
+		delete [] text;
+		delete rp_data;
+		delete tl_message;
+	};
 
 	// Pseudo-constructor due to inability to run constructors on
 	// members of lists.
 	// Initialize a newly-default-constructed short message,
 	// perhaps taking responsibility for deleting
 	// the "new"-allocated memory passed in.
-	void
-	initialize ()
-	{	// Nothing to do: default constructor + default initializer
-	}
-
 	void
   	initialize (int len, char * const cstr, bool use_my_memory)
 	{
@@ -233,6 +273,7 @@ class short_msg {
 			
 		unparse();	// Free any previous one.
 
+		// Parse SIP message
 		i = osip_message_init(&sip);
 		if (i != 0) abfuckingort();	/* throw out-of-memory */
 		i = osip_message_parse(sip, text, text_length);
@@ -240,11 +281,45 @@ class short_msg {
 		parsed = sip;
 		parsed_is_valid = true;
 		parsed_is_better = false;
+
+		// Now parse SMS if needed
+		if (parsed->content_type == NULL)
+		{
+			// Most likely this is SIP response.
+			content_type = UNSUPPORTED_CONTENT;
+		} else if (  strcmp(parsed->content_type->type, "text") == 0
+		          && strcmp(parsed->content_type->subtype, "plain") == 0)
+		{
+			// If Content-Type is text/plain, then no decoding is needed.
+			content_type = TEXT_PLAIN;
+		} else if (  strcmp(parsed->content_type->type, "application") == 0
+		          && strcmp(parsed->content_type->subtype, "vnd.3gpp.sms") == 0)
+		{
+			// This is an encoded SMS' TPDU.
+			content_type = VND_3GPP_SMS;
+
+			// Decode it RP-DATA
+			osip_body_t *bod1 = (osip_body_t *)parsed->bodies.node->element;
+			const char *bods = bod1->body;
+			rp_data = hex2rpdata(bods);
+			if (rp_data == NULL) {
+				LOG(INFO) << "RP-DATA unpacking failed";
+				return false;
+			}
+
+			// Decode RPDU
+			tl_message = parseTPDU(rp_data->TPDU());
+			if (rp_data == NULL) {
+				LOG(INFO) << "RPDU parsing failed";
+				return false;
+			}
+		}
+
 		return true;
 	}
 
 	/* Anytime a caller CHANGES the values in the parsed tree of the
-	   message, they MUST call this, to let the cacheing system
+	   message, they MUST call this, to let the caching system
 	   know that the cached copy of the text-string message is no
 	   longer valid.  Actually, we have TWO such cached copies!  FIXME
 	   so we have to invalidate both of them. */
@@ -256,7 +331,7 @@ class short_msg {
 
 	/* Make the text string valid, if the parsed copy is better.
 	   (It gets "better" by being modified, and parsed_was_changed()
-	   got called, but we deferred fixing up the text string til now.) */
+	   got called, but we deferred fixing up the text string till now.) */
 	void
 	make_text_valid() {
 		if (parsed_is_better) {
@@ -288,6 +363,15 @@ class short_msg {
 
 	/* Free up all memory used by parsed version of message. */
 	void unparse() {
+		// Free parsed TDPU.
+		// FIXME -- We should check if it has been changed and update MESSAGE body.
+		delete rp_data;
+		rp_data = NULL;
+		delete tl_message;
+		tl_message = NULL;
+		content_type = UNSUPPORTED_CONTENT;
+
+		// Now unparse SIP
 		if (parsed_is_better)
 			make_text_valid();
 		if (parsed)
@@ -295,6 +379,39 @@ class short_msg {
 		parsed = NULL;
 		parsed_is_valid = false;
 		parsed_is_better = false;
+	}
+
+	std::string get_text() const
+	{
+		switch (content_type) {
+		case TEXT_PLAIN: {
+			osip_body_t *bod1 = (osip_body_t *)parsed->bodies.node->element;
+			return bod1->body;
+		}
+		break;
+
+		case VND_3GPP_SMS: {
+			const TLSubmit *submit = (TLSubmit*)tl_message;
+			if (submit == NULL) {
+				return "";
+			}
+
+			try {
+				return submit->UD().decode();
+			}
+			catch (SMSReadError) {
+				LOG(WARN) << "SMS parsing failed (above L3)";
+				// TODO:: Should we send error back to the phone?
+				return "";
+			}
+
+		}
+		break;
+
+		case UNSUPPORTED_CONTENT:
+		default:
+			return "";
+		}
 	}
 
 };
@@ -372,19 +489,6 @@ class short_msg_pending: public short_msg {
 		linktag (NULL)
 	{
 	}
-
-	short_msg_pending (const short_msg &sm) :
-		short_msg (sm),
-		state (NO_STATE),
-		next_action_time (0),
-		retries (0),
-		// srcaddr({0}),  // can't seem to initialize an array?
-		srcaddrlen(0),
-		qtag (NULL),
-		qtaghash (0),
-		linktag (NULL)
-	{
-	}
 #endif
 
 	// 
@@ -425,37 +529,10 @@ class short_msg_pending: public short_msg {
 			this->linktag[len] = '\0';
 		}
 	}
-	public:
 
 	/* Override operator= to avoid pointer-sharing problems */
 	private:
 	short_msg_pending & operator= (const short_msg_pending &rvalue);
-/* FIXME, remove if not needed?
-	{
-		this->state = rvalue.state;
-		this->next_action_time = rvalue.next_action_time;
-		this->retries = rvalue.retries;
-		this->qtag = rvalue.qtag;
-		if (rvalue.srcaddrlen) {
-			if (rvalue.srcaddrlen > sizeof (srcaddr))
-				abfuckingort();
-			memcpy(this->srcaddr, rvalue.srcaddr, rvalue.srcaddrlen);
-		}
-
-		if (rvalue.qtag) {
-			int len = strlen(rvalue.qtag);
-			this->qtag = new char[len+1];
-			strncpy(this->qtag, rvalue.qtag, len);
-			this->qtag[len] = '\0';
-		}
-		this->qtaghash = rvalue.qtaghash;
-		if (rvalue.linktag) {
-			int len = strlen(rvalue.linktag);
-			this->linktag = new char[len+1];
-			strncpy(this->linktag, rvalue.linktag, len);
-			this->linktag[len] = '\0';
-		}
-	} */
 	public:
 
 	/* Destructor */
@@ -477,28 +554,7 @@ class short_msg_pending: public short_msg {
 	 * This 'constructs' the new short_msg_pending in a temporary list,
 	 * and we can then trivially move it into the real message queue,
 	 * removing it from the temporary list in the process.
-	 *
-	 * The wriggling guts under C++ are a little too visible for my taste.
 	 */
-	void
-	initguts ()
-	{ 
-		state = NO_STATE;
-		next_action_time = 0;
-		retries = 0;
-		memset (srcaddr, 0, sizeof(srcaddr));
-		srcaddrlen = 0;
-		qtag = NULL;
-		qtaghash = 0;
-		linktag = NULL;
-	}
-	void
-	initialize ()
-	{ 
-		short_msg::initialize ();
-		// initguts();
-	}
-
 	// Make a pending short message, perhaps taking responsibility for 
 	// deleting the "new"-allocated memory passed in.
 	void
@@ -511,19 +567,6 @@ class short_msg_pending: public short_msg {
 #if 0
 	short_msg_pending (std::string str) : 
 		short_msg (str),
-		state (NO_STATE),
-		next_action_time (0),
-		retries (0),
-		// srcaddr({0}),  // can't seem to initialize an array?
-		srcaddrlen(0),
-		qtag (NULL),
-		qtaghash (0),
-		linktag (NULL)
-	{
-	}
-
-	short_msg_pending (const short_msg &sm) :
-		short_msg (sm),
 		state (NO_STATE),
 		next_action_time (0),
 		retries (0),
@@ -577,6 +620,7 @@ class short_msg_pending: public short_msg {
 	/* Check host and port for validity.  */
 	bool
 	check_host_port(char *host, char *port);
+
 };
 
 typedef std::list<short_msg_pending> short_msg_p_list;
@@ -589,16 +633,20 @@ typedef std::list<short_msg_pending> short_msg_p_list;
 class SMq;
 
 enum short_code_action {
-	SCA_DONE = 0,
-	SCA_INTERNAL_ERROR = 1,
-	SCA_REPLY = 2,
-	SCA_RETRY_AFTER_DELAY = 3,
-	SCA_REPLY_AND_RETRY = 4,
-	SCA_QUIT_SMQUEUE = 5,
-	SCA_AWAIT_REGISTER = 6,
-	SCA_REGISTER = 7,
-	SCA_TREAT_AS_ORDINARY = 8,
-	SCA_EXEC_SMQUEUE = 9
+	SCA_DONE = 0, ///< No further processing is needed. Free message.
+	SCA_INTERNAL_ERROR = 1, //< Just report error and bail out.
+	SCA_REPLY = 2, ///< Free this message and send replay back to the msg sender
+	               ///< with a text from params.scp_reply
+	SCA_RETRY_AFTER_DELAY = 3, ///< HLR is busy. Retry query later.
+	SCA_REPLY_AND_RETRY = 4, ///< UNUSED.
+	SCA_QUIT_SMQUEUE = 5, ///< Self-explanatory. Exit smqueue.
+	SCA_AWAIT_REGISTER = 6, ///< HLR response is delayed. Wait.
+	SCA_REGISTER = 7, ///< HLR record for this phone has been retrieved.
+	                  ///< Proceed to registration with Asterisk.
+	SCA_TREAT_AS_ORDINARY = 8, ///< Continue msg processing as if it were non-shortcode msg.
+	SCA_EXEC_SMQUEUE = 9, ///< Fork new smqueue instance and exit this one.
+	SCA_RESTART_PROCESSING = 10 ///< Return from this short code processing
+	                                 ///< and run another short code.
 };
 
 class short_code_params {
@@ -812,9 +860,13 @@ class SMq {
 	enum sm_state
 	register_handset (short_msg_p_list::iterator qmsg);
 
-	/* Initial handling of an incoming SMS message in the queue */
-	enum sm_state
-	handle_sms_message(short_msg_p_list::iterator qmsg);
+	/* Check if this is a short-code message and handle it.
+	 * Return true if message has been handled, false if you should continue
+	 * message handling as usual. In latter case \p next_state is untouched.
+	 */
+	bool
+	handle_short_code(const short_code_map_t &short_code_map,
+	                  short_msg_p_list::iterator qmsg, enum sm_state &next_state);
 
 	/* When a SIP response arrives, search the queue for its matching
 	   MESSAGE and handle both.  */

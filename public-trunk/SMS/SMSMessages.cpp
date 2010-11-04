@@ -76,6 +76,61 @@ CPMessage * SMS::parseSMS( const GSM::L3Frame& frame )
 }
 
 
+RPData *SMS::hex2rpdata(const char *hexstring)
+{
+	RPData *rp_data = NULL;
+
+	BitVector RPDUbits(strlen(hexstring)*4);
+	if (!RPDUbits.unhex(hexstring)) {
+		return false;
+	}
+	LOG(DEBUG) << "SMS RPDU bits: " << RPDUbits;
+
+	try {
+		RLFrame RPDU(RPDUbits);
+		LOG(DEBUG) << "SMS RPDU: " << RPDU;
+
+		rp_data = new RPData();
+		rp_data->parse(RPDU);
+		LOG(DEBUG) << "SMS RP-DATA " << *rp_data;
+	}
+	catch (SMSReadError) {
+		LOG(WARN) << "SMS parsing failed (above L3)";
+		// TODO:: send error back to the phone
+		delete rp_data;
+		rp_data = NULL;
+	}
+	catch (L3ReadError) {
+		LOG(WARN) << "SMS parsing failed (in L3)";
+		// TODO:: send error back to the phone
+		delete rp_data;
+		rp_data = NULL;
+	}
+
+	return rp_data;
+}
+
+TLMessage *SMS::parseTPDU(const TLFrame& TPDU)
+{
+	LOG(DEBUG) << "SMS: parseTPDU MTI=" << TPDU.MTI();
+	// Handle just the uplink cases.
+	switch ((TLMessage::MessageType)TPDU.MTI()) {
+		case TLMessage::DELIVER_REPORT:
+		case TLMessage::STATUS_REPORT:
+			// FIXME -- Not implemented yet.
+			LOG(WARN) << "Unsupported TPDU type: " << (TLMessage::MessageType)TPDU.MTI();
+			return NULL;
+		case TLMessage::SUBMIT: {
+			TLSubmit *submit = new TLSubmit;
+			submit->parse(TPDU);
+			LOG(INFO) << "SMS SMS-SUBMIT " << submit;
+			return submit;
+										}
+		default:
+			return NULL;
+	}
+}
+
 void CPMessage::text(ostream& os) const 
 {
 	os << (CPMessage::MessageType)MTI();
@@ -163,8 +218,13 @@ ostream& SMS::operator<<(ostream& os, const RPMessage& msg)
 
 void RPUserData::parseV(const L3Frame& src, size_t &rp, size_t expectedLength)
 {
+	LOG(DEBUG) << "src=" << src << " (length=" << src.length() << ") rp=" << rp << " expectedLength=" << expectedLength;
 	unsigned numBits = expectedLength*8;
+	if (rp+numBits > src.size()) {
+		SMS_READ_ERROR;
+	}
 	mTPDU.resize(numBits);
+	LOG(DEBUG) << "mTPDU length=" << mTPDU.length() << "data=" << mTPDU;
 	src.segmentCopyTo(mTPDU,rp,numBits);
 	rp += numBits;
 }
@@ -410,7 +470,66 @@ void TLValidityPeriod::text(ostream& os) const
 	os << "expiration=(" << str << ")";
 }
 
+void TLUserData::encode7bit(const char *text)
+{
+	size_t wp = 0;
+	
+	// 1. Prepare.
+	// Default alphabet (7-bit)
+	mDCS = 0;
+	// With 7-bit encoding TP-User-Data-Length count septets, i.e. just number
+	// of characters.
+	mLength = strlen(text);
+	int bytes = (mLength*7+7)/8;
+	int filler_bits = bytes*8-mLength*7;
+	mRawData.resize(bytes*8);
 
+	// 2. Write TP-UD
+	// This tail() works because UD is always the last field in the PDU.
+	BitVector chars = mRawData.tail(wp);
+	for (unsigned i=0; i<mLength; i++) {
+		char gsm = encodeGSMChar(text[i]);
+		mRawData.writeFieldReversed(wp,gsm,7);
+	}
+	mRawData.writeField(wp,0,filler_bits);
+}
+
+std::string TLUserData::decode() const
+{
+	std::string text;
+
+	if (mUDHI) SMS_READ_ERROR;		// We don't support user headers.
+	switch (mDCS) {
+		case 0:
+		case 244:
+		case 245:
+		case 246:
+		case 247:
+		{
+			// GSM 7-bit encoding, GSM 03.38 6.
+			// Check bounds.
+			if (mLength*7 > (mRawData.size())) {
+				LOG(NOTICE) << "badly formatted TL-UD";
+				SMS_READ_ERROR;
+			}
+			// Do decoding
+			text.resize(mLength);
+			size_t crp=0;
+			for (unsigned i=0; i<mLength; i++) {
+				char gsm = mRawData.readFieldReversed(crp,7);
+				text[i] = decodeGSMChar(gsm);
+			}
+			break;
+		}
+
+		default:
+			LOG(NOTICE) << "unsupported DCS 0x" << mDCS;
+			SMS_READ_ERROR;
+			break;
+	}
+
+	return text;
+}
 
 size_t TLUserData::length() const
 {
@@ -419,7 +538,10 @@ size_t TLUserData::length() const
 	// by the write() method.
 	assert(!mUDHI);		// We don't support user headers.
 	assert(mDCS<0x100);	// Someone forgot to initialize the DCS.
-	size_t sum = 1;		// Start by counting the length byte.
+	size_t sum = 1;		// Start by counting the TP-User-Data-Length byte.
+#if 1
+	sum += (mRawData.size()+7)/8;
+#else
 	// The DCS is defined in GSM 03.38 4.
 	if (mDCS==0) {
 		// Default 7-bit alphabet
@@ -428,23 +550,31 @@ size_t TLUserData::length() const
 		unsigned octets = bits/8;
 		if (bits%8) octets += 1;
 		sum += octets;
-		return sum;
 	} else {
 		LOG(ERROR) << "unsupported SMS DCS 0x" << hex << mDCS;
 		// It's OK to abort here.  This method is only used for encoding.
 		// So we should never end up here.
 		assert(0);	// We don't support this DCS.
 	}
+#endif
+	return sum;
 }
 
 
 
 void TLUserData::parse(const TLFrame& src, size_t& rp)
 {
-	assert(!mUDHI);		// We don't support user headers.
 	// The DCS is defined in GSM 03.38 4.
 	assert(mDCS<0x100);	// Someone forgot to initialize the DCS.
-	unsigned numChar = src.readField(rp,8);
+	// TP-User-Data-Length
+	mLength = src.readField(rp,8);
+#if 1
+	// This tail() works because UD is always the last field in the PDU.
+	mRawData.clone(src.tail(rp));
+	// Should we do this here?
+	mRawData.LSB8MSB();
+#else
+	assert(!mUDHI);		// We don't support user headers.
 	switch (mDCS) {
 		case 0:
 		case 244:
@@ -478,11 +608,22 @@ void TLUserData::parse(const TLFrame& src, size_t& rp)
 			SMS_READ_ERROR;
 		}
 	}
+#endif
 }
 
 
 void TLUserData::write(TLFrame& dest, size_t& wp) const
 {
+#if 1
+	// First write TP-User-Data-Length
+	dest.writeField(wp,mLength,8);
+
+	// Then write TP-User-Data
+	// This tail() works because UD is always the last field in the PDU.
+	BitVector ud_dest = dest.tail(wp);
+	mRawData.copyTo(ud_dest);
+	ud_dest.LSB8MSB();
+#else
 	// Stuff we don't support...
 	assert(!mUDHI);
 	assert(mDCS==0);
@@ -496,14 +637,17 @@ void TLUserData::write(TLFrame& dest, size_t& wp) const
 		dest.writeFieldReversed(wp,gsm,7);
 	}
 	chars.LSB8MSB();
+#endif
 }
 
 
 
 void TLUserData::text(ostream& os) const
 {
-	if (mDCS==0) os << mData;
-	else os << "unknown encoding";
+	os << "DCS=" << mDCS;
+	os << " UDHI=" << (mUDHI?"true":"false");
+	os << " UDLength=" << mLength;
+	os << " UD= ("; mRawData.hex(os); os << ")";
 }
 
 
@@ -568,7 +712,7 @@ void TLSubmit::text(ostream& os) const
 
 size_t TLDeliver::bodyLength() const
 {
-	LOG(DEBUG) << "TLDEliver::bodyLength OA " << mOA.length() << " SCTS " << mSCTS.length() << " UD " << mUD.length();
+	LOG(DEBUG) << "TLDeliver::bodyLength OA " << mOA.length() << " SCTS " << mSCTS.length() << " UD " << mUD.length();
 	return mOA.length() + 1 + 1 + mSCTS.length() + mUD.length();
 }
 
@@ -581,7 +725,7 @@ void TLDeliver::writeBody(TLFrame& dest, size_t& wp) const
 	writeSRI(dest);
 	mOA.write(dest,wp);
 	dest.writeField(wp,mPID,8);
-	dest.writeField(wp,0,8);		// hardcode DCS
+	dest.writeField(wp,mUD.DCS(),8);
 	mSCTS.write(dest,wp);
 	writeUnused(dest);
 	mUD.write(dest,wp);

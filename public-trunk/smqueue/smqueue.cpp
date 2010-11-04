@@ -21,6 +21,7 @@
 
 #include "smqueue.h"
 #include "smnet.h"
+#include "smsc.h"
 #include <time.h>
 #include <osipparser2/osip_message.h>	/* from osipparser2 */
 #include <iostream>
@@ -57,41 +58,44 @@ ConfigurationTable gConfig("smqueue.config");
 			   transitions where we're starting over from
 			   scratch due to some error. */
 /* Timeout when moving from this state to new state:
- NS  RF  AF   WD  RD  AD   WS  RS  AS   WM  RM  AM   DM   WR  RH  AR  */
+ NS  IS  RF  AF   WD  RD  AD   WS  RS  AS   WM  RM  AM   DM   WR  RH  AR  */
 int timeouts_NO_STATE[STATE_MAX_PLUS_ONE] = {
- NT,  0, NT,  NT,  0, NT,  NT,  0, NT,  NT,  0, NT,   0,  NT, NT, NT,};
+ NT,  0,  0, NT,  NT,  0, NT,  NT,  0, NT,  NT,  0, NT,   0,  NT, NT, NT,};
+int timeouts_INITIAL_STATE[STATE_MAX_PLUS_ONE] = {
+  0,  0,  0, NT,  NT, NT, NT,  NT, NT, NT,  NT,  0, NT,   0,  NT, NT, NT,};
 int timeouts_REQUEST_FROM_ADDRESS_LOOKUP[STATE_MAX_PLUS_ONE] = {
-  0, 10, 10,  NT,  0, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  0, NT,};
+  0, NT, 10, 10,  NT,  0, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  0, NT,};
 int timeouts_ASKED_FOR_FROM_ADDRESS_LOOKUP[STATE_MAX_PLUS_ONE] = {
-  0, 60, NT,  NT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
+  0, NT, 60, NT,  NT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
 int timeouts_AWAITING_TRY_DESTINATION_IMSI[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
 int timeouts_REQUEST_DESTINATION_IMSI[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT,  0, NT,  NT, NT, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT,  0, NT,  NT, NT, NT,   0,  NT, NT, NT,};
 int timeouts_ASKED_FOR_DESTINATION_IMSI[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
 int timeouts_AWAITING_TRY_DESTINATION_SIPURL[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
 int timeouts_REQUEST_DESTINATION_SIPURL[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT,  0, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT,  0, NT,   0,  NT, NT, NT,};
 int timeouts_ASKED_FOR_DESTINATION_SIPURL[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,  NT, NT, NT,};
 int timeouts_AWAITING_TRY_MSG_DELIVERY[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT, NT, NT,  75,  0, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT, NT, NT,  75,  0, NT,   0,  NT, NT, NT,};
 int timeouts_REQUEST_MSG_DELIVERY[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  RT, NT, NT,  NT, 75, NT,  75, 75, 15,   0,  NT, NT, NT,};
+//  0, NT, RT, NT,  RT, NT, NT,  NT, 75, NT,  75, 75, 15,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  RT, NT, NT,  NT,  5, NT,  75, 75, 15,   0,  NT, NT, NT,};
 int timeouts_ASKED_FOR_MSG_DELIVERY[STATE_MAX_PLUS_ONE] = {
-  0, RT, NT,  NT, NT, NT,  NT, NT, NT,  60, 10, NT,   0,  NT, NT, NT,};
+  0, NT, RT, NT,  NT, NT, NT,  NT, NT, NT,  60, 10, NT,   0,  NT, NT, NT,};
 int timeouts_DELETE_ME_STATE[STATE_MAX_PLUS_ONE] = {
-  0,  0,  0,   0,  0,  0,   0,  0,  0,   0,  0,  0,   0,   0,  0,  0,};
+  0,  0,  0,  0,   0,  0,  0,   0,  0,  0,   0,  0,  0,   0,   0,  0,  0,};
 int timeouts_AWAITING_REGISTER_HANDSET[STATE_MAX_PLUS_ONE] = {
-  0,  0, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  0, NT,};
+  0, NT,  0, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  0, NT,};
 int timeouts_REGISTER_HANDSET[STATE_MAX_PLUS_ONE] = {
-  0,  0, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  1,  2,};
+  0, NT,  0, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  1,  2,};
 int timeouts_ASKED_TO_REGISTER_HANDSET[STATE_MAX_PLUS_ONE] = {
-  0,  0, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  1, 10,};
+  0, NT,  0, NT,  RT, NT, NT,  NT, NT, NT,  NT, NT, NT,   0,   1,  1, 10,};
 /* Timeout when moving from this state to new state:
- NS  RF  AF   WD  RD  AD   WS  RS  AS   WM  RM  AM   DM   WR  RH  AR  */
+ NS  IS  RF  AF   WD  RD  AD   WS  RS  AS   WM  RM  AM   DM   WR  RH  AR  */
 
 #undef NT	/* No longer needed */
 #undef RT
@@ -99,6 +103,7 @@ int timeouts_ASKED_TO_REGISTER_HANDSET[STATE_MAX_PLUS_ONE] = {
 /* Index to all timeouts.  Keep in order!  */
 int (*SMqueue::timeouts[STATE_MAX_PLUS_ONE])[STATE_MAX_PLUS_ONE] = {
 	&timeouts_NO_STATE,
+	&timeouts_INITIAL_STATE,
 	&timeouts_REQUEST_FROM_ADDRESS_LOOKUP,
 	&timeouts_ASKED_FOR_FROM_ADDRESS_LOOKUP,
 
@@ -123,6 +128,7 @@ int (*SMqueue::timeouts[STATE_MAX_PLUS_ONE])[STATE_MAX_PLUS_ONE] = {
 
 string SMqueue::sm_state_strings[STATE_MAX_PLUS_ONE] = {
 	"No State",
+	"Initial State",
 	"Request From-Address Lookup",
 	"Asked for From-Address",
 	"Awaiting Try Destination IMSI",
@@ -180,7 +186,8 @@ osip_mem_release()
  */
 static
 struct imsi_phone { char imsi[4+15+1]; char phone[1+15+1]; } imsi_phone[] = {
-	{"IMSI666410186585295", "+17074700741"}, 	/* Nokia 8890 */
+//	{"IMSI310260550682564", "100"}, 	/* Siemens A52 */
+	{"IMSI666410186585295", "+17074700741"},	/* Nokia 8890 */
 	{"IMSI777100223456161", "+17074700746"},	/* Palm Treo */
 	{{0}, {0}}
 };
@@ -244,6 +251,46 @@ SMq::process_timeout()
 			return;			/* Wait til later to do more */
 
 		switch (qmsg->state) {
+		case INITIAL_STATE:
+			// This is the initial state in which a message
+			// enters the system.  Here, the message could be
+			// a SIP response as well as a SIP MESSAGE -- or
+			// something we can't process like a SIP REGISTER
+			// or garbage.  Well, actually, garbage was rejected
+			// earlier before queue insertion.
+
+			// From this point onward, we're going to assume
+			// that the message has valid, reasonable headers
+			// and contents for our purposes.  Centralize all
+			// that checking in validate_short_msg().
+
+			if (MSG_IS_REQUEST(qmsg->parsed)) {
+				// It's a MESSAGE or invalid REGISTER.
+				// We support only MESSAGE here.
+				if (0 != strcmp(qmsg->parsed->sip_method, "MESSAGE")) {
+					LOG(WARN) << "Invalid incoming SIP message, method is "
+					          << qmsg->parsed->sip_method;
+					newstate = NO_STATE;
+				} else {
+					// Check for short-code and handle it.
+					// If handle_short_code() returns true, it sets newstate
+					// on its own
+					if (!handle_short_code(short_code_map, qmsg, newstate)) {
+						// For non-special messages, look up who they're from.
+						newstate = REQUEST_FROM_ADDRESS_LOOKUP;
+					}
+				}
+				set_state(qmsg, newstate);
+				break;
+
+			} else { // It's a RESPONSE.
+				handle_response(qmsg);
+				// The RESPONSE has been deleted in handle_response().
+				// We go back to the top of the loop.
+				break;
+			}
+			break;
+
 		case NO_STATE:
 			// Messages in NO_STATE have errors in them.
 			// Dump it to the log, and delete it, so the queue
@@ -268,36 +315,16 @@ SMq::process_timeout()
 			break;
 
 		default: 
-			LOG(NOTICE) << "Message timed out with bad state "
+			LOG(ALARM) << "Message timed out with bad state "
 			     << qmsg->state << " and message: " << qmsg->text;
-			set_state(qmsg, REQUEST_FROM_ADDRESS_LOOKUP);
+			set_state(qmsg, INITIAL_STATE);
+			// WTF? Shouldn't we proceed to NO_STATE aka "error state"?
 		/* NO BREAK */
 		case REQUEST_FROM_ADDRESS_LOOKUP:
-			// This is the initial state in which a message
-			// enters the system.  Here, the message could be
-			// a SIP response as well as a SIP MESSAGE -- or
-			// something we can't process like a SIP REGISTER
-			// or garbage.  Well, actually, garbage was rejected
-		        // earlier before queue insertion.
-
-			/* From this point onward, we're going to assume
-			   that the message has valid, reasonable headers
-			   and contents for our purposes.  Centralize all
-			   that checking in validate_short_msg(). */
-
-			if (MSG_IS_REQUEST(qmsg->parsed)) {
-				// It's a MESSAGE or invalid REGISTER
-				// Deal with it!
-				newstate = handle_sms_message(qmsg);
-				set_state(qmsg, newstate);
-				break;
-			} else {
-				// It's a RESPONSE.
-				handle_response(qmsg);
-				// Probably the RESPONSE has been deleted.
-				// We go back to top of loop.
-				break;
-			}
+			/* Ask to translate the IMSI in the From field
+			   into the phone number.  */
+			newstate = lookup_from_address (&*qmsg);
+			set_state(qmsg, newstate);
 			break;
 
 		case REQUEST_DESTINATION_IMSI:
@@ -322,6 +349,18 @@ SMq::process_timeout()
 		case REQUEST_MSG_DELIVERY:
 			/* We are trying to deliver to the handset now (or
 			   again after congestion).  */
+
+			// Check for short-code and handle it.
+			// If handle_short_code() returns true, it sets newstate
+			// on its own
+			if (!pack_sms_for_delivery(qmsg))
+			{
+				// Error...
+				set_state(qmsg, NO_STATE);
+				break;
+			}
+			
+
 			// debug_dump();	// FIXME, remove
 			// Only print delivering msg if delivering to non-
 			// localhost.
@@ -476,7 +515,7 @@ SMq::handle_response(short_msg_p_list::iterator qmsgit)
 				// Special code in registration processing
 				// will notice it's a re-reg and just reply
 				// with a welcome message.
-				oldsms->set_state(REQUEST_FROM_ADDRESS_LOOKUP);
+				oldsms->set_state(INITIAL_STATE);
 			} else {
 				// Orig SMS exists, but not in a normal state.
 				// Assume that the original SMS is in a
@@ -644,8 +683,12 @@ short_msg_pending::validate_short_msg()
 			// FIXME, add support for more Content-Type's.
 			if (!p->content_type || !p->content_type->type
 			    || !p->content_type->subtype
-			    || 0 != strcmp("text", p->content_type->type)
-			    || 0 != strcmp("plain", p->content_type->subtype) )
+			    || !( (0 == strcmp("text", p->content_type->type)
+			          && 0 == strcmp("plain", p->content_type->subtype))
+			        ||(0 == strcmp("application", p->content_type->type)
+			          && 0 == strcmp("vnd.3gpp.sms", p->content_type->subtype))
+					  )
+			    )
 				return 415;
 
 			if (p->bodies.nb_elt != 1 || !p->bodies.node
@@ -1052,6 +1095,9 @@ SMq::originate_sm(const char *from, const char *to, const char *msgtext,
 	smpl = originate_half_sm("MESSAGE");
 	response = &*smpl->begin();	// Here's our short_msg_pending!
 
+	// Plain text SIP MESSAGE should be repacked before delivery
+	response->need_repack = true;
+
 	// For the tag, we cheat and reuse the cseq number.  
 	// I don't see any reason not to...why do we have three different
 	// tag fields scattered around?
@@ -1070,6 +1116,7 @@ SMq::originate_sm(const char *from, const char *to, const char *msgtext,
 	osip_uri_parse(response->parsed->req_uri, uriline.str().c_str());
 
 	osip_message_set_content_type(response->parsed, "text/plain");
+	response->content_type = short_msg::TEXT_PLAIN;
     size_t len = strlen(msgtext);
     if (len > SMS_MESSAGE_MAX_LENGTH)
         len = SMS_MESSAGE_MAX_LENGTH;
@@ -1189,6 +1236,9 @@ SMq::register_handset (short_msg_p_list::iterator qmsg)
 	smpl = originate_half_sm("REGISTER");
 	response = &*smpl->begin();	// Here's our short_msg_pending!
 
+	// SIP REGISTER should not be repacked before delivery
+	response->need_repack = false;
+
 	imsi = qmsg->parsed->from->url->username;
 
 	// The To: line is the long-term name being registered.
@@ -1246,109 +1296,111 @@ SMq::register_handset (short_msg_p_list::iterator qmsg)
 	return ASKED_TO_REGISTER_HANDSET;
 }
 
-
-/*
- * Initial handling of SMS messages found in the queue
- */
-enum sm_state
-SMq::handle_sms_message (short_msg_p_list::iterator qmsg)
+bool SMq::handle_short_code(const short_code_map_t &short_code_map,
+                            short_msg_p_list::iterator qmsg,
+									 sm_state &next_state)
 {
 	osip_body_t *bod1;
-	char *bods;
+	std::string bods;
 	short_func_t shortfn;
-	short_code_map_t::iterator shortit;
+	short_code_map_t::const_iterator shortit;
 	enum short_code_action sca;
 	short_code_params params;
 	int status;
+	string short_code;
 
-	if (0 != strcmp(qmsg->parsed->sip_method, "MESSAGE")) {
-		LOG(WARN) << "Invalid incoming SIP message, method is "
-		     << qmsg->parsed->sip_method;
-		return NO_STATE;
+	short_code = qmsg->parsed->req_uri->username;
+	shortit = short_code_map.find (short_code);
+
+	if (shortit == short_code_map.end()) {
+		return false;
 	}
-	
-	shortit = short_code_map.find (string(qmsg->parsed->req_uri->username));
 
-	if (shortit != short_code_map.end()) {
-		/* Messages to certain addresses are special commands */
-		shortfn = shortit->second;
-		bods = (char *)"";
-	        if (qmsg->parsed->bodies.nb_elt == 1) {
-			bod1 = (osip_body_t *)qmsg->parsed->bodies.node->element;
-			bods = bod1->body;
+	/* Messages to certain addresses are special commands */
+	shortfn = shortit->second;
+	bods = qmsg->get_text();
+
+	// Set up arguments and access pointers, then call
+	// the short-code function to process it.
+	params.scp_retries = qmsg->retries;
+	params.scp_smq = this;
+	params.scp_qmsg_it = qmsg;
+
+	LOG(INFO) << "Short-code SMS "
+	     << qmsg->parsed->req_uri->username
+	     << " with text \"" << bods << "\"";
+
+	sca = (*shortfn) (qmsg->parsed->from->url->username, // imsi
+			bods.data(),  // msg text
+			&params);
+
+	// The short-code function asks us to do something when
+	// it's done.  Do it.
+	switch (sca) {
+	case SCA_REPLY:
+		LOG(INFO) << "Short-code replies: "
+		     << params.scp_reply;
+		status = originate_sm(
+		  qmsg->parsed->req_uri->username,  // from shortcode
+		  qmsg->parsed->from->url->username,// to his IMSI
+		  params.scp_reply, REQUEST_DESTINATION_SIPURL);
+		if (!status) {
+			next_state = DELETE_ME_STATE;	 // Done!
+			return true;
 		}
-
-		// Set up arguments and access pointers, then call
-		// the short-code function to process it.
-		params.scp_retries = qmsg->retries;
-		params.scp_smq = this;
-		params.scp_qmsg_it = qmsg;
-
-		LOG(INFO) << "Short-code SMS "
+		LOG(NOTICE) << "Reply failed " << status << "!";
+		// NO BREAK
+	default:
+	case SCA_INTERNAL_ERROR:
+		LOG(ERROR) << "Error in short-code function "
 		     << qmsg->parsed->req_uri->username
-		     << "(" << bods << ").";
-		
-		sca = (*shortfn) (qmsg->parsed->from->url->username, // imsi
-				bods,  // msg text
-				&params);
+		     << "(" << bods << "): " << params.scp_reply;
+		next_state = NO_STATE;
+		return true;
 
-		// The short-code function asks us to do something when
-		// it's done.  Do it.
-		switch (sca) {
-		case SCA_REPLY:
-			LOG(INFO) << "Short-code replies: "
-			     << params.scp_reply;
-			status = originate_sm(
-			  qmsg->parsed->req_uri->username,  // from shortcode
-			  qmsg->parsed->from->url->username,// to his IMSI
-			  params.scp_reply, REQUEST_DESTINATION_SIPURL);
-			if (!status) {
-				return DELETE_ME_STATE;	 // Done!
-			}
-			LOG(NOTICE) << "Reply failed " << status << "!";
-			// NO BREAK
-		default:
-		case SCA_INTERNAL_ERROR:
-			LOG(ERROR) << "Error in short-code function "
-			     << qmsg->parsed->req_uri->username
-			     << "(" << bods << "): " << params.scp_reply;
-			return NO_STATE;
-
-		case SCA_EXEC_SMQUEUE:
-			reexec_smqueue = true;
-			stop_main_loop = true;
-			return DELETE_ME_STATE;
+	case SCA_EXEC_SMQUEUE:
+		reexec_smqueue = true;
+		stop_main_loop = true;
+		next_state = DELETE_ME_STATE;
+		return true;
 			
-		case SCA_QUIT_SMQUEUE:
-			stop_main_loop = true;
-			return DELETE_ME_STATE;
+	case SCA_QUIT_SMQUEUE:
+		stop_main_loop = true;
+		next_state = DELETE_ME_STATE;
+		return true;
 
-		case SCA_DONE:
-			return DELETE_ME_STATE;		
+	case SCA_DONE:
+		next_state = DELETE_ME_STATE;
+		return true;
 
-		case SCA_RETRY_AFTER_DELAY:
-			// FIXME, timeout is implicit in set_state table,
-			// rather than taken from params.scp_delay.
-			qmsg->retries++;
-			return REQUEST_FROM_ADDRESS_LOOKUP;
+	case SCA_RETRY_AFTER_DELAY:
+		// FIXME, timeout is implicit in set_state table,
+		// rather than taken from params.scp_delay.
+		qmsg->retries++;
+		next_state = REQUEST_FROM_ADDRESS_LOOKUP;
+		return true;
 
-		case SCA_AWAIT_REGISTER:
-			// We just linked the phone# to the IMSI, but we
-			// have to wait til the HLR updates, before
-			// we can link the IMSI to the originating IP address
-			// and port number of its cell.
-			return AWAITING_REGISTER_HANDSET;
+	case SCA_AWAIT_REGISTER:
+		// We just linked the phone# to the IMSI, but we
+		// have to wait til the HLR updates, before
+		// we can link the IMSI to the originating IP address
+		// and port number of its cell.
+		next_state = AWAITING_REGISTER_HANDSET;
+		return true;
 
-		case SCA_REGISTER:
-			return register_handset(qmsg);
+	case SCA_REGISTER:
+		next_state = register_handset(qmsg);
+		return true;
 
-		case SCA_TREAT_AS_ORDINARY:
-			break;		// fall through into non-special case.
-		}
+	case SCA_TREAT_AS_ORDINARY:
+		break;		// fall through into non-special case.
+
+	case SCA_RESTART_PROCESSING:
+		next_state = INITIAL_STATE;
+		return true;
 	}
 
-	// For non-special messages, look up who they're from.
-	return lookup_from_address (&*qmsg);
+	return false;
 }
 
 
@@ -1381,7 +1433,7 @@ SMq::lookup_from_address (short_msg_pending *qmsg)
 		char *bods;
 
 		bods = (char *)"";
-	        if (qmsg->parsed->bodies.nb_elt == 1) {
+		if (qmsg->parsed->bodies.nb_elt == 1) {
 			bod1 = (osip_body_t *)qmsg->parsed->bodies.node->element;
 			bods = bod1->body;
 		} else {
@@ -1782,7 +1834,7 @@ SMq::respond_sip_ack(int errcode, short_msg_pending *smp,
 			break;
 	case 413:	phrase="Message Body Size Error"; break;
 	case 415:	phrase="Unsupported Content Type";
-			osip_message_set_accept(response.parsed, "text/plain");
+			osip_message_set_accept(response.parsed, "text/plain, application/vnd.3gpp.sms");
 			break;
 	case 416:	phrase="Unsupported URI scheme (not SIP)"; break;
 	case 480:	phrase="Recipient Temporarily Unavailable"; break;
@@ -1897,6 +1949,7 @@ SMq::main_loop()
 		smpl = new short_msg_p_list (1);
 		smp = &*smpl->begin();	// Here's our short_msg_pending!
 		smp->initialize (len, buffer, false);
+		smp->ms_to_sc = true;
 
 		if (my_network.recvaddrlen <= sizeof (smp->srcaddr)) {
 			smp->srcaddrlen = my_network.recvaddrlen;
@@ -2017,7 +2070,9 @@ SMq::save_queue_to_file(std::string qfile)
 		ofile << "=== " << (int) x->state << " " 
 		      << x->next_action_time << " "
 		      << my_network.string_addr((struct sockaddr *)x->srcaddr, x->srcaddrlen, true) << " "
-		      << strlen(x->text) << endl << x->text << endl << endl;
+		      << strlen(x->text)
+		      << x->ms_to_sc << x->need_repack << endl
+		      << x->text << endl << endl;
 		howmany++;
 	}
   
@@ -2040,6 +2095,8 @@ SMq::read_queue_from_file(std::string qfile)
 	ifstream ifile;
 	std::string equals;
 	unsigned astate, atime, alength;
+	unsigned ms_to_sc, need_repack;
+	std::string short_code;
 	std::string netaddrstr;
 	sm_state mystate;
 	time_t mytime;
@@ -2062,6 +2119,8 @@ SMq::read_queue_from_file(std::string qfile)
 		}
 		ifile >> netaddrstr;
 		ifile >> alength;
+		ifile >> ms_to_sc;
+		ifile >> need_repack;
 		while (ifile.peek() == '\n')
 			ignoreme = ifile.get();
 		msgtext = new char[alength+2];
@@ -2079,6 +2138,10 @@ SMq::read_queue_from_file(std::string qfile)
 		// We use the just-allocated msgtext; it gets freed after
 		// delivery of message.
 
+		// Restore saved state
+		smp->ms_to_sc = ms_to_sc;
+		smp->need_repack = need_repack;
+
 		smp->srcaddrlen = 0;
 		if (!my_network.parse_addr(netaddrstr.c_str(), smp->srcaddr, sizeof(smp->srcaddr), &smp->srcaddrlen))
 			abfuckingort();
@@ -2091,7 +2154,8 @@ SMq::read_queue_from_file(std::string qfile)
 				     << smp->parsed->from->url->username 
 				     << " for "
 				     << smp->parsed->req_uri->username
-				     << ".";
+					  << " direction=" << (smp->ms_to_sc?"MS->SC":"SC->MS")
+					  << " need_repack=" << (smp->need_repack?"true":"false");
 			} else {
 				LOG(WARN) << "Read bad SMS "
 				     << smp->parsed->status_code
@@ -2113,7 +2177,7 @@ SMq::read_queue_from_file(std::string qfile)
 	return true;
 }
 
-
+#if 0
 /*
  * Read in a message from a file.  Return malloc'd char block of the whole
  * thing.
@@ -2169,7 +2233,7 @@ read_short_msg_pending_from_file(char *fname)
 	smp = new short_msg_pending (length, sip_text, true);
 	return smp;
 }
-
+#endif
 
 
 /* Really simple first try */
@@ -2183,7 +2247,8 @@ main(int argc, char **argv)
   // short_msg_pending *smp;
   std::string savefile;
 
-  init_smcommands(&short_code_map); // Set up short-code commands users can type
+  // Set up short-code commands users can type
+  init_smcommands(&short_code_map);
 
   // This scope lets us delete the smq (and the network sockets)
   // before we re-exec ourself.

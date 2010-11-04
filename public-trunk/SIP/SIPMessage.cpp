@@ -214,7 +214,7 @@ osip_message_t * SIP::sip_unregister( const char * sip_username, short wlocal_po
 }
 
 
-osip_message_t * SIP::sip_message( const char * dialed_number, const char * sip_username, short wlocal_port, const char * local_ip, const char * proxy_ip, const char * from_tag, const char * via_branch, const char * call_id, int cseq, const char* message) {
+osip_message_t * SIP::sip_message( const char * dialed_number, const char * sip_username, short wlocal_port, const char * local_ip, const char * proxy_ip, const char * from_tag, const char * via_branch, const char * call_id, int cseq, const char* message, const char* content_type) {
 
 	char local_port[10];
 	sprintf(local_port, "%i", wlocal_port);
@@ -276,7 +276,17 @@ osip_message_t * SIP::sip_message( const char * dialed_number, const char * sip_
 	sprintf(temp_buf,"%i",cseq);
 	osip_cseq_set_number(request->cseq, strdup(temp_buf));	
 
-	osip_message_set_content_type(request, strdup("text/plain"));
+	// Content-Type
+	if (content_type)
+	{
+		// Explicit value provided
+		osip_message_set_content_type(request, strdup(content_type));
+	} else {
+		// Default to text/plain
+		osip_message_set_content_type(request, strdup("text/plain"));
+	}
+
+	// Content-Length
 	sprintf(temp_buf,"%lu",strlen(message));
 	osip_message_set_content_length(request, strdup(temp_buf));
 

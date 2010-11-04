@@ -163,18 +163,11 @@ SIP.Timer.A 2000
 #
 # SMS parameters
 #
-# ISDN address of source SMSC when we fake out a source SMSC.
-SMS.FakeSrcSMSC 0000
 # ISDN address of destination SMSC when a fake value is needed.
 SMS.DefaultDestSMSC 0000
 
-
-# The SMS HTTP gateway.
-# Comment out if you don't have one or if you want to use smqueue.
-#SMS.HTTP.Gateway api.clickatell.com
-
-# IF SMS.HTTP.Gateway IS DEFINED, SMS.HTTP.AccessString MUST ALSO BE DEFINED.
-#SMS.HTTP.AccessString sendmsg?user=xxxx&password=xxxx&api_id=xxxx
+# SMSes will be sent to SIP URI sip:<SIP.SMSC>@<SIP.IP>
+SIP.SMSC smsc
 
 
 
