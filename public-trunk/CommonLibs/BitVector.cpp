@@ -568,7 +568,6 @@ void BitVector::unpack(const unsigned char* src)
 void BitVector::hex(ostream& os) const
 {
 	os << std::hex;
-	int v=0;
 	unsigned digits = size()/4;
 	size_t wp=0;
 	for (unsigned i=0; i<digits; i++) {
