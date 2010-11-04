@@ -81,6 +81,7 @@ extern const BitVector gRACHSynchSequence;
 
 enum GSMAlphabet {
 	ALPHABET_7BIT,
+	ALPHABET_8BIT,
 	ALPHABET_UCS2
 };
 
