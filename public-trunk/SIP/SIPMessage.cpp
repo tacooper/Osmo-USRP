@@ -259,7 +259,7 @@ osip_message_t * SIP::sip_message( const char * dialed_number, const char * sip_
 
 	// TO
 	osip_to_init(&request->to);
-	osip_to_set_displayname(request->to, strdup(""));
+	osip_to_set_displayname(request->to, strdup(dialed_number));
 	osip_uri_init(&request->to->url);
 	osip_uri_set_host(request->to->url, strdup(proxy_ip));
 	osip_uri_set_username(request->to->url, strdup(dialed_number));
