@@ -27,6 +27,7 @@
 
 #include "BitVector.h"
 #include <iostream>
+#include <stdio.h>
 
 using namespace std;
 
@@ -574,6 +575,28 @@ void BitVector::hex(ostream& os) const
 		os << readField(wp,4);
 	}
 	os << std::dec;
+}
+
+bool BitVector::unhex(const char* src)
+{
+	// Assumes MSB-first packing.
+	unsigned int val;
+	unsigned digits = size()/4;
+	for (unsigned i=0; i<digits; i++) {
+		if (sscanf(src+i, "%1x", &val) < 1) {
+			return false;
+		}
+		fillField(i*4,val,4);
+	}
+	unsigned whole = digits*4;
+	unsigned rem = size() - whole;
+	if (rem>0) {
+		if (sscanf(src+digits, "%1x", &val) < 1) {
+			return false;
+		}
+		fillField(whole,val,rem);
+	}
+	return true;
 }
 
 // vim: ts=4 sw=4

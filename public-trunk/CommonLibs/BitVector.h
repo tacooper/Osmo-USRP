@@ -334,6 +334,10 @@ class BitVector : public Vector<char> {
 	/** Make a hexdump string. */
 	void hex(std::ostream&) const;
 
+	/** Unpack from a hexdump string.
+	*  @returns true on success, false on error. */
+	bool unhex(const char*);
+
 };
 
 
