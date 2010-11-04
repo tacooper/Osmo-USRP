@@ -412,7 +412,7 @@ class TransactionEntry {
 	Q931CallState mQ931State;				///< the GSM/ISDN/Q.931 call state
 	Timeval mStateTimer;					///< timestamp of last state change.
 
-	char mMessage[256];						///< text messaging payload
+	std::string mMessage;				///< text messaging payload
 
 	/**@name Timers from GSM and Q.931 (network side) */
 	//@{
@@ -467,12 +467,10 @@ class TransactionEntry {
 
 	const GSM::L3CallingPartyBCDNumber& calling() const { return mCalling; }
 
-	const char* message() const { return mMessage; }
-	void message(const char *wMessage, unsigned length)
+	const char* message() const { return mMessage.data(); }
+	void message(const char *wMessage)
 	{
-		unsigned tocopy = (length > 255) ? 255 : length;
-		memcpy(mMessage, wMessage, tocopy);
-		mMessage[tocopy] ='\0';
+		mMessage = wMessage;
 	}
 
 	unsigned ID() const { return mID; }

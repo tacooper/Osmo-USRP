@@ -363,7 +363,7 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 		if (!body) return false;
 		char *text = body->body;
 		if (text) {
-			transaction.message(text, body->length);
+			transaction.message(text);
 		}
 		else LOG(NOTICE) << "MTSMS incoming MESSAGE method with no message body for " << mobile_id;
 	}

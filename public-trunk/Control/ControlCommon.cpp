@@ -63,7 +63,6 @@ TransactionEntry::TransactionEntry()
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	mMessage[0]='\0';
 }
 
 // Form for MT transactions.
@@ -82,8 +81,7 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	if (wMessage) strncpy(mMessage,wMessage,160);
-	else mMessage[0]='\0';
+	if (wMessage) mMessage = wMessage;
 }
 
 // Form for MO transactions.
@@ -102,7 +100,6 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	mMessage[0]='\0';
 }
 
 // Form for MT transactions.
@@ -120,7 +117,6 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	mMessage[0]='\0';
 }
 
 
