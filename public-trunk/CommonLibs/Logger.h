@@ -47,6 +47,9 @@
 #define OBJLOG(wLevel) \
 	if (gLoggingLevel(__FILE__)>=Log::LOG_##wLevel) _LOG(wLevel) << "obj: " << this << ' '
 
+#define ISLOGGING(wLevel) \
+	(gLoggingLevel(__FILE__)>=Log::LOG_##wLevel)
+
 #define LOG_ASSERT(x) { if (!(x)) LOG(ALARM) << "assertion " #x " failed"; } assert(x);
 
 
