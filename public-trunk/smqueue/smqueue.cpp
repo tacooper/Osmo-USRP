@@ -1149,19 +1149,12 @@ enum sm_state
 SMq::bounce_message(short_msg_pending *sent_msg, const char *errstr)
 {
 	ostringstream errmsg;
-	osip_body_t *bod1;
 	char *username;
-	char *thetext;
+	std::string thetext;
 	int status;
 
 	username = sent_msg->parsed->to->url->username;
-	if (sent_msg->parsed->bodies.nb_elt > 0) {
-		// bod1->body is the original SMS text
-		bod1 = (osip_body_t *)sent_msg->parsed->bodies.node->element;
-		thetext = bod1->body;
-	} else {
-		thetext = "";
-	}
+	thetext = sent_msg->get_text();
 
 	LOG(NOTICE) << "Bouncing " << sent_msg->qtag << " from "
 	     << sent_msg->parsed->from->url->username  // his phonenum
@@ -1430,18 +1423,15 @@ SMq::lookup_from_address (short_msg_pending *qmsg)
 		// into the message text, followed by a space... GSM 03.40 sec 3.8
 		ostringstream newtext;
 		osip_body_t *bod1;
-		char *bods;
 
-		bods = (char *)"";
 		if (qmsg->parsed->bodies.nb_elt == 1) {
 			bod1 = (osip_body_t *)qmsg->parsed->bodies.node->element;
-			bods = bod1->body;
 		} else {
 			return NO_STATE;		// Punt on msg w/no text
 		}
 		newtext << qmsg->parsed->from->url->username << "@" 
-			<< host << " " << bods;
-		osip_free(bods);
+			<< host << " " << qmsg->get_text();
+		osip_free(bod1->body);
 		bod1->body = osip_strdup(newtext.str().c_str());
 		bod1->length = strlen(bod1->body);
 
