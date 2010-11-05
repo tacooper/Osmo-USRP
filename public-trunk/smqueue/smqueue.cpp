@@ -1173,19 +1173,19 @@ SMq::bounce_message(short_msg_pending *sent_msg, const char *errstr)
 	else
 		errmsg << "can't send: " << thetext;
 	
-	// Don't bounce a message from 411, makes endless loops.
+	// Don't bounce a message from us - it makes endless loops.
 	status = 1;
-	if (0 != strcmp("411", sent_msg->parsed->from->url->username)) {
+	if (0 != strcmp(gConfig.getStr("Bounce.Code"), sent_msg->parsed->from->url->username))
+	{
 		// But do bounce anything else.
-	        char *bounceto = sent_msg->parsed->from->url->username;
+		char *bounceto = sent_msg->parsed->from->url->username;
 		bool bounce_to_imsi = 0 == strncmp("IMSI", bounceto, 4)
-				   || 0 == strncmp("imsi", bounceto, 4);
-		status = originate_sm("411", // from "411"? FIXME?
+		                   || 0 == strncmp("imsi", bounceto, 4);
+		status = originate_sm(gConfig.getStr("Bounce.Code"), // Read from a config
 			     bounceto,  // to his phonenum or IMSI
 			     errmsg.str().c_str(), // error msg
-			     bounce_to_imsi? 
-				REQUEST_DESTINATION_SIPURL: // dest is IMSI
-			        REQUEST_DESTINATION_IMSI); // dest is phonenum
+			     bounce_to_imsi? REQUEST_DESTINATION_SIPURL: // dest is IMSI
+			                     REQUEST_DESTINATION_IMSI); // dest is phonenum
 	}
 	if (status == 0) {
 	    return DELETE_ME_STATE;
@@ -1513,7 +1513,7 @@ SMq::lookup_from_address (short_msg_pending *qmsg)
 		     << "> to phonenum failed.";
 		LOG(DEBUG) << qmsg->text;
 		return bounce_message (qmsg,
-			gConfig.getStr("BounceMessage.IMSILookupFailed")
+			gConfig.getStr("Bounce.Message.IMSILookupFailed")
 		);
 		// return NO_STATE;	// Put it into limbo for debug.
 	}
@@ -1592,7 +1592,7 @@ SMq::lookup_uri_imsi (short_msg_pending *qmsg)
 			|| !my_hlr.useGateway(username)) {
 			// There's no global relay -- or the HLR says not to
 			// use the global relay for it -- so send a bounce.
-			return bounce_message (qmsg, gConfig.getStr("BounceMessage.NotRegistered"));
+			return bounce_message (qmsg, gConfig.getStr("Bounce.Message.NotRegistered"));
 		    } else {
 			// Send the message to our global relay.
 			// We leave the username as a phone number, and

@@ -52,8 +52,11 @@ SMS.FakeSrcSMSC 0000
 
 
 # return SMS messages
-BounceMessage.IMSILookupFailed Cannot determine return address; bouncing message.  Text your phone number to 101 to register and try again.
-BounceMessage.NotRegistered Phone not registered here.
+Bounce.Message.IMSILookupFailed Cannot determine return address; bouncing message.  Text your phone number to 101 to register and try again.
+Bounce.Message.NotRegistered Phone not registered here.
+
+# Bounce from address
+Bounce.Code 411
 
 
 
