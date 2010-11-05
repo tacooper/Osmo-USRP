@@ -645,9 +645,9 @@ void TLUserData::write(TLFrame& dest, size_t& wp) const
 void TLUserData::text(ostream& os) const
 {
 	os << "DCS=" << mDCS;
-	os << " UDHI=" << (mUDHI?"true":"false");
+	os << " UDHI=" << mUDHI;
 	os << " UDLength=" << mLength;
-	os << " UD= ("; mRawData.hex(os); os << ")";
+	os << " UD=("; mRawData.hex(os); os << ")";
 }
 
 
