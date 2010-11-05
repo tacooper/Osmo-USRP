@@ -85,7 +85,7 @@ SC.Register.Msg.TakenA The phone number
 SC.Register.Msg.TakenB is already in use. Try another, then call that one to talk to whoever took yours.
 # Message for internal errors, sent as <A> << phonenumber << <B> << imsi
 SC.Register.Msg.ErrorA Error in assigning
-SC.Register.Msg.ErrorB to IMSI
+SC.Register.Msg.ErrorB to 
 # Bounds for valid number length
 SC.Register.Digits.Max 10
 SC.Register.Digits.Min 7
