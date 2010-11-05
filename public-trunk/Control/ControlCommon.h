@@ -633,17 +633,14 @@ class TMSIRecord {
 	public:
 
 	TMSIRecord() {}
-
-	TMSIRecord(const char* wIMSI):
-		mIMSI(wIMSI),mIMEI("?")
-	{ }
 	
-	TMSIRecord(const char* wIMSI, const char* wIMEI):
-		mIMSI(wIMSI), mIMEI(wIMEI)
+	TMSIRecord(const char* wIMSI, const char* wIMEI = NULL):
+		mIMSI(wIMSI), mIMEI(wIMEI!=NULL?wIMEI:"?")
 	{ }
 
 	const char* IMSI() const { return mIMSI.c_str(); }
 	const char* IMEI() const { return mIMEI.c_str(); }
+	void IMEI(const std::string &imei) { mIMEI = imei; }
 	void touch() const { mTouched.now(); }
 
 	/** Record age in seconds. */
@@ -688,7 +685,15 @@ class TMSITable {
 		@param IMSI	The IMSI to create an entry for.
 		@return The assigned TMSI.
 	*/
-	unsigned assign(const char* IMSI);
+	unsigned assign(const char* IMSI, const char* IMEI = NULL);
+
+	/**
+		Set IMEI for a selected TMSI.
+		@param TMSI	The TMSI to set IMEI for
+		@param IMEI	The IMEI to set.
+		@return true if the TMSI exists and we've set IMEI for it.
+	*/
+	bool setIMEI(unsigned TMSI, const std::string& IMEI);
 
 	/**
 		Find an IMSI in the table.
