@@ -46,7 +46,7 @@ using namespace SMS;
 namespace SMqueue {
 
 /* Maximum text size of an SMS message.  */
-#define SMS_MESSAGE_MAX_LENGTH  140
+#define SMS_MESSAGE_MAX_LENGTH  160
 
 /* std::abort isn't always there.  Neither is the C library version.
    Idiots?  You tell me.  */
