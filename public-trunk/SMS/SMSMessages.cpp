@@ -498,7 +498,6 @@ std::string TLUserData::decode() const
 {
 	std::string text;
 
-	if (mUDHI) SMS_READ_ERROR;		// We don't support user headers.
 	switch (mDCS) {
 		case 0:
 		case 244:
@@ -512,10 +511,30 @@ std::string TLUserData::decode() const
 				LOG(NOTICE) << "badly formatted TL-UD";
 				SMS_READ_ERROR;
 			}
+
+			size_t crp = 0;
+			unsigned text_length = mLength;
+
+			// Skip User-Data-Header. We don't decode it here.
+			// User-Data-Header handling is described in GSM 03.40 9.2.3.24
+			// and is pictured in GSM 03.40 Figure 9.2.3.24 (a)
+			if (mUDHI) {
+				// Length-of-User-Data-Header
+				unsigned udhl = mRawData.peekFieldReversed(crp,8);
+				// Calculate UDH length in septets, including fill bits.
+				unsigned udh_septets = (udhl*8 + 8 + 6) / 7;
+				// Adjust actual text position and length.
+				crp += udh_septets * 7;
+				text_length -= udh_septets;
+				LOG(DEBUG) << "UDHL(octets)=" << udhl
+				           << " UDHL(septets)=" << udh_septets
+				           << " pointer(bits)=" << crp
+				           << " text_length(septets)=" << text_length;
+			}
+
 			// Do decoding
-			text.resize(mLength);
-			size_t crp=0;
-			for (unsigned i=0; i<mLength; i++) {
+			text.resize(text_length);
+			for (unsigned i=0; i<text_length; i++) {
 				char gsm = mRawData.readFieldReversed(crp,7);
 				text[i] = decodeGSMChar(gsm);
 			}
