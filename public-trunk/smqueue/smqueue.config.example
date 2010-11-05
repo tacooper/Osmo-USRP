@@ -15,6 +15,13 @@ Log.Level.smcommands.cpp DEBUG
 # Logging file.  Logs to stdout if this is not defined.
 #Log.FileName smqueue.log
 
+# LOG(ALARM) is printed and also sent as udp to this address.
+Log.Alarms.TargetIP 192.168.10.200
+$optional Log.Alarms.TargetIP
+Log.Alarms.TargetPort 10101
+# Number of alarms saved in internal queue
+Log.Alarms.Max 10
+
 
 savefile savedqueue.txt
 
