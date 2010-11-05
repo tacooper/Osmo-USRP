@@ -259,7 +259,7 @@ class TLMessage {
 	bool mSRR;			///< status report request
 	bool mSRI;			///< status report indication
 	bool mSRQ;			///< status report qualifier
-	bool mUDHI;			///< user-data header-indicator
+//	bool mUDHI;			///< user-data header-indicator. Stored in TLUserData.
 	bool mRP;			///< reply path
 	//@}
 
@@ -279,7 +279,7 @@ class TLMessage {
 	};
 
 	TLMessage()
-		:mMMS(false),mSRI(false),mUDHI(false),mRP(true)
+		:mMMS(false),mSRI(false),mRP(true)
 	{}
 
 	virtual ~TLMessage(){}
@@ -320,8 +320,8 @@ class TLMessage {
 	void parseSRI(const TLFrame& fm) { mSRI=fm[2]; }
 	void writeSRQ(TLFrame& fm) const { fm[2]=mSRQ; }
 	void parseSRQ(const TLFrame& fm) { mSRQ=fm[2]; }
-	void writeUDHI(TLFrame& fm) const { fm[1]=mUDHI; }
-	void parseUDHI(const TLFrame& fm) { mUDHI=fm[1]; }
+	void writeUDHI(TLFrame& fm, bool udhi) const { fm[1]=udhi; }
+	bool parseUDHI(const TLFrame& fm) { return fm[1]; }
 	void writeRP(TLFrame& fm) const { fm[0]=mRP; }
 	void parseRP(const TLFrame& fm) { mRP=fm[0]; }
 	void writeUnused(TLFrame& fm) const { fm.fill(0,3,2); } ///< Fill unused bits with 0s

@@ -536,7 +536,6 @@ size_t TLUserData::length() const
 	// The reported value includes the length byte itself.
 	// The length() method only needs to work for formats supported 
 	// by the write() method.
-	assert(!mUDHI);		// We don't support user headers.
 	assert(mDCS<0x100);	// Someone forgot to initialize the DCS.
 	size_t sum = 1;		// Start by counting the TP-User-Data-Length byte.
 #if 1
@@ -677,10 +676,12 @@ size_t TLSubmit::bodyLength() const
 
 void TLSubmit::parseBody(const TLFrame& src, size_t& rp)
 {
+	bool udhi;
+
 	parseRD(src);
 	parseVPF(src);
 	parseRP(src);
-	parseUDHI(src);
+	udhi = parseUDHI(src);
 	parseSRR(src);
 	mMR = src.readField(rp,8);
 	mDA.parse(src,rp);
@@ -689,6 +690,7 @@ void TLSubmit::parseBody(const TLFrame& src, size_t& rp)
 	mVP.VPF(mVPF);
 	mVP.parse(src,rp);
 	mUD.DCS(mDCS);
+	mUD.UDHI(udhi);
 	mUD.parse(src,rp);
 }
 
@@ -699,7 +701,7 @@ void TLSubmit::text(ostream& os) const
 	os << " RD=" << mRD;
 	os << " VPF=" << mVPF;
 	os << " RP=" << mRP;
-	os << " UDHI=" << mUDHI;
+	os << " UDHI=" << mUD.UDHI();
 	os << " SRR=" << mSRR;
 	os << " MR=" << mMR;
 	os << " DA=(" << mDA << ")";
@@ -721,7 +723,7 @@ void TLDeliver::writeBody(TLFrame& dest, size_t& wp) const
 {
 	writeMMS(dest);
 	writeRP(dest);
-	writeUDHI(dest);
+	writeUDHI(dest, mUD.UDHI());
 	writeSRI(dest);
 	mOA.write(dest,wp);
 	dest.writeField(wp,mPID,8);
