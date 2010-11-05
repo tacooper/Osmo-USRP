@@ -123,9 +123,9 @@ TLMessage *SMS::parseTPDU(const TLFrame& TPDU)
 		case TLMessage::SUBMIT: {
 			TLSubmit *submit = new TLSubmit;
 			submit->parse(TPDU);
-			LOG(INFO) << "SMS SMS-SUBMIT " << submit;
+			LOG(INFO) << "SMS SMS-SUBMIT " << *submit;
 			return submit;
-										}
+		}
 		default:
 			return NULL;
 	}
