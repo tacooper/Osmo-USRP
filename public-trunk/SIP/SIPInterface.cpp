@@ -127,10 +127,13 @@ int SIPInterface::fifoSize(const std::string& call_id )
 SIPInterface::SIPInterface()
 	:mSIPSocket(gConfig.getNum("SIP.Port"), gConfig.getStr("Asterisk.IP"), gConfig.getNum("Asterisk.Port"))
 {
+	bool bres;
 	mAsteriskPort = gConfig.getNum("Asterisk.Port");
 	mMessengerPort = gConfig.getNum("Smqueue.Port");
-	assert(resolveAddress(&mAsteriskAddress,gConfig.getStr("Asterisk.IP"),mAsteriskPort));
-	assert(resolveAddress(&mMessengerAddress,gConfig.getStr("Smqueue.IP"),mMessengerPort));
+	bres = resolveAddress(&mAsteriskAddress,gConfig.getStr("Asterisk.IP"),mAsteriskPort);
+	assert(bres);
+	bres = resolveAddress(&mMessengerAddress,gConfig.getStr("Smqueue.IP"),mMessengerPort);
+	assert(bres);
 }
 
 
