@@ -29,12 +29,10 @@
 */
 
 
-#include <stdio.h>
-#include <cstdio>
-
+#include "config.h"
 #include "Transceiver.h"
 #include <Logger.h>
-
+#include <cstdio>
 
 
 Transceiver::Transceiver(int wBasePort,
@@ -696,6 +694,7 @@ void Transceiver::driveTransmitFIFO()
     radioClock->wait(); // wait until clock updates
     while (radioClock->get() + mTransmitLatency > 
 	   mTransmitDeadlineClock) {
+#ifndef USE_UHD
       // if underrun, then we're not providing bursts to radio/USRP fast
       //   enough.  Need to increase latency by one GSM frame.
       if (mRadioInterface->isUnderrun()) {
@@ -717,6 +716,7 @@ void Transceiver::driveTransmitFIFO()
 	  }
 	}
       }
+#endif
       // time to push burst to transmit FIFO
       pushRadioVector(mTransmitDeadlineClock);
       mTransmitDeadlineClock.incTN();

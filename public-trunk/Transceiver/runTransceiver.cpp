@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   }
 
   RadioInterface* radio = new RadioInterface(usrp,3);
-  Transceiver *trx = new Transceiver(5700,"127.0.0.1",SAMPSPERSYM,GSM::Time(2,0),radio);
+  Transceiver *trx = new Transceiver(5700,"127.0.0.1",SAMPSPERSYM,GSM::Time(3,0),radio);
   trx->transmitFIFO(radio->transmitFIFO());
   trx->receiveFIFO(radio->receiveFIFO());
 
