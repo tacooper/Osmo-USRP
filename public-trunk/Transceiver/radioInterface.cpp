@@ -37,7 +37,7 @@ GSM::Time VectorQueue::nextTime() const
   return retVal;
 }
 
-RadioInterface::RadioInterface(USRPDevice *wUsrp,
+RadioInterface::RadioInterface(Device *wUsrp,
                                int wReceiveOffset,
 			       int wSamplesPerSymbol,
 			       GSM::Time wStartTime)
@@ -79,8 +79,8 @@ short *RadioInterface::USRPifyVector(signalVector &wVector)
   signalVector::iterator itr = wVector.begin();
   short *shortItr = retVector;
   while (itr < wVector.end()) {
-    *shortItr++ = (short) host_to_usrp_short((short)itr->real());
-    *shortItr++ = (short) host_to_usrp_short((short)itr->imag());
+    *shortItr++ = usrp->convertHostDeviceShort(itr->real());
+    *shortItr++ = usrp->convertHostDeviceShort(itr->imag());
     itr++;
   }
 
@@ -105,9 +105,8 @@ signalVector *RadioInterface::unUSRPifyVector(short *shortVector, int numSamples
 #endif
 
   while (itr < newVector->end()) {
-    *itr++ = Complex<float>(usrp_to_host_short(*(shortItr+FLIP_IQ)),
-		            usrp_to_host_short(*(shortItr+1-FLIP_IQ)));
-    //LOG(DEEPDEBUG) << (*(itr-1));
+    *itr++ = Complex<float>(usrp->convertDeviceHostShort(*(shortItr+FLIP_IQ)),
+		            usrp->convertDeviceHostShort(*(shortItr+1-FLIP_IQ)));
     shortItr += 2;
   }
 

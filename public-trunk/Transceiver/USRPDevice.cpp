@@ -137,7 +137,8 @@ bool USRPDevice::rx_setFreq(double freq, double *actual_freq)
 }
 
 
-USRPDevice::USRPDevice (double _desiredSampleRate) 
+USRPDevice::USRPDevice (double _desiredSampleRate, bool wSkipRx)
+  : skipRx(wSkipRx)
 {
   LOG(INFO) << "creating USRP device...";
   decimRate = (unsigned int) round(masterClockRate/_desiredSampleRate);
@@ -151,11 +152,9 @@ USRPDevice::USRPDevice (double _desiredSampleRate)
 #endif
 }
 
-bool USRPDevice::make(bool wSkipRx) 
+bool USRPDevice::open()
 {
-  skipRx = wSkipRx;
-
-  LOG(INFO) << "making USRP device..";
+  LOG(INFO) << "opening USRP device...";
 #ifndef SWLOOPBACK 
   string rbf = "std_inband.rbf";
   //string rbf = "inband_1rxhb_1tx.rbf"; 
@@ -215,7 +214,7 @@ bool USRPDevice::make(bool wSkipRx)
   samplesRead = 0;
   samplesWritten = 0;
   started = false;
-  
+
   return true;
 }
 
@@ -546,3 +545,21 @@ bool USRPDevice::setRxFreq(double wFreq) {
 bool USRPDevice::setTxFreq(double wFreq) { return true;};
 bool USRPDevice::setRxFreq(double wFreq) { return true;};
 #endif
+
+
+Device *Device::make(double desiredSampleRate, bool skipRx)
+{
+  return new USRPDevice(desiredSampleRate, skipRx);
+}
+
+
+short Device::convertHostDeviceShort(short value)
+{
+  return host_to_usrp_short(value);
+}
+
+
+short Device::convertDeviceHostShort(short value)
+{
+  return usrp_to_host_short(value);
+}

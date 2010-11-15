@@ -41,9 +41,8 @@ int main(int argc, char *argv[]) {
   else gLogInit("INFO");
   if (argc>2) gSetLogFile(argv[2]);
 
-  USRPDevice *usrp = new USRPDevice(400e3);
-
-  usrp->make();
+  Device *usrp = Device::make(400e3);
+  usrp->open();
 
   TIMESTAMP timestamp;
 

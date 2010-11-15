@@ -25,7 +25,7 @@
 
 
 #include "sigProcLib.h"  
-#include "USRPDevice.h"
+#include "Device.h"
 #include "GSMCommon.h"
 #include "Interthread.h"
 
@@ -119,7 +119,7 @@ private:
   signalVector* sendHistory;		      ///< block of previous transmitted samples
   signalVector* rcvHistory;		      ///< block of previous received samples
   
-  USRPDevice *usrp;			      ///< the USRP object
+  Device *usrp;				      ///< the USRP object
   
   signalVector* sendBuffer;		      ///< block of samples to be transmitted
   signalVector* rcvBuffer;		      ///< block of received samples to be processed
@@ -160,7 +160,7 @@ public:
   void start();
 
   /** constructor */
-  RadioInterface(USRPDevice* wUsrp = NULL,
+  RadioInterface(Device* wUsrp = NULL,
 		 int receiveOffset = 3,
 		 int wSamplesPerSymbol = SAMPSPERSYM,
 		 GSM::Time wStartTime = GSM::Time(0));
@@ -172,7 +172,7 @@ public:
   bool isUnderrun() { bool retVal = underrun; underrun = false; return retVal;}
   
   /** attach an existing USRP to this interface */
-  void attach(USRPDevice *wUsrp) {if (!mOn) usrp = wUsrp;}
+  void attach(Device *wUsrp) {if (!mOn) usrp = wUsrp;}
 
   /** return the transmit FIFO */
   VectorFIFO* transmitFIFO() { return &mTransmitFIFO;}

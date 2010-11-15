@@ -49,8 +49,8 @@ int main(int argc, char *argv[]) {
 
   srandom(time(NULL));
 
-  USRPDevice *usrp = new USRPDevice(400.0e3); //533.333333333e3); //400e3);
-  usrp->make();
+  Device *usrp = Device::make(400.0e3);
+  usrp->open();
   RadioInterface* radio = new RadioInterface(usrp,3);
   Transceiver *trx = new Transceiver(5700,"127.0.0.1",SAMPSPERSYM,GSM::Time(2,0),radio);
   trx->transmitFIFO(radio->transmitFIFO());

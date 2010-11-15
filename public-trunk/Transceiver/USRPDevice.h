@@ -42,6 +42,7 @@
 #include <math.h>
 #include <string>
 #include <iostream>
+#include "Device.h"
 
 
 /** Define types which are not defined in libusrp-3.1 */
@@ -51,11 +52,9 @@ typedef boost::shared_ptr<usrp_standard_tx> usrp_standard_tx_sptr;
 typedef boost::shared_ptr<usrp_standard_rx> usrp_standard_rx_sptr;
 #endif // HAVE_LIBUSRP_3_2
 
-/** a 64-bit virtual timestamp for USRP data */
-typedef unsigned long long TIMESTAMP;
 
 /** A class to handle a USRP rev 4, with a two RFX900 daughterboards */
-class USRPDevice {
+class USRPDevice : public Device {
 
 private:
 
@@ -175,10 +174,10 @@ private:
  public:
 
   /** Object constructor */
-  USRPDevice (double _desiredSampleRate);
+  USRPDevice (double _desiredSampleRate, bool skipRx);
 
   /** Instantiate the USRP */
-  bool make(bool skipRx = false); 
+  bool open();
 
   /** Start the USRP */
   bool start();
