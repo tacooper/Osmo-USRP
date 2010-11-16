@@ -514,8 +514,33 @@ GSM.MaxSpeechLatency 2
 # CLI paramters
 #
 
+# A string, used as a CLI prompt
 CLI.Prompt OpenBTS> 
 
+# CLI type has three possible values:
+#  Local - command line is provided by the same process.
+#          Useful when you don't daemonize OpenBTS process.
+#  Unix  - command line is provided over a UNIX-socket.
+#          Useful for local access to command line when you run
+#          OpenBTS as a daemon.
+#  TCP   - command line is provided by a TCP connection.
+#          Useful when you want to control your OpenBTS remotely.
+#
+#   !!!  WARNING  !!!
+# Current implementation of remote CLI doesn't support authentication
+# and encryption. Use remote CLI with care!
+CLI.Type Local
 
+# Parameters for TCP remote CLI.
+#   Interface to bind to:
+CLI.TCP.IP 127.0.0.1
+$static CLI.TCP.IP
+#   Port to bind to:
+CLI.TCP.Port 22239
+$static CLI.TCP.Port
 
+# Parameters for UNIX remote CLI.
+#   Path to the socket
+CLI.Unix.Path /tmp/OpenBTScli.socket
+$static CLI.Unix.Path
 

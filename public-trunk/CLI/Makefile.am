@@ -26,10 +26,31 @@ EXTRA_DIST = \
 AM_CXXFLAGS = -Wall
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES)
 
-noinst_LTLIBRARIES = libcli.la
+noinst_LTLIBRARIES = libcli.la libcli_commands.la
+
+noinst_PROGRAMS = \
+	TokenizerTest
 
 libcli_la_SOURCES = \
-	CLI.cpp
+	CLI.cpp \
+	CLIServer.cpp \
+	CLIClient.cpp \
+	CLIConnection.cpp \
+	Tokenizer.cpp
+
+libcli_commands_la_SOURCES = \
+	CLIParser.cpp
+
+TokenizerTest_SOURCES = \
+	TokenizerTest.cpp
+TokenizerTest_LDADD = \
+	$(CLI_LA)
 
 noinst_HEADERS = \
-	CLI.h
+	CLI.h \
+	CLIServer.h \
+	CLIClient.h \
+	CLIConnection.h \
+	CLIParser.h \
+	CLIParserBase.h \
+	Tokenizer.h

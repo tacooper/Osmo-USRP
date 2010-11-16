@@ -41,6 +41,7 @@ libcommon_la_SOURCES = \
 noinst_PROGRAMS = \
 	BitVectorTest \
 	InterthreadTest \
+	ConnectionSocketsTest \
 	SocketsTest \
 	TimevalTest \
 	RegexpTest \
@@ -72,6 +73,10 @@ InterthreadTest_LDFLAGS = -lpthread
 SocketsTest_SOURCES = SocketsTest.cpp
 SocketsTest_LDADD = libcommon.la
 SocketsTest_LDFLAGS = -lpthread
+
+ConnectionSocketsTest_SOURCES = ConnectionSocketsTest.cpp
+ConnectionSocketsTest_LDADD = libcommon.la
+ConnectionSocketsTest_LDFLAGS = -lpthread
 
 TimevalTest_SOURCES = TimevalTest.cpp
 TimevalTest_LDADD = libcommon.la

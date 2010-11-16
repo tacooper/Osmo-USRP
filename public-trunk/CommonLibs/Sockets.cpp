@@ -303,6 +303,226 @@ void UDDSocket::destination(const char* remotePath)
 }
 
 
+ConnectionSocket::ConnectionSocket(int af, int type, int protocol)
+: mSocketFD(-1)
+{
+	// Create the socket
+	mSocketFD = ::socket(af, type, protocol);
+	if (mSocketFD < 0) {
+//		int errsv = errno;
+//		LOG(ERROR) << "socket() failed with errno=" << errsv;
+		mSocketFD = -1;
+	}
+}
 
+ConnectionSocket::~ConnectionSocket()
+{
+	close();
+}
+
+int ConnectionSocket::write( const char * buffer, int length)
+{
+	// MSG_NOSIGNAL does not allow send() to emit signals on error, it will
+	// just return result.
+	ssize_t bytesSent = ::send(mSocketFD, buffer, length, MSG_NOSIGNAL);
+	if (bytesSent != length) {
+//		int errsv = errno;
+//		LOG(ERROR) << "send() has sent " << bytesSent << "bytes instead of "
+//		           << length << " bytes, errno=" << errsv;
+	}
+	return bytesSent;
+}
+
+int ConnectionSocket::read(char* buffer, size_t length)
+{
+	// MSG_NOSIGNAL does not allow recv() to emit signals on error, it will
+	// just return result.
+	int bytesRead = ::recv(mSocketFD, buffer, length, MSG_NOSIGNAL);
+	return bytesRead;
+}
+
+void ConnectionSocket::nonblocking()
+{
+	fcntl(mSocketFD,F_SETFL,0);
+}
+
+void ConnectionSocket::blocking()
+{
+	fcntl(mSocketFD,F_SETFL,0);
+}
+
+void ConnectionSocket::close()
+{
+	// shutdown() forces all selects which are blocked on this socket to return
+	::shutdown(mSocketFD, SHUT_RDWR);
+	::close(mSocketFD);
+}
+
+std::ostream& operator<<(std::ostream& os, const ConnectionSocket& conn)
+{
+	os << "(socket=" << conn.mSocketFD << ")";
+	// TODO:: Add host/port information to output.
+	return os;
+}
+
+ConnectionSocketTCP::ConnectionSocketTCP(int port, const char* address)
+: ConnectionSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+{
+	if (!resolveAddress(&mRemote, address, port)) {
+		mRemote.sin_family = AF_UNSPEC;
+	}
+}
+
+int ConnectionSocketTCP::connect()
+{
+	return ::connect(mSocketFD, (sockaddr*)&mRemote, sizeof(mRemote));
+}
+
+int ConnectionSocketUnix::connect()
+{
+	return ::connect(mSocketFD, (sockaddr*)&mRemote, sizeof(mRemote));
+}
+
+ConnectionServerSocket::ConnectionServerSocket(int af, int type, int protocol)
+: mSocketFD(-1)
+{
+	// Create the socket
+	mSocketFD = ::socket(af, type, protocol);
+	if (mSocketFD < 0) {
+//		int errsv = errno;
+//		LOG(ERROR) << "socket() failed with errno=" << errsv;
+		mSocketFD = -1;
+	}
+}
+
+bool ConnectionServerSocket::bindInternal(const sockaddr *addr, int addrlen,
+                                          int connectionQueueSize)
+{
+	int error;
+
+	error = ::bind(mSocketFD, addr, addrlen);
+	if (error < 0) {
+//		int errsv = errno;
+//		LOG(ERROR) << "bind() to port " << bindPort<< " failed with errnp=" << errsv;
+		close();
+		return false;
+	}
+
+	// Setup the queue for connection requests
+	error = ::listen(mSocketFD,  connectionQueueSize);
+	if (error < 0) {
+//		int errsv = errno;
+//		LOG(ERROR) << "listen() failed with errno=" << errsv;
+		close();
+		return false;
+	}
+
+	return true;
+}
+
+int ConnectionServerSocket::acceptInternal(sockaddr *addr, socklen_t &addrlen)
+{
+	// Wait for a client to connect.
+	int newSocketFD = ::accept(mSocketFD, addr, &addrlen);
+	if (newSocketFD < 0) {
+//		int errsv = errno;
+//		LOG(INFO) << "accept() failed with errno=" << errsv;
+		mSocketFD = -1;
+	}
+
+	return newSocketFD;
+}
+
+void ConnectionServerSocket::close()
+{
+	// Under Linux we should call shutdown first to unblock blocking accept().
+	::shutdown(mSocketFD, SHUT_RDWR);
+	::close(mSocketFD);
+}
+
+ConnectionServerSocketTCP::ConnectionServerSocketTCP(int bindPort,
+                                                     const char* bindAddress)
+: ConnectionServerSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+{
+	const int one = 1;
+	if (setsockopt(mSocketFD, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(one))) {
+//		int errsv = errno;
+//		LOG(ERROR) << "socket() failed with errno=" << errsv;
+	}
+
+#ifdef __APPLE__
+	// We use SO_NOSIGPIPE here because MSG_NOSIGNAL is not supported
+	// for the write() call under MacOs X.
+	if (::setsockopt(mSocketFD, SOL_SOCKET, SO_NOSIGPIPE, (char *)&one, sizeof(one))) {
+//		int errsv = errno;
+//		LOG(ERROR) << "setsockopt() failed with errno=" << errsv;
+		close();
+		return false;
+	}
+#endif
+
+	if (!resolveAddress(&mLocal, bindAddress, bindPort)) {
+		mLocal.sin_family = AF_UNSPEC;
+	}
+}
+
+bool ConnectionServerSocketTCP::bind(int connectionQueueSize)
+{
+	return bindInternal((sockaddr*)&mLocal, sizeof(mLocal), connectionQueueSize);
+}
+
+ConnectionSocket* ConnectionServerSocketTCP::accept()
+{
+	sockaddr_in newConnectionAddr;
+	socklen_t newConnectionAddrLen = sizeof(newConnectionAddr);
+	
+	int newSocketFD = acceptInternal((sockaddr*)&newConnectionAddr, newConnectionAddrLen);
+	if (newSocketFD < 0) {
+//		int errsv = errno;
+//		LOG(INFO) << "accept() failed with errno=" << errsv;
+		return NULL;
+	}
+
+	return new ConnectionSocketTCP(newSocketFD, newConnectionAddr);
+}
+
+ConnectionServerSocketUnix::ConnectionServerSocketUnix(const std::string &path)
+: ConnectionServerSocket(AF_UNIX, SOCK_STREAM, 0)
+, mBound(false)
+{
+	mLocal.sun_family = AF_UNIX;
+	strncpy(mLocal.sun_path, path.data(), 108);
+	mLocal.sun_path[108-1] = '\0';
+}
+
+bool ConnectionServerSocketUnix::bind(int connectionQueueSize)
+{
+	ConnectionSocketUnix testSocket(mLocal.sun_path);
+	if (testSocket.connect() == 0) {
+		// Socket is alive. Return error - we can't bind.
+		return false;
+	} else {
+		// Socket is not alive. Remove its file entry to avoid EINVAL.
+		::unlink(mLocal.sun_path);
+	}
+	
+	mBound = bindInternal((sockaddr*)&mLocal, sizeof(mLocal), connectionQueueSize);
+	return mBound;
+}
+
+ConnectionSocket* ConnectionServerSocketUnix::accept()
+{
+	sockaddr_un newConnectionAddr;
+	socklen_t newConnectionAddrLen = sizeof(newConnectionAddr);
+	
+	int newSocketFD = acceptInternal((sockaddr*)&newConnectionAddr, newConnectionAddrLen);
+	if (newSocketFD < 0) {
+//		int errsv = errno;
+//		LOG(INFO) << "accept() failed with errno=" << errsv;
+		return NULL;
+	}
+
+	return new ConnectionSocketUnix(newSocketFD, newConnectionAddr);
+}
 
 // vim: ts=4 sw=4

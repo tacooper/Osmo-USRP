@@ -37,6 +37,8 @@
 
 #include <Logger.h>
 #include <CLI.h>
+#include <CLIServer.h>
+#include <CLIParser.h>
 #include <PowerManager.h>
 #include <RRLPQueryController.h>
 #include <Configuration.h>
@@ -46,14 +48,9 @@
 #include <string.h>
 #include <signal.h>
 
-#ifdef HAVE_LIBREADLINE // [
-//#  include <stdio.h>
-#  include <readline/readline.h>
-#  include <readline/history.h>
-#endif // HAVE_LIBREADLINE ]
-
 using namespace std;
 using namespace GSM;
+using namespace CommandLine;
 
 // Load configuration from a file.
 ConfigurationTable gConfig("OpenBTS.config");
@@ -107,20 +104,9 @@ void restartTransceiver()
 }
 
 
-
-
-
-
-int main(int argc, char *argv[])
+void startBTS()
 {
-	srandom(time(NULL));
-
-	COUT("\n\n" << gOpenBTSWelcome << "\n");
 	COUT("\nStarting the system...");
-
-	if (gConfig.defines("Log.FileName")) {
-		gSetLogFile(gConfig.getStr("Log.FileName"));
-	}
 
 	if (gConfig.defines("Control.TMSITable.SavePath")) {
 		gTMSITable.load(gConfig.getStr("Control.TMSITable.SavePath"));
@@ -196,9 +182,9 @@ int main(int argc, char *argv[])
 	// C-V C0T0 SDCCHs
 	SDCCHLogicalChannel C0T0SDCCH[4] = {
 		SDCCHLogicalChannel(0,gSDCCH_4_0),
-		SDCCHLogicalChannel(0,gSDCCH_4_1),
-		SDCCHLogicalChannel(0,gSDCCH_4_2),
-		SDCCHLogicalChannel(0,gSDCCH_4_3),
+			SDCCHLogicalChannel(0,gSDCCH_4_1),
+			SDCCHLogicalChannel(0,gSDCCH_4_2),
+			SDCCHLogicalChannel(0,gSDCCH_4_3),
 	};
 	Thread C0T0SDCCHControlThread[4];
 	for (int i=0; i<4; i++) {
@@ -212,22 +198,22 @@ int main(int argc, char *argv[])
 	unsigned sCount = 1;
 
 	bool halfDuplex = gConfig.defines("GSM.HalfDuplex");
-	if (halfDuplex) LOG(NOTICE) << "Configuring for half-duplex operation.";
-	else LOG(NOTICE) << "Configuring for full-duplex operation.";
+	if (halfDuplex) { LOG(NOTICE) << "Configuring for half-duplex operation." ; }
+	else { LOG(NOTICE) << "Configuring for full-duplex operation."; }
 
-        if (halfDuplex) sCount++;
+	if (halfDuplex) sCount++;
 
 	// Create C-VII slots.
 	for (int i=0; i<gConfig.getNum("GSM.NumC7s"); i++) {
 		gBTS.createCombinationVII(gTRX,sCount/8,sCount);
-        	if (halfDuplex) sCount++;
+		if (halfDuplex) sCount++;
 		sCount++;
 	}
 
 	// Create C-I slots.
 	for (int i=0; i<gConfig.getNum("GSM.NumC1s"); i++) {
 		gBTS.createCombinationI(gTRX,sCount/8,sCount);
-        	if (halfDuplex) sCount++;
+		if (halfDuplex) sCount++;
 		sCount++;
 	}
 
@@ -235,7 +221,7 @@ int main(int argc, char *argv[])
 	// Set up idle filling on C0 as needed.
 	while (sCount<8) {
 		gBTS.createCombination0(gTRX,sCount/8,sCount);
-        	if (halfDuplex) sCount++;
+		if (halfDuplex) sCount++;
 		sCount++;
 	}
 
@@ -260,79 +246,44 @@ int main(int argc, char *argv[])
 	// OK, now it is safe to start the BTS.
 	gBTS.start();
 
-#ifdef HAVE_LIBREADLINE // [
-	// start console
-	using_history();
-
-	static const char * const history_file_name = "/.openbts_history";
-	char *history_name = 0;
-	char *home_dir = getenv("HOME");
-
-	if(home_dir) {
-		size_t home_dir_len = strlen(home_dir);
-		size_t history_file_len = strlen(history_file_name);
-		size_t history_len = home_dir_len + history_file_len + 1;
-		if(history_len > home_dir_len) {
-			if(!(history_name = (char *)malloc(history_len))) {
-				LOG(ERROR) << "malloc failed: " << strerror(errno);
-				exit(-1);
-			}
-			memcpy(history_name, home_dir, home_dir_len);
-			memcpy(history_name + home_dir_len, history_file_name,
-			   history_file_len + 1);
-			read_history(history_name);
-		}
-	}
-#endif // HAVE_LIBREADLINE ]
-
-
-
 	LOG(INFO) << "system ready";
-	COUT("\n\nWelcome to OpenBTS.  Type \"help\" to see available commands.");
-        // FIXME: We want to catch control-d (emacs keybinding for exit())
+}
 
-
-	// The logging parts were removed from this loop.
-	// If we want them back, they will need to go into their own thread.
-	while (1) {
-#ifdef HAVE_LIBREADLINE // [
-		char *inbuf = readline(gConfig.getStr("CLI.Prompt"));
-		if (!inbuf) break;
-		if (*inbuf) {
-			add_history(inbuf);
-			// The parser returns -1 on exit.
-			if (gParser.process(inbuf, cout, cin)<0) {
-				free(inbuf);
-				break;
-			}
-		}
-		free(inbuf);
-#else // HAVE_LIBREADLINE ][
-		cout << endl << gConfig.getStr("CLI.Prompt");
-		cout.flush();
-		char inbuf[1024];
-		cin.getline(inbuf,1024,'\n');
-		// The parser returns -1 on exit.
-		if (gParser.process(inbuf,cout,cin)<0) break;
-#endif // !HAVE_LIBREADLINE ]
-	}
-
-#ifdef HAVE_LIBREADLINE // [
-	if(history_name) {
-		int e = write_history(history_name);
-		if(e) {
-			fprintf(stderr, "error: history: %s\n", strerror(e));
-		}
-		free(history_name);
-		history_name = 0;
-	}
-#endif // HAVE_LIBREADLINE ]
-
+void stopBTS()
+{
 	if (gConfig.defines("Control.TMSISavePath")) {
 		gTMSITable.save(gConfig.getStr("Control.TMSISavePath"));
 	}
 
 	if (gTransceiverPid) kill(gTransceiverPid, SIGKILL);
+}
+
+
+int main(int argc, char *argv[])
+{
+	srandom(time(NULL));
+
+	COUT("\n\n" << gOpenBTSWelcome << "\n");
+
+	if (gConfig.defines("Log.FileName")) {
+		gSetLogFile(gConfig.getStr("Log.FileName"));
+	}
+
+//	startBTS();
+
+	if (strcasecmp(gConfig.getStr("CLI.Type"),"TCP") == 0) {
+		ConnectionServerSocketTCP serverSock(gConfig.getNum("CLI.TCP.Port"),
+		                                     gConfig.getStr("CLI.TCP.IP"));
+		runCLIServer(&serverSock);
+	} else if (strcasecmp(gConfig.getStr("CLI.Type"),"Unix") == 0) {
+		ConnectionServerSocketUnix serverSock(gConfig.getStr("CLI.Unix.Path"));
+		runCLIServer(&serverSock);
+	} else {
+		runCLI(&gParser);
+	}
+
+//	stopBTS();
+
 }
 
 // vim: ts=4 sw=4
