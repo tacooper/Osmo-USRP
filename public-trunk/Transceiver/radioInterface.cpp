@@ -23,6 +23,7 @@
 */
 
 //#define NDEBUG
+#include "config.h"
 #include "radioInterface.h"
 #include <Logger.h>
 
@@ -97,11 +98,19 @@ signalVector *RadioInterface::unUSRPifyVector(short *shortVector, int numSamples
   signalVector::iterator itr = newVector->begin();
   short *shortItr = shortVector;
 
-// need to flip I and Q from USRP
+// This is hideous.
+// UHD   & !SWLOOPBACK: FLIP_IQ = 0
+// UHD   &  SWLOOPBACK: FLIP_IQ = 0
+// USRP1 & !SWLOOPBACK: FLIP_IQ = 1
+// USRP1 &  SWLOOPBACK: FLIP_IQ = 0
+#ifdef USE_UHD
+#define FLIP_IQ 0
+#else
 #ifndef SWLOOPBACK
 #define FLIP_IQ 1
 #else
 #define FLIP_IQ 0
+#endif
 #endif
 
   while (itr < newVector->end()) {
