@@ -23,7 +23,7 @@
 */
 
 
-
+#include <config.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <cstdio>
@@ -43,13 +43,39 @@
 bool resolveAddress(struct sockaddr_in *address, const char *host, unsigned short port)
 {
 	// FIXME -- Need to ignore leading/trailing spaces in hostname.
-	struct hostent *hp = gethostbyname(host);
+	struct hostent *hp;
+#ifdef HAVE_GETHOSTBYNAME2_R
+	struct hostent hostData;
+	char tmpBuffer[2048];
+	int h_errno;
+
+	// There are different flavors of gethostbyname_r(), but
+	// latest Linux use the following form:
+	if (gethostbyname2_r(host, AF_INET, &hostData, tmpBuffer, sizeof(tmpBuffer), &hp, &h_errno)!=0) {
+		CERR("WARNING -- gethostbyname() failed for " << host << ", " << hstrerror(h_errno));
+		return false;
+	}
+#else
+	static Mutex sGethostbynameMutex;
+	// gethostbyname() is NOT thread-safe, so we should use a mutex here.
+	// Ideally it should be a global mutex for all non thread-safe socket
+	// operations and it should protect access to variables such as
+	// global h_errno.
+	sGethostbynameMutex.lock();
+	hp = gethostbyname(host);
+	sGethostbynameMutex.unlock();
+#endif
 	if (hp==NULL) {
 		CERR("WARNING -- gethostbyname() failed for " << host << ", " << hstrerror(h_errno));
 		return false;
 	}
-	address->sin_family = AF_INET;
-	bcopy(hp->h_addr, &(address->sin_addr), hp->h_length);
+	if (hp->h_addrtype != AF_INET) {
+		CERR("WARNING -- gethostbyname() resolved " << host << " to something other then AF)INET");
+		return false;
+	}
+	address->sin_family = hp->h_addrtype;
+	assert(sizeof(address->sin_addr) == hp->h_length);
+	memcpy(&(address->sin_addr), hp->h_addr_list[0], hp->h_length);
 	address->sin_port = htons(port);
 	return true;
 }
@@ -58,7 +84,7 @@ bool resolveAddress(struct sockaddr_in *address, const char *host, unsigned shor
 
 DatagramSocket::DatagramSocket()
 {
-	bzero(mDestination,sizeof(mDestination));
+	memset(mDestination, 0, sizeof(mDestination));
 }
 
 
