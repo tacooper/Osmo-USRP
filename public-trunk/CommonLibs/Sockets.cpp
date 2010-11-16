@@ -158,6 +158,7 @@ int DatagramSocket::read(char* buffer)
 int DatagramSocket::read(char* buffer, unsigned timeout)
 {
 	fd_set fds;
+	FD_ZERO(&fds);
 	FD_SET(mSocketFD,&fds);
 	struct timeval tv;
 	tv.tv_sec = timeout/1000;
