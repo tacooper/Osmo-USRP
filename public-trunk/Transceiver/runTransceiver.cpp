@@ -50,7 +50,11 @@ int main(int argc, char *argv[]) {
   srandom(time(NULL));
 
   Device *usrp = Device::make(400.0e3);
-  usrp->open();
+  if (!usrp->open()) {
+    cerr << "Device open failed. Exiting..." << endl;
+    exit(1);
+  }
+
   RadioInterface* radio = new RadioInterface(usrp,3);
   Transceiver *trx = new Transceiver(5700,"127.0.0.1",SAMPSPERSYM,GSM::Time(2,0),radio);
   trx->transmitFIFO(radio->transmitFIFO());

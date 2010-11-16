@@ -42,7 +42,10 @@ int main(int argc, char *argv[]) {
   if (argc>2) gSetLogFile(argv[2]);
 
   Device *usrp = Device::make(400e3);
-  usrp->open();
+  if (!usrp->open()) {
+    cerr << "Device open failed. Exiting..." << endl; 
+    exit(1);
+  }
 
   TIMESTAMP timestamp;
 
