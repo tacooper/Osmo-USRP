@@ -257,9 +257,9 @@ bool UHDDevice::open()
 
 	// Set gains to midpoint
 	uhd::gain_range_t txGainRange = usrpDevice->get_tx_gain_range();
-	usrpDevice->set_tx_gain((txGainRange.max + txGainRange.min) / 2);
+	usrpDevice->set_tx_gain((txGainRange.start() + txGainRange.stop()) / 2);
 	uhd::gain_range_t rxGainRange = usrpDevice->get_rx_gain_range();
-	usrpDevice->set_rx_gain((rxGainRange.max + rxGainRange.min) / 2);
+	usrpDevice->set_rx_gain((rxGainRange.start() + rxGainRange.stop()) / 2);
 
 	// Set reference clock
 	uhd::clock_config_t clock_config;
