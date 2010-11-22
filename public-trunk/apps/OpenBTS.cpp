@@ -54,6 +54,8 @@ using namespace CommandLine;
 
 // Load configuration from a file.
 ConfigurationTable gConfig("OpenBTS.config");
+// Initialize Logger form the config.
+LogInitializer gLogInitializer;
 
 
 // All of the other globals that rely on the global configuration file need to
@@ -309,10 +311,6 @@ int main(int argc, char *argv[])
 	}
 
 	cout << endl << endl << gOpenBTSWelcome << endl;
-
-	if (gConfig.defines("Log.FileName")) {
-		gSetLogFile(gConfig.getStr("Log.FileName"));
-	}
 
 	startBTS();
 
