@@ -383,8 +383,10 @@ unsigned TMSIRecord::load(FILE* fp)
 	unsigned created, touched;
 	char IMSI[16];
 	char IMEI[16];
-	fscanf(fp, "%10u %10u %10u %15s %15s\n", &TMSI, &created, &touched, IMSI, IMEI);
-	if (created>touched) {
+	int res = fscanf(fp, "%10u %10u %10u %15s %15s\n", &TMSI, &created, &touched, IMSI, IMEI);
+	if (res == EOF) {
+		return 0;
+	} else if (res < 5 || created > touched) {
 		LOG(ALARM) << "corrupt TMSI file";
 		return 0;
 	}
