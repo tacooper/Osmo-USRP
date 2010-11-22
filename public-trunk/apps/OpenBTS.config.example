@@ -24,6 +24,36 @@
 
 
 #
+# Daemonization options.
+#
+
+# Define Server.Daemonize to run OpenBTS in background.
+#Server.Daemonize
+$optional Server.Daemonize
+
+# Directory to create PID file in.
+# Filesystem Hierarchy Standard specifies it daemons should write PID
+# to /var/run, but you may specify any other directory if you run
+# OpenBTS manually.
+#Server.WritePID /var/run/OpenBTS.pid
+Server.WritePID OpenBTS.pid
+$static Server.WritePID
+
+# Set umask.
+# 027(oct)=23(dec) which equals to file creation mode 0750(oct)
+Server.umask 23
+$static Server.umask
+
+# Define Server.ChdirToRoot to change directory to / on daemon startup.
+# This is the recommended behaviour if daemon runs system-wide, because
+# prevents the current directory from being locked; hence not being able
+# to remove it. But when you run manually this behaviour may be inconvenient
+# for you, because all paths should be absolute.
+#Server.ChdirToRoot
+$optional Server.ChdirToRoot
+
+
+#
 # Logging and reporting parameters
 #
 

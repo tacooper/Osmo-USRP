@@ -47,15 +47,33 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 using namespace std;
 using namespace GSM;
 using namespace CommandLine;
 
+static int daemonize();
+
+class DaemonInitializer
+{
+public:
+	DaemonInitializer(bool doDaemonize)
+	{
+		// Start in daemon mode?
+		if (doDaemonize)
+			if (daemonize() != EXIT_SUCCESS)
+				exit(EXIT_FAILURE);
+	}
+
+};
+
 // Load configuration from a file.
 ConfigurationTable gConfig("OpenBTS.config");
 // Initialize Logger form the config.
 LogInitializer gLogInitializer;
+// Fork daemon if needed.
+DaemonInitializer gDaemonInitializer(gConfig.defines("Server.Daemonize"));
 
 
 // All of the other globals that rely on the global configuration file need to
@@ -109,7 +127,7 @@ void restartTransceiver()
 
 void startBTS()
 {
-	COUT("\nStarting the system...");
+	cout << endl << "Starting the system..." << endl;
 
 	if (gConfig.defines("Control.TMSITable.SavePath")) {
 		gTMSITable.load(gConfig.getStr("Control.TMSITable.SavePath"));
@@ -275,9 +293,10 @@ void exitCLI()
 	fclose(stdin);
 }
 
-void signalHandler(int sig)
+static void signalHandler(int sig)
 {
 	COUT("Handling signal " << sig);
+	LOG(INFO) << "Handling signal " << sig;
 	switch(sig){
 		case SIGHUP:
 			// re-read the config
@@ -293,6 +312,151 @@ void signalHandler(int sig)
 	}	
 }
 
+static void childHandler(int signum)
+{
+	LOG(INFO) << "Handling signal " << signum;
+	switch(signum) {
+	 case SIGALRM:
+		 // alarm() fired.
+		 exit(EXIT_FAILURE);
+		 break;
+	 case SIGUSR1:
+		 //Child sent us a signal. Good sign!
+		 exit(EXIT_SUCCESS);
+		 break;
+	 case SIGCHLD:
+		 // Child has died
+		 exit(EXIT_FAILURE);
+		 break;
+	}
+}
+
+static int daemonize()
+{
+	// Already a daemon
+	if ( getppid() == 1 ) return EXIT_SUCCESS;
+
+	// Sanity checks
+	if (strcasecmp(gConfig.getStr("CLI.Type"),"Local") == 0) {
+		LOG(ERROR) << "OpenBTS runs in daemon mode, but CLI is set to Local!";
+		return EXIT_FAILURE;
+	}
+	if (!gConfig.defines("Server.WritePID")) {
+		LOG(ERROR) << "OpenBTS runs in daemon mode, but Server.WritePID is not set in config!";
+		return EXIT_FAILURE;
+	}
+
+	// According to the Filesystem Hierarchy Standard 5.13.2:
+	// "The naming convention for PID files is <program-name>.pid."
+	// The same standard specifies that PID files should be placed
+	// in /var/run, but we make this configurable.
+	std::string lockfile = gConfig.getStr("Server.WritePID");
+
+	// Create the PID file as the current user
+	int lfp = open(lockfile.data(), O_RDWR|O_CREAT, 0640);
+	if (lfp < 0) {
+		LOG(ERROR) << "Unable to create PID file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+	LOG(INFO) << "Created PID file " << lockfile;
+
+	// Drop user if there is one, and we were run as root
+/*	if ( getuid() == 0 || geteuid() == 0 ) {
+		struct passwd *pw = getpwnam(RUN_AS_USER);
+		if ( pw ) {
+			syslog( LOG_NOTICE, "setting user to " RUN_AS_USER );
+			setuid( pw->pw_uid );
+		}
+	}
+*/
+
+	// Trap signals that we expect to receive
+	signal(SIGCHLD, childHandler);
+	signal(SIGUSR1, childHandler);
+	signal(SIGALRM, childHandler);
+
+	// Fork off the parent process
+	pid_t pid = fork();
+	if (pid < 0) {
+		LOG(ERROR) << "Unable to fork daemon, code=" << errno
+		           << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+	// If we got a good PID, then we can exit the parent process.
+	if (pid > 0) {
+		// Wait for confirmation from the child via SIGUSR1 or SIGCHLD.
+		LOG(INFO) << "Forked child process with PID " << pid;
+		// Some recommend to add timeout here too (it will signal SIGALRM),
+		// but I don't think it's a good idea if we start on a slow system.
+		// Or may be we should make timeout value configurable and set it
+		// a big enough value.
+//		alarm(2);
+		// pause() should not return.
+		pause();
+		LOG(ERROR) << "Executing code after pause()!";
+		return EXIT_FAILURE;
+	}
+
+	// Now lock our PID file and write our PID to it
+	if (lockf(lfp, F_TLOCK,0) < 0) {
+		LOG(ERROR) << "Unable to lock PID file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+	char tempBuf[64];
+	snprintf(tempBuf, sizeof(tempBuf), "%d\n", getpid());
+	ssize_t tempDataLen = strlen(tempBuf);
+	if (write(lfp, tempBuf, tempDataLen) != tempDataLen) {
+		LOG(ERROR) << "Unable to wite PID to file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+
+	// At this point we are executing as the child process
+	pid_t parent = getppid();
+
+	// Return SIGCHLD to default handler
+	signal(SIGCHLD, SIG_DFL);
+
+	// Change the file mode mask
+	// This will restrict file creation mode to 750 (complement of 027).
+	umask(gConfig.getNum("Server.umask"));
+
+	// Create a new SID for the child process
+	pid_t sid = setsid();
+	if (sid < 0) {
+		LOG(ERROR) << "Unable to create a new session, code=" << errno
+		           << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+
+	// Change the current working directory.  This prevents the current
+	// directory from being locked; hence not being able to remove it.
+	if (gConfig.defines("Server.ChdirToRoot")) {
+		if (chdir("/") < 0) {
+			LOG(ERROR) << "Unable to change directory to %s, code" << errno
+			           << " (" << strerror(errno) << ")";
+			return EXIT_FAILURE;
+		} else {
+			LOG(INFO) << "Changed current directory to \"/\"";
+		}
+	}
+
+	// Redirect standard files to /dev/null
+	if (freopen( "/dev/null", "r", stdin) == NULL)
+		LOG(WARN) << "Error redirecting stdin to /dev/null";
+	if (freopen( "/dev/null", "w", stdout) == NULL)
+		LOG(WARN) << "Error redirecting stdout to /dev/null";
+	if (freopen( "/dev/null", "w", stderr) == NULL)
+		LOG(WARN) << "Error redirecting stderr to /dev/null";
+
+	// Tell the parent process that we are okay
+	kill(parent, SIGUSR1);
+
+	return EXIT_SUCCESS;
+}
+
 int main(int argc, char *argv[])
 {
 	srandom(time(NULL));
@@ -300,15 +464,23 @@ int main(int argc, char *argv[])
 	// Catch signal to re-read config
 	if (signal(SIGHUP, signalHandler) == SIG_ERR) {
 		cerr << "Error while setting handler for SIGHUP.";
+		return EXIT_FAILURE;
 	}
 	// Catch signal to shutdown gracefully
 	if (signal(SIGTERM, signalHandler) == SIG_ERR) {
 		cerr << "Error while setting handler for SIGTERM.";
+		return EXIT_FAILURE;
 	}
 	// Catch Ctrl-C signal
 	if (signal(SIGINT, signalHandler) == SIG_ERR) {
 		cerr << "Error while setting handler for SIGINT.";
+		return EXIT_FAILURE;
 	}
+	// Various TTY signals
+	// We don't really care about return values of these.
+	signal(SIGTSTP,SIG_IGN);
+	signal(SIGTTOU,SIG_IGN);
+	signal(SIGTTIN,SIG_IGN);
 
 	cout << endl << endl << gOpenBTSWelcome << endl;
 
@@ -331,6 +503,7 @@ int main(int argc, char *argv[])
 
 	stopBTS();
 
+	return EXIT_SUCCESS;
 }
 
 // vim: ts=4 sw=4
