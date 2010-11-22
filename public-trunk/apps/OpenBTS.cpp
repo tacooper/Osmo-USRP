@@ -297,18 +297,18 @@ int main(int argc, char *argv[])
 
 	// Catch signal to re-read config
 	if (signal(SIGHUP, signalHandler) == SIG_ERR) {
-		CERR("Error while setting handler for SIGHUP.");
+		cerr << "Error while setting handler for SIGHUP.";
 	}
 	// Catch signal to shutdown gracefully
 	if (signal(SIGTERM, signalHandler) == SIG_ERR) {
-		CERR("Error while setting handler for SIGTERM.");
+		cerr << "Error while setting handler for SIGTERM.";
 	}
 	// Catch Ctrl-C signal
 	if (signal(SIGINT, signalHandler) == SIG_ERR) {
-		CERR("Error while setting handler for SIGINT.");
+		cerr << "Error while setting handler for SIGINT.";
 	}
 
-	COUT("\n\n" << gOpenBTSWelcome << "\n");
+	cout << endl << endl << gOpenBTSWelcome << endl;
 
 	if (gConfig.defines("Log.FileName")) {
 		gSetLogFile(gConfig.getStr("Log.FileName"));
