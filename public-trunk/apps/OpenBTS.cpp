@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 		gSetLogFile(gConfig.getStr("Log.FileName"));
 	}
 
-//	startBTS();
+	startBTS();
 
 	if (strcasecmp(gConfig.getStr("CLI.Type"),"TCP") == 0) {
 		ConnectionServerSocketTCP serverSock(gConfig.getNum("CLI.TCP.Port"),
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
 		runCLI(&gParser);
 	}
 
-//	stopBTS();
+	stopBTS();
 
 }
 
