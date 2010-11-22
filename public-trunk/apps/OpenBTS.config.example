@@ -541,6 +541,10 @@ $static CLI.TCP.Port
 
 # Parameters for UNIX remote CLI.
 #   Path to the socket
-CLI.Unix.Path /tmp/OpenBTScli.socket
+# Filesystem Hierarchy Standard specifies it daemons should store runtime
+# files in /var/run, but you may specify any other directory if you run
+# OpenBTS manually.
+#CLI.Unix.Path /var/run/OpenBTS.control
+CLI.Unix.Path OpenBTS.control
 $static CLI.Unix.Path
 
