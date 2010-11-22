@@ -89,6 +89,7 @@ void CommandLine::runCLI(ParserBase *processor)
 		cout.flush();
 		std::string inbuf;
 		getline(cin, inbuf, '\n');
+		if (!cin.good()) break;
 		// The parser returns -1 on exit.
 		if (processor->process(inbuf,cout)<0) break;
 #endif // !HAVE_LIBREADLINE ]

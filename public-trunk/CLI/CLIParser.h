@@ -79,6 +79,13 @@ protected:
 
 extern CommandLine::Parser gParser;
 
+/** Exit BTS, waiting up to waitSec seconds for active channels to release. */
+void exitBTS(unsigned waitSec, std::ostream& os);
+
+/** Print current usage loads. */
+void printStats(std::ostream& os);
+
+
 } 	// CLI
 
 

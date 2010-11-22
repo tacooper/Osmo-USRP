@@ -69,7 +69,8 @@ GSMConfig gBTS;
 // Our interface to the software-defined radio.
 TransceiverManager gTRX(1, gConfig.getStr("TRX.IP"), gConfig.getNum("TRX.Port"));
 
-
+/// Pointer to the server socket if we run remote CLI.
+ConnectionServerSocket *gCLIServerSock = NULL;
 
 
 
@@ -251,17 +252,62 @@ void startBTS()
 
 void stopBTS()
 {
-	if (gConfig.defines("Control.TMSISavePath")) {
-		gTMSITable.save(gConfig.getStr("Control.TMSISavePath"));
+	if (!gBTS.hold()) {
+		exitBTS(0, cout);
 	}
 
 	if (gTransceiverPid) kill(gTransceiverPid, SIGKILL);
 }
 
+void exitCLI()
+{
+	if (gCLIServerSock != NULL) {
+		// Closing server sock
+		gCLIServerSock->close();
+		gCLIServerSock = NULL;
+	}
+
+	// Closing server standard input to shutdown local CLI
+	cin.setstate(ios::eofbit);
+//	cin.putback('\n');
+	fclose(stdin);
+}
+
+void signalHandler(int sig)
+{
+	COUT("Handling signal " << sig);
+	switch(sig){
+		case SIGHUP:
+			// re-read the config
+			// TODO::
+			break;		
+		case SIGTERM:
+		case SIGINT:
+			// finalize the server
+			exitCLI();
+			break;
+		default:
+			break;
+	}	
+}
 
 int main(int argc, char *argv[])
 {
 	srandom(time(NULL));
+
+	// Signal to re-read config
+	if (signal(SIGHUP, signalHandler) == SIG_ERR) {
+		CERR("Error while setting handler for SIGHUP.");
+	}
+	// Signal to shutdown gracefully
+	if (signal(SIGTERM, signalHandler) == SIG_ERR) {
+		CERR("Error while setting handler for SIGTERM.");
+	}
+	// Ctrl-C signal
+	if (signal(SIGINT, signalHandler) == SIG_ERR) {
+		CERR("Error while setting handler for SIGINT.");
+	}
+
 
 	COUT("\n\n" << gOpenBTSWelcome << "\n");
 
@@ -274,10 +320,14 @@ int main(int argc, char *argv[])
 	if (strcasecmp(gConfig.getStr("CLI.Type"),"TCP") == 0) {
 		ConnectionServerSocketTCP serverSock(gConfig.getNum("CLI.TCP.Port"),
 		                                     gConfig.getStr("CLI.TCP.IP"));
+		gCLIServerSock = &serverSock;
 		runCLIServer(&serverSock);
+		gCLIServerSock = NULL;
 	} else if (strcasecmp(gConfig.getStr("CLI.Type"),"Unix") == 0) {
 		ConnectionServerSocketUnix serverSock(gConfig.getStr("CLI.Unix.Path"));
+		gCLIServerSock = &serverSock;
 		runCLIServer(&serverSock);
+		gCLIServerSock = NULL;
 	} else {
 		runCLI(&gParser);
 	}

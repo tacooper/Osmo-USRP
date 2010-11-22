@@ -67,13 +67,62 @@ static const char* errorCodeText[] = {
 extern TransceiverManager gTRX;
 CommandLine::Parser CommandLine::gParser;
 
+/**@name Helper functions. */
+//@{
 
+void CommandLine::exitBTS(unsigned waitSec, ostream& os)
+{
+	// Block creation of new channels.
+	gBTS.hold(true);
+
+	if (waitSec!=0) {
+		os << "waiting up to " << waitSec << " seconds for clearing of "
+		   << gBTS.TCHActive() << " active calls" << endl;
+
+		// Wait up to the timeout for active channels to release.
+		time_t finish = time(NULL) + waitSec;
+		while (time(NULL)<finish) {
+			unsigned load = gBTS.SDCCHActive() + gBTS.TCHActive();
+			if (load==0) break;
+			sleep(1);
+		}
+	}
+
+	bool loads = false;
+	if (gBTS.SDCCHActive()>0) {
+		LOG(WARN) << "dropping " << gBTS.SDCCHActive() << " control transactions on exit";
+		loads = true;
+	}
+	if (gBTS.TCHActive()>0) {
+		LOG(WARN) << "dropping " << gBTS.TCHActive() << " calls on exit";
+		loads = true;
+	}
+	if (loads) {
+		os << endl << "exiting with loads:" << endl;
+		printStats(os);
+	}
+	if (gConfig.defines("Control.TMSITable.SavePath")) {
+		gTMSITable.save(gConfig.getStr("Control.TMSITable.SavePath"));
+	}
+	os << endl << "exiting..." << endl;
+}
+
+void CommandLine::printStats(ostream& os)
+{
+	os << "SDCCH load: " << gBTS.SDCCHActive() << '/' << gBTS.SDCCHTotal() << endl;
+	os << "TCH/F load: " << gBTS.TCHActive() << '/' << gBTS.TCHTotal() << endl;
+	os << "AGCH/PCH load: " << gBTS.AGCHLoad() << ',' << gBTS.PCHLoad() << endl;
+	// paging table size
+	os << "Paging table size: " << gBTS.pager().pagingEntryListSize() << endl;
+	os << "Transactions/TMSIs: " << gTransactionTable.size() << ',' << gTMSITable.size() << endl;
+	// 3122 timer current value (the number of seconds an MS should hold off the next RACH)
+	os << "T3122: " << gBTS.T3122() << " ms" << endl;
+}
+
+//@}
 
 /**@name Commands for the CLI. */
 //@{
-
-// forward refs
-int printStats(int argc, char** argv, ostream& os);
 
 /*
 	A CLI command takes the argument in an array.
@@ -146,8 +195,6 @@ int showHelp(int argc, char** argv, ostream& os)
 	return SUCCESS;
 }
 
-
-
 /** A function to return -1, the exit code for the caller. */
 int exit_function(int argc, char** argv, ostream& os)
 {
@@ -155,36 +202,8 @@ int exit_function(int argc, char** argv, ostream& os)
 	if (argc>2) return BAD_NUM_ARGS;
 	if (argc==2) wait = atoi(argv[1]);
 
-	if (wait!=0)
-		 os << "waiting up to " << wait << " seconds for clearing of "
-		<< gBTS.TCHActive() << " active calls" << endl;
+	exitBTS(wait, os);
 
-	// Block creation of new channels.
-	gBTS.hold(true);
-	// Wait up to the timeout for active channels to release.
-	time_t finish = time(NULL) + wait;
-	while (time(NULL)<finish) {
-		unsigned load = gBTS.SDCCHActive() + gBTS.TCHActive();
-		if (load==0) break;
-		sleep(1);
-	}
-	bool loads = false;
-	if (gBTS.SDCCHActive()>0) {
-		LOG(WARN) << "dropping " << gBTS.SDCCHActive() << " control transactions on exit";
-		loads = true;
-	}
-	if (gBTS.TCHActive()>0) {
-		LOG(WARN) << "dropping " << gBTS.TCHActive() << " calls on exit";
-		loads = true;
-	}
-	if (loads) {
-		os << endl << "exiting with loads:" << endl;
-		printStats(1,NULL,os);
-	}
-	if (gConfig.defines("Control.TMSITable.SavePath")) {
-		gTMSITable.save(gConfig.getStr("Control.TMSITable.SavePath"));
-	}
-	os << endl << "exiting..." << endl;
 	return -1;
 }
 
@@ -327,17 +346,10 @@ int sendrrlp(int argc, char** argv, ostream& os)
 
 
 /** Print current usage loads. */
-int printStats(int argc, char** argv, ostream& os)
+int cliPrintStats(int argc, char** argv, ostream& os)
 {
 	if (argc!=1) return BAD_NUM_ARGS;
-	os << "SDCCH load: " << gBTS.SDCCHActive() << '/' << gBTS.SDCCHTotal() << endl;
-	os << "TCH/F load: " << gBTS.TCHActive() << '/' << gBTS.TCHTotal() << endl;
-	os << "AGCH/PCH load: " << gBTS.AGCHLoad() << ',' << gBTS.PCHLoad() << endl;
-	// paging table size
-	os << "Paging table size: " << gBTS.pager().pagingEntryListSize() << endl;
-	os << "Transactions/TMSIs: " << gTransactionTable.size() << ',' << gTMSITable.size() << endl;
-	// 3122 timer current value (the number of seconds an MS should hold off the next RACH)
-	os << "T3122: " << gBTS.T3122() << " ms" << endl;
+	printStats(os);
 	return SUCCESS;
 }
 
@@ -813,7 +825,7 @@ Parser::Parser()
 	addCommand("findimsi", findimsi, "[IMSIPrefix] -- prints all imsi's that are prefixed by IMSIPrefix");
 	addCommand("sendsms", sendsms, "<IMSI> <src> <text> -- send SMS to <IMSI>, addressed from <src>.");
 	addCommand("sendrrlp", sendrrlp, "<IMSI> <hexstring> -- send RRLP message <hexstring> to <IMSI>.");
-	addCommand("load", printStats, "-- print the current activity loads.");
+	addCommand("load", cliPrintStats, "-- print the current activity loads.");
 	addCommand("cellid", cellID, "[MCC MNC LAC CI] -- get/set location area identity (MCC, MNC, LAC) and cell ID (CI)");
 	addCommand("calls", calls, "-- print the transaction table");
 	addCommand("config", config, "[] OR [patt] OR [key val(s)] -- print the current configuration, print configuration values matching a pattern, or set/change a configuration value");
