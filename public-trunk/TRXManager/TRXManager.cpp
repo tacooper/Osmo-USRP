@@ -32,6 +32,7 @@
 #include "GSMConfig.h"
 #include "GSML1FEC.h"
 #include <string.h>
+#include <stdexcept>
 
 #include <Logger.h>
 
@@ -39,6 +40,8 @@
 using namespace GSM;
 using namespace std;
 
+// From OpenBTS.cpp
+extern void shutdownOpenbts();
 
 TransceiverManager::TransceiverManager(int numARFCNs,
 		const char* wTRXAddress, int wBasePort)
@@ -85,11 +88,13 @@ void TransceiverManager::clockHandler()
 	// Did the transceiver die??
 	if (msgLen<0) {
 		LOG(ALARM) << "TRX clock interface timed out, assuming TRX is dead.";
-		abort();
+		shutdownOpenbts();
+		return;
 	}
 
 	if (msgLen==0) {
 		LOG(ALARM) << "read error on TRX clock interface, return " << msgLen;
+		shutdownOpenbts();
 		return;
 	}
 

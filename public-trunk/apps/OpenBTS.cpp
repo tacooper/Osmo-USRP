@@ -112,6 +112,12 @@ static ConnectionServerSocket *sgCLIServerSock = NULL;
 /// We store Transceiver PID if we started it.
 static pid_t sgTransceiverPid = 0;
 
+/** Function to shutdown the process when something wrong happens. */
+void shutdownOpenbts()
+{
+	kill(SIGTERM, getpid());
+}
+
 static void restartTransceiver()
 {
 	// This is harmless - if someone is running OpenBTS they WANT no transceiver
