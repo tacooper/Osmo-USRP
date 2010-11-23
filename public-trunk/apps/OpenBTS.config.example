@@ -31,7 +31,7 @@
 #Server.Daemonize
 $optional Server.Daemonize
 
-# Directory to create PID file in.
+# Path to OpenBTS PID file.
 # Filesystem Hierarchy Standard specifies it daemons should write PID
 # to /var/run, but you may specify any other directory if you run
 # OpenBTS manually.
