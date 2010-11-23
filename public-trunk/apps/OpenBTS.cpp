@@ -85,41 +85,40 @@ protected:
 	int mLockFileFD;
 };
 
-// Load configuration from a file.
+/// Load configuration from a file.
 ConfigurationTable gConfig("OpenBTS.config");
-// Initialize Logger form the config.
-LogInitializer gLogInitializer;
-// Fork daemon if needed.
-DaemonInitializer gDaemonInitializer(gConfig.defines("Server.Daemonize"));
+/// Initialize Logger form the config.
+static LogInitializer sgLogInitializer;
+/// Fork daemon if needed.
+static DaemonInitializer sgDaemonInitializer(gConfig.defines("Server.Daemonize"));
 
 
 // All of the other globals that rely on the global configuration file need to
 // be declared here.
 
-// The global SIPInterface object.
+/// The global SIPInterface object.
 SIP::SIPInterface gSIPInterface;
 
-// Configure the BTS object based on the config file.
-// So don't create this until AFTER loading the config file.
+/// Configure the BTS object based on the config file.
+/// So don't create this until AFTER loading the config file.
 GSMConfig gBTS;
 
-// Our interface to the software-defined radio.
+/// Our interface to the software-defined radio.
 TransceiverManager gTRX(1, gConfig.getStr("TRX.IP"), gConfig.getNum("TRX.Port"));
 
 /// Pointer to the server socket if we run remote CLI.
-ConnectionServerSocket *gCLIServerSock = NULL;
+static ConnectionServerSocket *sgCLIServerSock = NULL;
 
+/// We store Transceiver PID if we started it.
+static pid_t sgTransceiverPid = 0;
 
-
-pid_t gTransceiverPid = 0;
-
-void restartTransceiver()
+static void restartTransceiver()
 {
 	// This is harmless - if someone is running OpenBTS they WANT no transceiver
 	// instance at the start anyway.
-	if (gTransceiverPid > 0) {
+	if (sgTransceiverPid > 0) {
 		LOG(INFO) << "RESTARTING TRANSCEIVER";
-		kill(gTransceiverPid,SIGKILL); // TODO - call on ctrl-c (put in signal?)
+		kill(sgTransceiverPid,SIGKILL);
 	}
 
 	// Start the transceiver binary, if the path is defined.
@@ -130,9 +129,9 @@ void restartTransceiver()
 		const char *TRXLogLevel = gConfig.getStr("TRX.LogLevel");
 		const char *TRXLogFileName = NULL;
 		if (gConfig.defines("TRX.LogFileName")) TRXLogFileName=gConfig.getStr("TRX.LogFileName");
-		gTransceiverPid = vfork();
-		LOG_ASSERT(gTransceiverPid>=0);
-		if (gTransceiverPid==0) {
+		sgTransceiverPid = vfork();
+		LOG_ASSERT(sgTransceiverPid>=0);
+		if (sgTransceiverPid==0) {
 			// Pid==0 means this is the process that starts the transceiver.
 			execl(TRXPath,"transceiver",TRXLogLevel,TRXLogFileName,NULL);
 			LOG(ERROR) << "cannot start transceiver";
@@ -142,7 +141,7 @@ void restartTransceiver()
 }
 
 
-void startBTS()
+static void startBTS()
 {
 	cout << endl << "Starting the system..." << endl;
 
@@ -287,21 +286,21 @@ void startBTS()
 	LOG(INFO) << "system ready";
 }
 
-void stopBTS()
+static void stopBTS()
 {
 	if (!gBTS.hold()) {
 		exitBTS(0, cout);
 	}
 
-	if (gTransceiverPid) kill(gTransceiverPid, SIGKILL);
+	if (sgTransceiverPid) kill(sgTransceiverPid, SIGKILL);
 }
 
-void exitCLI()
+static void exitCLI()
 {
-	if (gCLIServerSock != NULL) {
+	if (sgCLIServerSock != NULL) {
 		// Closing server sock
-		gCLIServerSock->close();
-		gCLIServerSock = NULL;
+		sgCLIServerSock->close();
+		sgCLIServerSock = NULL;
 	}
 
 	// Closing server standard input to shutdown local CLI
@@ -506,14 +505,14 @@ int main(int argc, char *argv[])
 	if (strcasecmp(gConfig.getStr("CLI.Type"),"TCP") == 0) {
 		ConnectionServerSocketTCP serverSock(gConfig.getNum("CLI.TCP.Port"),
 		                                     gConfig.getStr("CLI.TCP.IP"));
-		gCLIServerSock = &serverSock;
+		sgCLIServerSock = &serverSock;
 		runCLIServer(&serverSock);
-		gCLIServerSock = NULL;
+		sgCLIServerSock = NULL;
 	} else if (strcasecmp(gConfig.getStr("CLI.Type"),"Unix") == 0) {
 		ConnectionServerSocketUnix serverSock(gConfig.getStr("CLI.Unix.Path"));
-		gCLIServerSock = &serverSock;
+		sgCLIServerSock = &serverSock;
 		runCLIServer(&serverSock);
-		gCLIServerSock = NULL;
+		sgCLIServerSock = NULL;
 	} else {
 		runCLI(&gParser);
 	}
