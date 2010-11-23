@@ -53,19 +53,36 @@ using namespace std;
 using namespace GSM;
 using namespace CommandLine;
 
-static int daemonize();
+static int daemonize(std::string &lockfile, int &lfp);
 
 class DaemonInitializer
 {
 public:
 	DaemonInitializer(bool doDaemonize)
+	: mLockFileFD(-1)
 	{
 		// Start in daemon mode?
 		if (doDaemonize)
-			if (daemonize() != EXIT_SUCCESS)
+			if (daemonize(mLockFileName, mLockFileFD) != EXIT_SUCCESS)
 				exit(EXIT_FAILURE);
 	}
 
+	~DaemonInitializer()
+	{
+		if (mLockFileFD >= 0) close(mLockFileFD);
+		if	(mLockFileName.size() > 0) {
+			if (unlink(mLockFileName.data()) == 0) {
+				LOG(INFO) << "Deleted lock file " << mLockFileName;
+			} else {
+				LOG(INFO) << "Error while deleting lock file " << mLockFileName
+				          << " code=" << errno << ": " << strerror(errno);
+			}
+		}
+	}
+
+protected:
+	std::string mLockFileName;
+	int mLockFileFD;
 };
 
 // Load configuration from a file.
@@ -331,7 +348,7 @@ static void childHandler(int signum)
 	}
 }
 
-static int daemonize()
+static int daemonize(std::string &lockfile, int &lfp)
 {
 	// Already a daemon
 	if ( getppid() == 1 ) return EXIT_SUCCESS;
@@ -350,10 +367,10 @@ static int daemonize()
 	// "The naming convention for PID files is <program-name>.pid."
 	// The same standard specifies that PID files should be placed
 	// in /var/run, but we make this configurable.
-	std::string lockfile = gConfig.getStr("Server.WritePID");
+	lockfile = gConfig.getStr("Server.WritePID");
 
 	// Create the PID file as the current user
-	int lfp = open(lockfile.data(), O_RDWR|O_CREAT, 0640);
+	lfp = open(lockfile.data(), O_RDWR|O_CREAT, 0640);
 	if (lfp < 0) {
 		LOG(ERROR) << "Unable to create PID file " << lockfile << ", code="
 		           << errno << " (" << strerror(errno) << ")";
