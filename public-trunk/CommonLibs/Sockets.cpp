@@ -234,6 +234,11 @@ void UDPSocket::open(unsigned short localPort)
 		perror("socket() failed");
 		throw SocketError();
 	}
+	// Set "close on exec" flag to avoid open sockets inheritance by
+	// child processes, like 'transceiver'.
+	int flags = fcntl(mSocketFD, F_GETFD);
+	if (flags >= 0) fcntl(mSocketFD, F_SETFD, flags | FD_CLOEXEC);
+
 
 	// bind
 	struct sockaddr_in address;
@@ -280,6 +285,10 @@ void UDDSocket::open(const char* localPath)
 		perror("socket() failed");
 		throw SocketError();
 	}
+	// Set "close on exec" flag to avoid open sockets inheritance by
+	// child processes, like 'transceiver'.
+	int flags = fcntl(mSocketFD, F_GETFD);
+	if (flags >= 0) fcntl(mSocketFD, F_SETFD, flags | FD_CLOEXEC);
 
 	// bind
 	struct sockaddr_un address;
@@ -313,6 +322,10 @@ ConnectionSocket::ConnectionSocket(int af, int type, int protocol)
 //		LOG(ERROR) << "socket() failed with errno=" << errsv;
 		mSocketFD = -1;
 	}
+	// Set "close on exec" flag to avoid open sockets inheritance by
+	// child processes, like 'transceiver'.
+	int flags = fcntl(mSocketFD, F_GETFD);
+	if (flags >= 0) fcntl(mSocketFD, F_SETFD, flags | FD_CLOEXEC);
 }
 
 ConnectionSocket::~ConnectionSocket()
@@ -393,6 +406,10 @@ ConnectionServerSocket::ConnectionServerSocket(int af, int type, int protocol)
 //		LOG(ERROR) << "socket() failed with errno=" << errsv;
 		mSocketFD = -1;
 	}
+	// Set "close on exec" flag to avoid open sockets inheritance by
+	// child processes, like 'transceiver'.
+	int flags = fcntl(mSocketFD, F_GETFD);
+	if (flags >= 0) fcntl(mSocketFD, F_SETFD, flags | FD_CLOEXEC);
 }
 
 bool ConnectionServerSocket::bindInternal(const sockaddr *addr, int addrlen,
