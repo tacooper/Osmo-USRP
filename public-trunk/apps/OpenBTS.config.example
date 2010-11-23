@@ -118,6 +118,14 @@ TRX.Path ../Transceiver/transceiver
 #TRX.Path ../Transceiver52M/transceiver
 $static TRX.Path
 
+# Path to transceiver PID file.
+# Filesystem Hierarchy Standard specifies it daemons should write PID
+# to /var/run, but you may specify any other directory if you run
+# OpenBTS manually.
+#TRX.WritePID /var/run/transceiver.pid
+TRX.WritePID transceiver.pid
+$static TRX.WritePID
+
 # TRX logging.
 # Logging level.
 # IF TRX.Path IS DEFINED, THIS MUST ALSO BE DEFINED.

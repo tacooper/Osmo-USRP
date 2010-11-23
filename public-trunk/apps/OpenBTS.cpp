@@ -118,20 +118,93 @@ void shutdownOpenbts()
 	kill(SIGTERM, getpid());
 }
 
-static void restartTransceiver()
+static int openPidFile(const std::string &lockfile)
 {
-	// This is harmless - if someone is running OpenBTS they WANT no transceiver
-	// instance at the start anyway.
-	if (sgTransceiverPid > 0) {
-		LOG(INFO) << "RESTARTING TRANSCEIVER";
-		kill(sgTransceiverPid,SIGKILL);
+	int lfp = open(lockfile.data(), O_RDWR|O_CREAT, 0640);
+	if (lfp < 0) {
+		LOG(ERROR) << "Unable to create PID file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+	} else {
+		LOG(INFO) << "Created PID file " << lockfile;
+	}
+	return lfp;
+}
+
+static int lockPidFile(const std::string &lockfile, int lfp, bool block=false)
+{
+	if (lockf(lfp, block?F_LOCK:F_TLOCK,0) < 0) {
+		LOG(ERROR) << "Unable to lock PID file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}
+
+static int writePidFile(const std::string &lockfile, int lfp, int pid)
+{
+	// Clear old file content first
+	if (ftruncate(lfp, 0) < 0) {
+		LOG(ERROR) << "Unable to clear PID file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
 	}
 
+	// Write PID
+	char tempBuf[64];
+	snprintf(tempBuf, sizeof(tempBuf), "%d\n", pid);
+	ssize_t tempDataLen = strlen(tempBuf);
+	lseek(lfp, 0, SEEK_SET);
+	if (write(lfp, tempBuf, tempDataLen) != tempDataLen) {
+		LOG(ERROR) << "Unable to write PID to file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}
+
+static int readPidFile(const std::string &lockfile, int lfp, int &pid)
+{
+	char tempBuf[64];
+	lseek(lfp, 0, SEEK_SET);
+	int bytesRead = read(lfp, tempBuf, sizeof(tempBuf));
+	if (bytesRead <= 0) {
+		LOG(ERROR) << "Unable to read PID from file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+	tempBuf[bytesRead<sizeof(tempBuf)?bytesRead:sizeof(tempBuf)-1] = '\0';
+	int res = sscanf(tempBuf, " %d", &pid);
+	if (res < 1) {
+		LOG(ERROR) << "Unable to parse PID from file " << lockfile << ", code="
+		           << errno << " (" << strerror(errno) << ")";
+		return EXIT_FAILURE;
+	}
+	return EXIT_SUCCESS;
+}
+
+static int startTransceiver()
+{
 	// Start the transceiver binary, if the path is defined.
 	// If the path is not defined, the transceiver must be started by some other process.
-	const char *TRXPath = NULL;
-	if (gConfig.defines("TRX.Path")) TRXPath=gConfig.getStr("TRX.Path");
-	if (TRXPath) {
+	if (gConfig.defines("TRX.Path")) {
+
+		// Open and lock PID file, taking care of old transceiver instance.
+		std::string lockfile = gConfig.getStr("TRX.WritePID");
+		int lfp = openPidFile(lockfile);
+		if (lfp < 0) return EXIT_SUCCESS;
+		int pid;
+		if (lockPidFile(lockfile, lfp, false) != EXIT_SUCCESS) {
+			// Another OpenBTS instance is running and blocking PID file.
+			return EXIT_FAILURE;
+		}
+		if (readPidFile(lockfile, lfp, pid) == EXIT_SUCCESS) {
+			// There is no harm in this. Transceiver's owner is not
+			// running and could safely kill it.
+			kill(pid, SIGTERM);
+		}
+
+		// Start transceiver
+		const char *TRXPath = gConfig.getStr("TRX.Path");
 		const char *TRXLogLevel = gConfig.getStr("TRX.LogLevel");
 		const char *TRXLogFileName = NULL;
 		if (gConfig.defines("TRX.LogFileName")) TRXLogFileName=gConfig.getStr("TRX.LogFileName");
@@ -143,7 +216,10 @@ static void restartTransceiver()
 			LOG(ERROR) << "cannot start transceiver";
 			_exit(0);
 		}
+		// Now we can finally write transceiver PID to the file.
+		if (writePidFile(lockfile, lfp, sgTransceiverPid) != EXIT_SUCCESS) return EXIT_FAILURE;
 	}
+	return EXIT_SUCCESS;
 }
 
 static void exitCLI()
@@ -220,13 +296,7 @@ static int daemonize(std::string &lockfile, int &lfp)
 	lockfile = gConfig.getStr("Server.WritePID");
 
 	// Create the PID file as the current user
-	lfp = open(lockfile.data(), O_RDWR|O_CREAT, 0640);
-	if (lfp < 0) {
-		LOG(ERROR) << "Unable to create PID file " << lockfile << ", code="
-		           << errno << " (" << strerror(errno) << ")";
-		return EXIT_FAILURE;
-	}
-	LOG(INFO) << "Created PID file " << lockfile;
+	if ((lfp=openPidFile(lockfile)) < 0) return EXIT_FAILURE;
 
 	// Drop user if there is one, and we were run as root
 /*	if ( getuid() == 0 || geteuid() == 0 ) {
@@ -266,19 +336,8 @@ static int daemonize(std::string &lockfile, int &lfp)
 	}
 
 	// Now lock our PID file and write our PID to it
-	if (lockf(lfp, F_TLOCK,0) < 0) {
-		LOG(ERROR) << "Unable to lock PID file " << lockfile << ", code="
-		           << errno << " (" << strerror(errno) << ")";
-		return EXIT_FAILURE;
-	}
-	char tempBuf[64];
-	snprintf(tempBuf, sizeof(tempBuf), "%d\n", getpid());
-	ssize_t tempDataLen = strlen(tempBuf);
-	if (write(lfp, tempBuf, tempDataLen) != tempDataLen) {
-		LOG(ERROR) << "Unable to wite PID to file " << lockfile << ", code="
-		           << errno << " (" << strerror(errno) << ")";
-		return EXIT_FAILURE;
-	}
+	if (lockPidFile(lockfile, lfp) != EXIT_SUCCESS) return EXIT_FAILURE;
+	if (writePidFile(lockfile, lfp, getpid()) != EXIT_SUCCESS) return EXIT_FAILURE;
 
 	// At this point we are executing as the child process
 	pid_t parent = getppid();
@@ -360,7 +419,7 @@ int main(int argc, char *argv[])
 
 	LOG(ALARM) << "OpenBTS starting, ver " << VERSION << " build date " << __DATE__;
 
-	restartTransceiver();
+	startTransceiver();
 
 	// Start the SIP interface.
 	gSIPInterface.start();
