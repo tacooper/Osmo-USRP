@@ -109,8 +109,10 @@ TransceiverManager gTRX(1, gConfig.getStr("TRX.IP"), gConfig.getNum("TRX.Port"))
 /// Pointer to the server socket if we run remote CLI.
 static ConnectionServerSocket *sgCLIServerSock = NULL;
 
-/// We store Transceiver PID if we started it.
+/// We store Transceiver PID if we start it.
 static pid_t sgTransceiverPid = 0;
+static int sgTransceiverPidFileFd = -1;
+static std::string sgTransceiverPidFile;
 
 /** Function to shutdown the process when something wrong happens. */
 void shutdownOpenbts()
@@ -189,15 +191,15 @@ static int startTransceiver()
 	if (gConfig.defines("TRX.Path")) {
 
 		// Open and lock PID file, taking care of old transceiver instance.
-		std::string lockfile = gConfig.getStr("TRX.WritePID");
-		int lfp = openPidFile(lockfile);
-		if (lfp < 0) return EXIT_SUCCESS;
+		sgTransceiverPidFile = gConfig.getStr("TRX.WritePID");
+		sgTransceiverPidFileFd = openPidFile(sgTransceiverPidFile);
+		if (sgTransceiverPidFileFd < 0) return EXIT_SUCCESS;
 		int pid;
-		if (lockPidFile(lockfile, lfp, false) != EXIT_SUCCESS) {
+		if (lockPidFile(sgTransceiverPidFile, sgTransceiverPidFileFd, false) != EXIT_SUCCESS) {
 			// Another OpenBTS instance is running and blocking PID file.
 			return EXIT_FAILURE;
 		}
-		if (readPidFile(lockfile, lfp, pid) == EXIT_SUCCESS) {
+		if (readPidFile(sgTransceiverPidFile, sgTransceiverPidFileFd, pid) == EXIT_SUCCESS) {
 			// There is no harm in this. Transceiver's owner is not
 			// running and could safely kill it.
 			kill(pid, SIGTERM);
@@ -217,7 +219,7 @@ static int startTransceiver()
 			_exit(0);
 		}
 		// Now we can finally write transceiver PID to the file.
-		if (writePidFile(lockfile, lfp, sgTransceiverPid) != EXIT_SUCCESS) return EXIT_FAILURE;
+		if (writePidFile(sgTransceiverPidFile, sgTransceiverPidFileFd, sgTransceiverPid) != EXIT_SUCCESS) return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
 }
@@ -573,7 +575,20 @@ int main(int argc, char *argv[])
 		exitBTS(0, cout);
 	}
 
-	if (sgTransceiverPid) kill(sgTransceiverPid, SIGKILL);
+	if (sgTransceiverPid) {
+		kill(sgTransceiverPid, SIGTERM);
+		if (sgTransceiverPidFileFd >= 0) {
+			close(sgTransceiverPidFileFd);
+		}
+		if	(sgTransceiverPidFile.size() > 0) {
+			if (unlink(sgTransceiverPidFile.data()) == 0) {
+				LOG(INFO) << "Deleted lock file " << sgTransceiverPidFile;
+			} else {
+				LOG(INFO) << "Error while deleting lock file " << sgTransceiverPidFile
+				          << " code=" << errno << ": " << strerror(errno);
+			}
+		}
+	}
 
 	return EXIT_SUCCESS;
 }
