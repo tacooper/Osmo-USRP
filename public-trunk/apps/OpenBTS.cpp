@@ -412,6 +412,8 @@ int main(int argc, char *argv[])
 
 	cout << endl << endl << gOpenBTSWelcome << endl;
 
+	try {
+
 #if 1
 	cout << endl << "Starting the system..." << endl;
 
@@ -569,6 +571,12 @@ int main(int argc, char *argv[])
 		sgCLIServerSock = NULL;
 	} else {
 		runCLI(&gParser);
+	}
+
+	} catch(SocketError) {
+		// Shutdown without core dump.
+		// SocketError is a usual case, e.g. it's fired when transceiver fails.
+		LOG(ALARM) << "Uncaught exception. Shutting down.";
 	}
 
 	if (!gBTS.hold()) {
