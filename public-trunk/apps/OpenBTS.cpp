@@ -54,6 +54,7 @@ using namespace GSM;
 using namespace CommandLine;
 
 static int daemonize(std::string &lockfile, int &lfp);
+static int forkLoop();
 
 class DaemonInitializer
 {
@@ -85,12 +86,25 @@ protected:
 	int mLockFileFD;
 };
 
+class Restarter
+{
+public:
+	Restarter(bool restartOnCrash)
+	{
+		if (restartOnCrash)
+			if (forkLoop() != EXIT_SUCCESS)
+				exit(EXIT_FAILURE);
+	}
+};
+
 /// Load configuration from a file.
 ConfigurationTable gConfig("OpenBTS.config");
 /// Initialize Logger form the config.
 static LogInitializer sgLogInitializer;
 /// Fork daemon if needed.
 static DaemonInitializer sgDaemonInitializer(gConfig.defines("Server.Daemonize"));
+/// Fork a child and restart it if it crash. Kind of failsafe.
+static Restarter sgRestarter(gConfig.defines("Server.RestartOnCrash"));
 
 
 // All of the other globals that rely on the global configuration file need to
@@ -238,26 +252,7 @@ static void exitCLI()
 	fclose(stdin);
 }
 
-static void signalHandler(int sig)
-{
-	COUT("Handling signal " << sig);
-	LOG(INFO) << "Handling signal " << sig;
-	switch(sig){
-		case SIGHUP:
-			// re-read the config
-			// TODO::
-			break;		
-		case SIGTERM:
-		case SIGINT:
-			// finalize the server
-			exitCLI();
-			break;
-		default:
-			break;
-	}	
-}
-
-static void childHandler(int signum)
+static void daemonChildHandler(int signum)
 {
 	LOG(INFO) << "Handling signal " << signum;
 	switch(signum) {
@@ -311,9 +306,9 @@ static int daemonize(std::string &lockfile, int &lfp)
 */
 
 	// Trap signals that we expect to receive
-	signal(SIGCHLD, childHandler);
-	signal(SIGUSR1, childHandler);
-	signal(SIGALRM, childHandler);
+	signal(SIGCHLD, daemonChildHandler);
+	signal(SIGUSR1, daemonChildHandler);
+	signal(SIGALRM, daemonChildHandler);
 
 	// Fork off the parent process
 	pid_t pid = fork();
@@ -344,8 +339,10 @@ static int daemonize(std::string &lockfile, int &lfp)
 	// At this point we are executing as the child process
 	pid_t parent = getppid();
 
-	// Return SIGCHLD to default handler
+	// Return signals to default handlers
 	signal(SIGCHLD, SIG_DFL);
+	signal(SIGUSR1, SIG_DFL);
+	signal(SIGALRM, SIG_DFL);
 
 	// Change the file mode mask
 	// This will restrict file creation mode to 750 (complement of 027).
@@ -383,6 +380,79 @@ static int daemonize(std::string &lockfile, int &lfp)
 	kill(parent, SIGUSR1);
 
 	return EXIT_SUCCESS;
+}
+
+static int forkLoop()
+{
+	bool shouldExit = false;
+	sigset_t chldSignalSet;
+	sigemptyset(&chldSignalSet);
+	sigaddset(&chldSignalSet, SIGCHLD);
+	sigaddset(&chldSignalSet, SIGTERM);
+	sigaddset(&chldSignalSet, SIGINT);
+	sigaddset(&chldSignalSet, SIGKILL);
+
+	// Block signals to avoid race condition.
+	// It will be delivered to us in sigwait() when we are ready to handle it.
+	sigprocmask(SIG_BLOCK, &chldSignalSet, NULL);
+
+	while (1) {
+		// Fork off the parent process
+		pid_t pid = fork();
+		if (pid < 0) {
+			// fork() failed.
+			LOG(ERROR) << "Unable to fork child, code=" << errno
+			           << " (" << strerror(errno) << ")";
+			return EXIT_FAILURE;
+		} else if (pid > 0) {
+			// Parent process
+			// Wait for child process to exit (SIGCHLD).
+			LOG(INFO) << "Forked child process with PID " << pid;
+			int signum = -1;
+			while (signum != SIGCHLD) {
+				sigwait(&chldSignalSet, &signum);
+				switch(signum) {
+					case SIGCHLD:
+						LOG(ERROR) << "Child with PID " << pid << " died.";
+						if (shouldExit) exit(EXIT_SUCCESS);
+						break;
+					case SIGTERM:
+					case SIGINT:
+					case SIGKILL:
+						// Forward signal to the child.
+						kill(pid, signum);
+						// We will exit child exits and send us SIGCHLD.
+						shouldExit = true;
+				}
+			}
+		} else {
+			// Child process
+			// Unblock signals we blocked.
+			sigprocmask(SIG_UNBLOCK, &chldSignalSet, NULL);
+			return EXIT_SUCCESS;
+		}
+	}
+
+	return EXIT_SUCCESS;
+}
+
+static void signalHandler(int sig)
+{
+	COUT("Handling signal " << sig);
+	LOG(INFO) << "Handling signal " << sig;
+	switch(sig){
+		case SIGHUP:
+			// re-read the config
+			// TODO::
+			break;		
+		case SIGTERM:
+		case SIGINT:
+			// finalize the server
+			exitCLI();
+			break;
+		default:
+			break;
+	}	
 }
 
 int main(int argc, char *argv[])

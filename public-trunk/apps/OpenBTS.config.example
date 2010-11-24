@@ -31,6 +31,11 @@
 #Server.Daemonize
 $optional Server.Daemonize
 
+# If Server.RestartOnCrash is defined, OpenBTS forks a child
+# and restart it if child dies. This is kind of failsafe.
+#Server.RestartOnCrash
+$optional Server.RestartOnCrash
+
 # Path to OpenBTS PID file.
 # Filesystem Hierarchy Standard specifies it daemons should write PID
 # to /var/run, but you may specify any other directory if you run
