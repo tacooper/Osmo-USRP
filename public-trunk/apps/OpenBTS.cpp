@@ -238,15 +238,38 @@ static int startTransceiver()
 	return EXIT_SUCCESS;
 }
 
+static void serverCleanup()
+{
+	if (sgTransceiverPid) {
+		kill(sgTransceiverPid, SIGTERM);
+		if (sgTransceiverPidFileFd >= 0) {
+			close(sgTransceiverPidFileFd);
+		}
+		if	(sgTransceiverPidFile.size() > 0) {
+			if (unlink(sgTransceiverPidFile.data()) == 0) {
+				LOG(INFO) << "Deleted lock file " << sgTransceiverPidFile;
+			} else {
+				LOG(INFO) << "Error while deleting lock file " << sgTransceiverPidFile
+				          << " code=" << errno << ": " << strerror(errno);
+			}
+		}
+	}
+}
+
 static void exitCLI()
 {
-	if (sgCLIServerSock != NULL) {
+	if (sgCLIServerSock == NULL) {
+		serverCleanup();
+		_exit(EXIT_SUCCESS);
+	} else {
 		// Closing server sock
 		sgCLIServerSock->close();
 		sgCLIServerSock = NULL;
 	}
 
 	// Closing server standard input to shutdown local CLI
+	// Following functions are not async-signal-safe, but I don't have
+	// better idea how to do this.
 	cin.setstate(ios::eofbit);
 //	cin.putback('\n');
 	fclose(stdin);
@@ -653,20 +676,7 @@ int main(int argc, char *argv[])
 		exitBTS(0, cout);
 	}
 
-	if (sgTransceiverPid) {
-		kill(sgTransceiverPid, SIGTERM);
-		if (sgTransceiverPidFileFd >= 0) {
-			close(sgTransceiverPidFileFd);
-		}
-		if	(sgTransceiverPidFile.size() > 0) {
-			if (unlink(sgTransceiverPidFile.data()) == 0) {
-				LOG(INFO) << "Deleted lock file " << sgTransceiverPidFile;
-			} else {
-				LOG(INFO) << "Error while deleting lock file " << sgTransceiverPidFile
-				          << " code=" << errno << ": " << strerror(errno);
-			}
-		}
-	}
+	serverCleanup();
 
 	return EXIT_SUCCESS;
 }
