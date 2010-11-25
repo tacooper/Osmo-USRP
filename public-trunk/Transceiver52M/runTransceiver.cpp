@@ -88,6 +88,6 @@ int main(int argc, char *argv[])
   cout << "Shutting down transceiver..." << endl;
 
 //  trx->stop();
-  delete trx;
+//  delete trx;
 //  delete radio;
 }
