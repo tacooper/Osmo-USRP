@@ -623,7 +623,7 @@ ssize_t SampleBuffer::write(void *buf, size_t len, TIMESTAMP timestamp)
 	size_t writeStart = (dataStart + (timestamp - timeStart)) % bufferLen;
 
 	// Write it
-	if ((writeStart + len) <= bufferLen) {
+	if ((writeStart + len) < bufferLen) {
 		size_t numBytes = len * 2 * sizeof(short);
 		memcpy(data + writeStart, buf, numBytes);
 	}
