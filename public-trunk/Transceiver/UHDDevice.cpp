@@ -461,7 +461,7 @@ bool UHDDevice::recvAsyncMesg()
 		return false;
 
 	// Assume that any error requires resynchronization
-	if (metadata.event_code != uhd::async_metadata_t::EVENT_CODE_SUCCESS) {
+	if (metadata.event_code != uhd::async_metadata_t::EVENT_CODE_BURST_ACK) {
 		aligned = false;
 		LOG(DEBUG) << stringCode(metadata);
 	}
@@ -506,7 +506,7 @@ std::string UHDDevice::stringCode(uhd::async_metadata_t metadata)
 	std::ostringstream ost("UHD: ");
 
 	switch (metadata.event_code) {
-	case uhd::async_metadata_t::EVENT_CODE_SUCCESS:
+	case uhd::async_metadata_t::EVENT_CODE_BURST_ACK:
 		ost << "A packet was successfully transmitted";
 		break;
 	case uhd::async_metadata_t::EVENT_CODE_UNDERFLOW:
