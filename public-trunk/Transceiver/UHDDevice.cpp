@@ -275,6 +275,8 @@ bool UHDDevice::open()
 
 	// Print configuration
 	LOG(INFO) << usrpDevice->get_pp_string();
+
+	return true;
 }
 
 
