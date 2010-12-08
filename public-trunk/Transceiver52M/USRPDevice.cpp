@@ -249,8 +249,7 @@ bool USRPDevice::start()
   // power up and configure daughterboards
   m_uTx->_write_oe(0,0,0xffff);
   m_uTx->_write_oe(0,(POWER_UP|RX_TXN|ENABLE), 0xffff);
-  m_uTx->write_io(0,(~POWER_UP|RX_TXN),(POWER_UP|RX_TXN|ENABLE));
-  m_uTx->write_io(0,ENABLE,(RX_TXN | ENABLE));
+  m_uTx->write_io(0,ENABLE,(POWER_UP|RX_TXN|ENABLE)); /* POWER_UP inverted */
   m_uTx->_write_fpga_reg(FR_ATR_MASK_0 ,0);//RX_TXN|ENABLE);
   m_uTx->_write_fpga_reg(FR_ATR_TXVAL_0,0);//,0 |ENABLE);
   m_uTx->_write_fpga_reg(FR_ATR_RXVAL_0,0);//,RX_TXN|0);
@@ -269,7 +268,7 @@ bool USRPDevice::start()
     m_uRx->_write_fpga_reg(FR_ATR_RXVAL_0 + 3*3,0);
     m_uRx->_write_fpga_reg(43,0);
     m_uRx->_write_oe(1,(POWER_UP|RX_TXN|ENABLE), 0xffff);
-    m_uRx->write_io(1,(~POWER_UP|RX_TXN|ENABLE),(POWER_UP|RX_TXN|ENABLE));
+    m_uRx->write_io(1,(RX_TXN|ENABLE),(POWER_UP|RX_TXN|ENABLE)); /* POWER_UP inverted */
     //m_uRx->write_io(1,0,RX2_RX1N); // using Tx/Rx/
     m_uRx->write_io(1,RX2_RX1N,RX2_RX1N); // using Rx2
     m_uRx->set_adc_buffer_bypass(2,true);
@@ -312,8 +311,8 @@ bool USRPDevice::stop()
   if (!m_uTx) return false;
   
   // power down
-  m_uTx->write_io(0,(~POWER_UP|RX_TXN),(POWER_UP|RX_TXN|ENABLE));
-  m_uRx->write_io(1,~POWER_UP,(POWER_UP|ENABLE));
+  m_uTx->write_io(0,(POWER_UP|RX_TXN),(POWER_UP|RX_TXN|ENABLE));
+  m_uRx->write_io(1,POWER_UP,(POWER_UP|ENABLE));
   
   delete[] currData;
   

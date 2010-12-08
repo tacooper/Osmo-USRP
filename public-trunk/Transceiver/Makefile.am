@@ -25,7 +25,7 @@ AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES) $(UHD_CFLAGS)
 else
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES) $(USRP_CFLAGS)
 endif
-AM_CXXFLAGS = -Wall -O3 -g -lpthread
+AM_CXXFLAGS = -Wall -O3 -g -pthread
 
 rev2dir = $(datadir)/usrp/rev2
 rev4dir = $(datadir)/usrp/rev4
