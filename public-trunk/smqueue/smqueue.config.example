@@ -110,4 +110,6 @@ SC.WhiplashQuit.Code 314158
 SC.WhiplashQuit.Password Snidely
 SC.WhiplashQuit.SaveFile testsave.txt
 
-
+# SMS-Center code. OpenBTS will send messages from mobile phones
+# to this short code and will work as usual SMS-Center.
+SC.SMSC.Code smsc
