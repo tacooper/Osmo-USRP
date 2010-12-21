@@ -322,7 +322,7 @@ bool TransactionTable::find(const L3MobileIdentity& mobileID, TransactionEntry& 
 
 	// Since clearDeadEntries is also linear, do that here, too.
 
-	// Brtue force search.
+	// Brute force search.
 	bool foundIt = false;
 	mLock.lock();
 	clearDeadEntries();

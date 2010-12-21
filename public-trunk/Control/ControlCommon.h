@@ -516,7 +516,7 @@ class TransactionEntry {
 	/** Reset all Q.931 timers. */
 	void resetTimers();
 
-	/** Retrns true if the transaction is "dead". */
+	/** Returns true if the transaction is "dead". */
 	bool dead() const;
 
 	private:
@@ -596,7 +596,7 @@ class TransactionTable {
 		Also clears dead entries during search.
 		@param mobileID The mobile at to search for.
 		@param target A TransactionEntry to accept the found record.
-		@return true is the mobile ID was foind.
+		@return true is the mobile ID was found.
 	*/
 	bool find(const GSM::L3MobileIdentity& mobileID, TransactionEntry& target);
 
@@ -707,7 +707,6 @@ class TMSITable {
 		@param TMSI The TMSI to find.
 		@param target A TMSI record to catch the result.
 		@return true if the TMSI was found.
-		@return Pointer to c-string IMSI or NULL.
 	*/
 	bool find(unsigned TMSI, TMSIRecord& target);
 

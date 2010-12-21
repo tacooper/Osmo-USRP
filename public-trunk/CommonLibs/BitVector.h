@@ -328,7 +328,7 @@ class BitVector : public Vector<char> {
 	/** Pack into a char array. */
 	void pack(unsigned char*) const;
 
-	/** Unopack from a char array. */
+	/** Unpack from a char array. */
 	void unpack(const unsigned char*);
 
 	/** Make a hexdump string. */
