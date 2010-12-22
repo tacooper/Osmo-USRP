@@ -97,16 +97,9 @@ signalVector *RadioInterface::unUSRPifyVector(short *shortVector, int numSamples
   signalVector::iterator itr = newVector->begin();
   short *shortItr = shortVector;
 
-// need to flip I and Q from USRP
-#ifndef SWLOOPBACK
-#define FLIP_IQ 1
-#else
-#define FLIP_IQ 0
-#endif
-
   while (itr < newVector->end()) {
-    *itr++ = Complex<float>(usrp_to_host_short(*(shortItr+FLIP_IQ)),
-		            usrp_to_host_short(*(shortItr+1-FLIP_IQ)));
+    *itr++ = Complex<float>(usrp_to_host_short(*(shortItr)),
+		            usrp_to_host_short(*(shortItr+1)));
     //LOG(DEEPDEBUG) << (*(itr-1));
     shortItr += 2;
   }
