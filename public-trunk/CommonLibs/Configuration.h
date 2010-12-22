@@ -80,7 +80,7 @@ class ConfigurationTable {
 	bool readFile(const char* filename);
 
 	ConfigurationTable(const char* filename)
-		{ assert(readFile(filename)); }
+		{ bool res = readFile(filename); assert(res); }
 
 	ConfigurationTable() {}
 

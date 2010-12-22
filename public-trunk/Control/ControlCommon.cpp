@@ -63,7 +63,6 @@ TransactionEntry::TransactionEntry()
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	mMessage[0]='\0';
 }
 
 // Form for MT transactions.
@@ -82,8 +81,7 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	if (wMessage) strncpy(mMessage,wMessage,160);
-	else mMessage[0]='\0';
+	if (wMessage) mMessage = wMessage;
 }
 
 // Form for MO transactions.
@@ -102,7 +100,6 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	mMessage[0]='\0';
 }
 
 // Form for MT transactions.
@@ -120,7 +117,6 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mT3113(gConfig.getNum("GSM.T3113")),
 	mTR1M(TR1Mms)
 {
-	mMessage[0]='\0';
 }
 
 
@@ -322,7 +318,7 @@ bool TransactionTable::find(const L3MobileIdentity& mobileID, TransactionEntry& 
 
 	// Since clearDeadEntries is also linear, do that here, too.
 
-	// Brtue force search.
+	// Brute force search.
 	bool foundIt = false;
 	mLock.lock();
 	clearDeadEntries();
@@ -383,8 +379,10 @@ unsigned TMSIRecord::load(FILE* fp)
 	unsigned created, touched;
 	char IMSI[16];
 	char IMEI[16];
-	fscanf(fp, "%10u %10u %10u %15s %15s\n", &TMSI, &created, &touched, IMSI, IMEI);
-	if (created>touched) {
+	int res = fscanf(fp, "%10u %10u %10u %15s %15s\n", &TMSI, &created, &touched, IMSI, IMEI);
+	if (res == EOF) {
+		return 0;
+	} else if (res < 5 || created > touched) {
 		LOG(ALARM) << "corrupt TMSI file";
 		return 0;
 	}
@@ -397,7 +395,7 @@ unsigned TMSIRecord::load(FILE* fp)
 
 
 
-unsigned TMSITable::assign(const char* IMSI)
+unsigned TMSITable::assign(const char* IMSI, const char* IMEI)
 {
 	purge();
 	mLock.lock();
@@ -408,10 +406,25 @@ unsigned TMSITable::assign(const char* IMSI)
 		return oldTMSI;
 	}
 	unsigned TMSI = mCounter++;
-	mMap[TMSI] = TMSIRecord(IMSI);
+	mMap[TMSI] = TMSIRecord(IMSI, IMEI);
 	mLock.unlock();
 	if (gConfig.defines("Control.TMSITable.SavePath")) save(gConfig.getStr("Control.TMSITable.SavePath"));
 	return TMSI;
+}
+
+
+bool TMSITable::setIMEI(unsigned TMSI, const std::string& IMEI)
+{
+	mLock.lock();
+	TMSIMap::iterator iter = mMap.find(TMSI);
+	if (iter==mMap.end()) {
+		mLock.unlock();
+		return false;
+	}
+	iter->second.IMEI(IMEI);
+	iter->second.touch();
+	mLock.unlock();
+	return true;
 }
 
 

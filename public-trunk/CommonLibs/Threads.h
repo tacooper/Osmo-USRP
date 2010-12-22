@@ -97,7 +97,7 @@ class Signal {
 
 	public:
 
-	Signal() { assert(!pthread_cond_init(&mSignal,NULL)); }
+	Signal() { int s = pthread_cond_init(&mSignal,NULL); assert(s == 0); }
 
 	~Signal() { pthread_cond_destroy(&mSignal); }
 
@@ -145,14 +145,14 @@ class Thread {
 		Destroy the Thread.
 		It should be stopped and joined.
 	*/
-	~Thread() { assert(!pthread_attr_destroy(&mAttrib)); }
+	~Thread() { int s = pthread_attr_destroy(&mAttrib); assert(s==0); }
 
 
 	/** Start the thread on a task. */
 	void start(void *(*task)(void*), void *arg);
 
 	/** Join a thread that will stop on its own. */
-	void join() { assert(!pthread_join(mThread,NULL)); }
+	void join() { pthread_join(mThread,NULL); }
 
 };
 

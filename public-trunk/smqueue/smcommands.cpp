@@ -316,7 +316,7 @@ shortcode_register (const char *imsi, const char *msgtext,
 			LOG(DEBUG) << phonenum << " is already in the HLR";
 			answer << gConfig.getStr("SC.Register.Msg.TakenA")
 			       << ' ' << phonenum << ' '
-			       << gConfig.getStr("SC.Register.Msg.TAkenB");
+			       << gConfig.getStr("SC.Register.Msg.TakenB");
 		} else {
 			LOG(DEBUG) << phonenum << " is not in the HLR";
 			// Neither the IMSI nor the phonenum is in use.

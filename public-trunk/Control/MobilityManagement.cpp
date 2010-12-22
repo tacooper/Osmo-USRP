@@ -184,11 +184,17 @@ void Control::LocationUpdatingController(const L3LocationUpdatingRequest* lur, S
 
 
 	// Query for IMEI?
+	// Note: IMEI is requested only on IMSI attach, i.e. only when user
+	// registers for the first time or after a long inactivity. I.e. this
+	// will not work if user changes mobiles frequently.
 	if (IMSIAttach && gConfig.defines("Control.LUR.QueryIMEI")) {
 		SDCCH->send(L3IdentityRequest(IMEIType));
 		L3Message* msg = getMessage(SDCCH);
 		L3IdentityResponse *resp = dynamic_cast<L3IdentityResponse*>(msg);
-		if (!resp) {
+		if (resp) {
+			unsigned tmsi = newTMSI?newTMSI:preexistingTMSI;
+			gTMSITable.setIMEI(tmsi, resp->mobileID().digits());
+		} else {
 			if (msg) {
 				LOG(WARN) << "Unexpected message " << *msg;
 				delete msg;
@@ -199,6 +205,9 @@ void Control::LocationUpdatingController(const L3LocationUpdatingRequest* lur, S
 	}
 
 	// Query for classmark?
+	// Note: classmark is requested only on IMSI attach, i.e. only when user
+	// registers for the first time or after a long inactivity. I.e. this
+	// will not work if user changes mobiles frequently.
 	if (IMSIAttach && gConfig.defines("Control.LUR.QueryClassmark")) {
 		SDCCH->send(L3ClassmarkEnquiry());
 		L3Message* msg = getMessage(SDCCH);

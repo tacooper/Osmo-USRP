@@ -299,8 +299,8 @@ void RadioInterface::driveReceiveRadio() {
   }
 
   if (readSz > 0) { 
-    memcpy(rcvBuffer,rcvBuffer+2*readSz,sizeof(short)*2*(rcvCursor-readSz));
-    rcvCursor = rcvCursor-2*readSz;
+    rcvCursor -= 2*readSz;
+    memmove(rcvBuffer,rcvBuffer+2*readSz,sizeof(short)*rcvCursor);
   }
 } 
   

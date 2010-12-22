@@ -223,8 +223,12 @@ osip_message_t * SIP::sip_message( const char * dialed_number, const char * sip_
 	osip_message_init(&request);
 	// FIXME -- Should use the "force_update" function.
 	request->message_property = 2;
+
+	// METHOD
 	request->sip_method = strdup("MESSAGE");
 	osip_message_set_version(request, strdup("SIP/2.0"));	
+
+	// REQ.URI
 	osip_uri_init(&request->req_uri);
 	osip_uri_set_host(request->req_uri, strdup(proxy_ip));
 	osip_uri_set_username(request->req_uri, strdup(dialed_number));
@@ -247,18 +251,15 @@ osip_message_t * SIP::sip_message( const char * dialed_number, const char * sip_
 	// FROM
 	osip_from_init(&request->from);
 	osip_from_set_displayname(request->from, strdup(sip_username));
-
-	// FROM TAG
-	osip_from_set_tag(request->from, strdup(from_tag));
-
-	// set it
 	osip_uri_init(&request->from->url);
 	osip_uri_set_host(request->from->url, strdup(proxy_ip));
 	osip_uri_set_username(request->from->url, strdup(sip_username));
+	// FROM TAG
+	osip_from_set_tag(request->from, strdup(from_tag));
 
 	// TO
 	osip_to_init(&request->to);
-	osip_to_set_displayname(request->to, strdup(""));
+	osip_to_set_displayname(request->to, strdup(dialed_number));
 	osip_uri_init(&request->to->url);
 	osip_uri_set_host(request->to->url, strdup(proxy_ip));
 	osip_uri_set_username(request->to->url, strdup(dialed_number));

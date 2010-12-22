@@ -47,6 +47,9 @@
 #define OBJLOG(wLevel) \
 	if (gLoggingLevel(__FILE__)>=Log::LOG_##wLevel) _LOG(wLevel) << "obj: " << this << ' '
 
+#define ISLOGGING(wLevel) \
+	(gLoggingLevel(__FILE__)>=Log::LOG_##wLevel)
+
 #define LOG_ASSERT(x) { if (!(x)) LOG(ALARM) << "assertion " #x " failed"; } assert(x);
 
 
@@ -77,7 +80,7 @@ class Log {
 	protected:
 
 	std::ostringstream mStream;	///< This is where we write the long.
-	Level mReportLevel;			///< Level of current repot.
+	Level mReportLevel;			///< Level of current report.
 
 	static FILE *sFile;
 
@@ -87,7 +90,7 @@ class Log {
 		:mReportLevel(wReportLevel)
 	{ }
 
-	// Most of the work in in the desctructor.
+	// Most of the work is in the destructor.
 	~Log();
 
 	std::ostringstream& get();

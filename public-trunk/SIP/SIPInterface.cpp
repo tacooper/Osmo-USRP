@@ -127,10 +127,13 @@ int SIPInterface::fifoSize(const std::string& call_id )
 SIPInterface::SIPInterface()
 	:mSIPSocket(gConfig.getNum("SIP.Port"), gConfig.getStr("Asterisk.IP"), gConfig.getNum("Asterisk.Port"))
 {
+	bool bres;
 	mAsteriskPort = gConfig.getNum("Asterisk.Port");
 	mMessengerPort = gConfig.getNum("Smqueue.Port");
-	assert(resolveAddress(&mAsteriskAddress,gConfig.getStr("Asterisk.IP"),mAsteriskPort));
-	assert(resolveAddress(&mMessengerAddress,gConfig.getStr("Smqueue.IP"),mMessengerPort));
+	bres = resolveAddress(&mAsteriskAddress,gConfig.getStr("Asterisk.IP"),mAsteriskPort);
+	assert(bres);
+	bres = resolveAddress(&mMessengerAddress,gConfig.getStr("Smqueue.IP"),mMessengerPort);
+	assert(bres);
 }
 
 
@@ -300,12 +303,12 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 	// IMSIs are 14 or 15 char + "IMSI" prefix
 	unsigned namelen = strlen(IMSI);
 	if ((namelen>19)||(namelen<18)) {
-		LOG(WARN) << "INVITE with malformed username \"" << IMSI << "\"";
+		LOG(WARN) << "INVITE/MESSAGE with malformed username \"" << IMSI << "\"";
 		return false;
 	}
 	// Skip first 4 char "IMSI".
 	IMSI+=4;
-	// Make the mobile id we need for transaction and paging enties.
+	// Make the mobile id we need for transaction and paging entries.
 	L3MobileIdentity mobile_id(IMSI);
 
 	// Check SIP map.  Repeated entry?  Page again.
@@ -343,7 +346,7 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 	if (!callerID) {
 		callerID = emptyString;
 		callerHost = emptyString;
-		LOG(NOTICE) << "INVITE with no From: username for " << mobile_id;
+		LOG(NOTICE) << "INVITE/MESSAGE with no From: username for " << mobile_id;
 	}
 	LOG(DEBUG) << "callerID " << callerID << "@" << callerHost;
 	// Build the transaction table entry.
@@ -360,7 +363,7 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 		if (!body) return false;
 		char *text = body->body;
 		if (text) {
-			transaction.message(text, body->length);
+			transaction.message(text);
 		}
 		else LOG(NOTICE) << "MTSMS incoming MESSAGE method with no message body for " << mobile_id;
 	}

@@ -412,7 +412,7 @@ class TransactionEntry {
 	Q931CallState mQ931State;				///< the GSM/ISDN/Q.931 call state
 	Timeval mStateTimer;					///< timestamp of last state change.
 
-	char mMessage[256];						///< text messaging payload
+	std::string mMessage;				///< text messaging payload
 
 	/**@name Timers from GSM and Q.931 (network side) */
 	//@{
@@ -467,12 +467,10 @@ class TransactionEntry {
 
 	const GSM::L3CallingPartyBCDNumber& calling() const { return mCalling; }
 
-	const char* message() const { return mMessage; }
-	void message(const char *wMessage, unsigned length)
+	const char* message() const { return mMessage.data(); }
+	void message(const char *wMessage)
 	{
-		unsigned tocopy = (length > 255) ? 255 : length;
-		memcpy(mMessage, wMessage, tocopy);
-		mMessage[tocopy] ='\0';
+		mMessage = wMessage;
 	}
 
 	unsigned ID() const { return mID; }
@@ -516,7 +514,7 @@ class TransactionEntry {
 	/** Reset all Q.931 timers. */
 	void resetTimers();
 
-	/** Retrns true if the transaction is "dead". */
+	/** Returns true if the transaction is "dead". */
 	bool dead() const;
 
 	private:
@@ -596,7 +594,7 @@ class TransactionTable {
 		Also clears dead entries during search.
 		@param mobileID The mobile at to search for.
 		@param target A TransactionEntry to accept the found record.
-		@return true is the mobile ID was foind.
+		@return true is the mobile ID was found.
 	*/
 	bool find(const GSM::L3MobileIdentity& mobileID, TransactionEntry& target);
 
@@ -635,17 +633,14 @@ class TMSIRecord {
 	public:
 
 	TMSIRecord() {}
-
-	TMSIRecord(const char* wIMSI):
-		mIMSI(wIMSI),mIMEI("?")
-	{ }
 	
-	TMSIRecord(const char* wIMSI, const char* wIMEI):
-		mIMSI(wIMSI), mIMEI(wIMEI)
+	TMSIRecord(const char* wIMSI, const char* wIMEI = NULL):
+		mIMSI(wIMSI), mIMEI(wIMEI!=NULL?wIMEI:"?")
 	{ }
 
 	const char* IMSI() const { return mIMSI.c_str(); }
 	const char* IMEI() const { return mIMEI.c_str(); }
+	void IMEI(const std::string &imei) { mIMEI = imei; }
 	void touch() const { mTouched.now(); }
 
 	/** Record age in seconds. */
@@ -690,7 +685,15 @@ class TMSITable {
 		@param IMSI	The IMSI to create an entry for.
 		@return The assigned TMSI.
 	*/
-	unsigned assign(const char* IMSI);
+	unsigned assign(const char* IMSI, const char* IMEI = NULL);
+
+	/**
+		Set IMEI for a selected TMSI.
+		@param TMSI	The TMSI to set IMEI for
+		@param IMEI	The IMEI to set.
+		@return true if the TMSI exists and we've set IMEI for it.
+	*/
+	bool setIMEI(unsigned TMSI, const std::string& IMEI);
 
 	/**
 		Find an IMSI in the table.
@@ -707,7 +710,6 @@ class TMSITable {
 		@param TMSI The TMSI to find.
 		@param target A TMSI record to catch the result.
 		@return true if the TMSI was found.
-		@return Pointer to c-string IMSI or NULL.
 	*/
 	bool find(unsigned TMSI, TMSIRecord& target);
 

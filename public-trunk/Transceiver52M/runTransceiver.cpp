@@ -73,7 +73,10 @@ int main(int argc, char *argv[])
   srandom(time(NULL));
 
   USRPDevice *usrp = new USRPDevice(1625.0e3/6.0); //533.333333333e3); //400e3);
-  usrp->make();
+  if (!usrp->make()) {
+    delete usrp;
+    return EXIT_FAILURE;
+  }
   RadioInterface* radio = new RadioInterface(usrp,3);
   Transceiver *trx = new Transceiver(5700,"127.0.0.1",SAMPSPERSYM,GSM::Time(2,0),radio);
   trx->receiveFIFO(radio->receiveFIFO());
@@ -85,6 +88,6 @@ int main(int argc, char *argv[])
   cout << "Shutting down transceiver..." << endl;
 
 //  trx->stop();
-  delete trx;
+//  delete trx;
 //  delete radio;
 }

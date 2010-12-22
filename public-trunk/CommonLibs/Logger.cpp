@@ -106,7 +106,7 @@ void gSetLogFile(FILE *wFile)
 bool gSetLogFile(const char *name)
 {
 	assert(name);
-	LOG(FORCE) << "setting log path to " << name;
+	LOG(DEEPDEBUG) << "setting log path to " << name;
 	bool retVal = true;
 	gLogLock.lock();
 	FILE* newLoggingFile = fopen(name,"a+");
