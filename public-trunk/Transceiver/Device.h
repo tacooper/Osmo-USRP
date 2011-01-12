@@ -85,10 +85,6 @@ public:
 
 	/** Virtual destructor */
 	virtual ~Device() { }
-
-	/** Type conversions if necessary */
-	static short convertHostDeviceShort(short value);
-	static short convertDeviceHostShort(short value);
 };
 
 #endif // _DEVICE_H_

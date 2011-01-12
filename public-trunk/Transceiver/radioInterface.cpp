@@ -80,8 +80,8 @@ short *RadioInterface::USRPifyVector(signalVector &wVector)
   signalVector::iterator itr = wVector.begin();
   short *shortItr = retVector;
   while (itr < wVector.end()) {
-    *shortItr++ = usrp->convertHostDeviceShort(itr->real());
-    *shortItr++ = usrp->convertHostDeviceShort(itr->imag());
+    *shortItr++ = itr->real();
+    *shortItr++ = itr->imag();
     itr++;
   }
 
@@ -98,24 +98,8 @@ signalVector *RadioInterface::unUSRPifyVector(short *shortVector, int numSamples
   signalVector::iterator itr = newVector->begin();
   short *shortItr = shortVector;
 
-// This is hideous.
-// UHD   & !SWLOOPBACK: FLIP_IQ = 0
-// UHD   &  SWLOOPBACK: FLIP_IQ = 0
-// USRP1 & !SWLOOPBACK: FLIP_IQ = 1
-// USRP1 &  SWLOOPBACK: FLIP_IQ = 0
-#ifdef USE_UHD
-#define FLIP_IQ 0
-#else
-#ifndef SWLOOPBACK
-#define FLIP_IQ 1
-#else
-#define FLIP_IQ 0
-#endif
-#endif
-
   while (itr < newVector->end()) {
-    *itr++ = Complex<float>(usrp->convertDeviceHostShort(*(shortItr+FLIP_IQ)),
-		            usrp->convertDeviceHostShort(*(shortItr+1-FLIP_IQ)));
+    *itr++ = Complex<float>(*shortItr, *(shortItr+1));
     shortItr += 2;
   }
 

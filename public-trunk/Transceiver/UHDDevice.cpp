@@ -704,17 +704,3 @@ Device *Device::make(double sampleRate, bool skipRx)
 {
 	return new UHDDevice(sampleRate, skipRx);
 }
-
-
-short Device::convertHostDeviceShort(short value)
-{
-	// Type conversion handled internally by UHD
-	return value;
-}
-
-
-short Device::convertDeviceHostShort(short value)
-{
-	// Type conversion handled internally by UHD
-	return value;
-}

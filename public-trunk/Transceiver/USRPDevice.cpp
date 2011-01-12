@@ -415,6 +415,13 @@ int USRPDevice::readSamples(short *buf, int len, bool *overrun,
   dataStart = (bufStart + len) % (currDataSize/2);
   timeStart = timestamp + len;
   if (readBuf!=NULL) delete[] readBuf;
+
+  // do IQ swap here
+  for (int i = 0; i < len; i++) {
+    short tmp = usrp_to_host_short(buf[2*i]);
+    buf[2*i] = usrp_to_host_short(buf[2*i+1]);
+    buf[2*i+1] = tmp;
+  }
  
   return len;
   
@@ -460,7 +467,11 @@ int USRPDevice::writeSamples(short *buf, int len, bool *underrun,
 {
 #ifndef SWLOOPBACK 
   if (!m_uTx) return 0;
-  
+
+  for (int i = 0; i < len*2; i++) {
+        buf[i] = host_to_usrp_short(buf[i]);
+  }
+
   int numWritten = 0;
   unsigned isStart = 1;
   unsigned RSSI = 0;
@@ -549,16 +560,4 @@ bool USRPDevice::setRxFreq(double wFreq) { return true;};
 Device *Device::make(double desiredSampleRate, bool skipRx)
 {
   return new USRPDevice(desiredSampleRate, skipRx);
-}
-
-
-short Device::convertHostDeviceShort(short value)
-{
-  return host_to_usrp_short(value);
-}
-
-
-short Device::convertDeviceHostShort(short value)
-{
-  return usrp_to_host_short(value);
 }
