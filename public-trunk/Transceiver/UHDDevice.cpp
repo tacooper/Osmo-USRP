@@ -39,17 +39,11 @@
                         transmit timestamps. This value corrects for delays on
                         on the RF side of the timestamping point of the device.
 
-    txDelayThreshold  - During transmit alignment, the send packet must arrive
-                        on the device before the current device time. This is
-                        the minimum difference between current device time read
-                        from the device and the time on the transmit packet.
-
     sampleBufSize     - The receive sample buffer size in bytes. 
 */
 const bool enableExternalRef = false;
 const double masterClockRate = 100.0e6;
 const double rxTimingOffset = .00005;
-const double txDelayThreshold = 0.0040;
 const size_t sampleBufSize = (1 << 20);
 
 
@@ -175,6 +169,8 @@ private:
 	bool aligned;
 	bool skipRx; 
 
+	size_t dropCount; 
+
 	TIMESTAMP timestampOffset;
 	SampleBuffer *recvBuffer;
 
@@ -197,7 +193,8 @@ void *AsyncEventServiceLoopAdapter(UHDDevice *dev)
 
 UHDDevice::UHDDevice(double desiredSampleRate, bool skipRx)
 	: actualSampleRate(0), sendSamplesPerPacket(0), recvSamplesPerPacket(0),
-	  started(false), aligned(false), timestampOffset(0), recvBuffer(NULL)
+	  started(false), aligned(true), timestampOffset(0), recvBuffer(NULL),
+	  dropCount(0)
 {
 	this->desiredSampleRate = desiredSampleRate;
 	this->skipRx = skipRx;
@@ -407,17 +404,17 @@ int UHDDevice::writeSamples(short *buf, int len, bool *underrun,
 	metadata.time_spec =
 		SampleBuffer::convertTime(timestamp, actualSampleRate);
 
+	// Drop a fixed number of packets (magic value)
 	if (!aligned) {
-		uhd::time_spec_t now = usrpDevice->get_time_now();
-		uhd::time_spec_t diff = metadata.time_spec - now;
-
-		if (diff.get_real_secs() < txDelayThreshold) {
+		dropCount++;
+		if (dropCount < 30) {
 			LOG(DEBUG) << "Realigning transmitter";
 			*underrun = true;
 			return len;
 		}
 
 		aligned = true;
+		dropCount = 0;
 	}
 
 	size_t samplesSent = usrpDevice->get_device()->send(buf,
