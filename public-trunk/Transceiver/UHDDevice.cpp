@@ -270,6 +270,24 @@ bool UHDDevice::open()
 
 	usrpDevice->set_clock_config(clock_config);
 
+	// Flush buffers for lingering packet on some NICs
+	uhd::stream_cmd_t cmd =
+		uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE;
+
+	cmd.num_samps = 1;
+	cmd.stream_now = true;
+	usrpDevice->issue_stream_cmd(cmd);
+
+	uhd::rx_metadata_t md;
+	uint32_t recvBuf[recvSamplesPerPacket];
+
+	usrpDevice->get_device()->recv(
+				(void*)recvBuf,
+				recvSamplesPerPacket,
+				md,
+				uhd::io_type_t::COMPLEX_INT16,
+				uhd::device::RECV_MODE_ONE_PACKET);
+
 	// Print configuration
 	LOG(INFO) << usrpDevice->get_pp_string();
 
