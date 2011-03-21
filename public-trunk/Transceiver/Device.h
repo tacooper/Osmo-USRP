@@ -39,6 +39,7 @@ public:
 	virtual bool open() = 0;
 	virtual bool start() = 0;
 	virtual bool stop() = 0;
+	virtual void setPriority() = 0;
 
 	/** Read samples from the USRP.
 	    @param buf preallocated buf to contain read result

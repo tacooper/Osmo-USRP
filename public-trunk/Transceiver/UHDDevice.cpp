@@ -135,6 +135,7 @@ public:
 	bool open();
 	bool start();
 	bool stop();
+	void setPriority();
 
 	int readSamples(short *buf, int len, bool *overrun, 
 			TIMESTAMP timestamp, bool *underrun, unsigned *RSSI);
@@ -286,8 +287,7 @@ bool UHDDevice::start()
 		return false;
 	}
 
-	// Enable priority scheduling
-	uhd::set_thread_priority_safe();
+	setPriority();
 
 	// Start asynchronous event (underrun check) loop
 	asyncEventServiceLoopThread.start(
@@ -321,6 +321,12 @@ bool UHDDevice::stop()
 	return true;
 }
 
+
+void UHDDevice::setPriority()
+{
+	uhd::set_thread_priority_safe();
+	return;
+}
 
 int UHDDevice::readSamples(short *buf, int len, bool *overrun,
 			TIMESTAMP timestamp, bool *underrun, unsigned *RSSI)

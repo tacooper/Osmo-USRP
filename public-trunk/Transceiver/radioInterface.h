@@ -189,6 +189,9 @@ public:
   /** set receive frequency */
   bool tuneRx(double freq);
 
+  /** set thread priority */
+  void setPriority();
+
 protected:
 
   /** drive transmission of GSM bursts */

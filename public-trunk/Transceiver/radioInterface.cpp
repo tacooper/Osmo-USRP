@@ -276,6 +276,11 @@ bool RadioInterface::tuneRx(double freq)
   return usrp->setRxFreq(freq);
 }
 
+void RadioInterface::setPriority()
+{
+  usrp->setPriority();
+  return;
+}
 
 void RadioInterface::start()
 {
@@ -305,6 +310,8 @@ void *TransmitRadioServiceLoopAdapter(RadioInterface *radioInterface)
 
 void *ReceiveRadioServiceLoopAdapter(RadioInterface *radioInterface)
 {
+  radioInterface->setPriority();
+
   while (1) {
     radioInterface->driveReceiveRadio();
     pthread_testcancel();

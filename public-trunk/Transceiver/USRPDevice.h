@@ -185,6 +185,9 @@ private:
   /** Stop the USRP */
   bool stop();
 
+  /** Set priority not supported */
+  void setPriority() { return; }
+
   /**
 	Read samples from the USRP.
 	@param buf preallocated buf to contain read result
