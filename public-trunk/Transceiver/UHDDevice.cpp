@@ -494,6 +494,9 @@ std::string UHDDevice::stringCode(uhd::rx_metadata_t metadata)
 		ost << "Unknown error " << metadata.error_code;
 	}
 
+	if (metadata.has_time_spec)
+		ost << " at " << metadata.time_spec.get_real_secs() << " sec.";
+
 	return ost.str();
 }
 
