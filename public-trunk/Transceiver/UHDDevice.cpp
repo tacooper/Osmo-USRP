@@ -405,7 +405,7 @@ int UHDDevice::writeSamples(short *buf, int len, bool *underrun,
 
 	uhd::tx_metadata_t metadata;
 	metadata.has_time_spec = true;
-	metadata.start_of_burst = true;
+	metadata.start_of_burst = false;
 	metadata.end_of_burst = false;
 	metadata.time_spec =
 		SampleBuffer::convertTime(timestamp, actualSampleRate);
@@ -413,14 +413,20 @@ int UHDDevice::writeSamples(short *buf, int len, bool *underrun,
 	// Drop a fixed number of packets (magic value)
 	if (!aligned) {
 		dropCount++;
-		if (dropCount < 30) {
-			LOG(DEBUG) << "Realigning transmitter";
+
+		if (dropCount == 1) {
+			LOG(DEBUG) << "Aligning transmitter: stop burst";
+			metadata.end_of_burst = true;
+		} else if (dropCount < 30) {
+			LOG(DEEPDEBUG) << "Aligning transmitter: packet advance";
 			*underrun = true;
 			return len;
+		} else {
+			LOG(DEBUG) << "Aligning transmitter: start burst";
+			metadata.start_of_burst = true;
+			aligned = true;
+			dropCount = 0;
 		}
-
-		aligned = true;
-		dropCount = 0;
 	}
 
 	size_t samplesSent = usrpDevice->get_device()->send(buf,
@@ -466,7 +472,7 @@ bool UHDDevice::recvAsyncMesg()
 	// Assume that any error requires resynchronization
 	if (metadata.event_code != uhd::async_metadata_t::EVENT_CODE_BURST_ACK) {
 		aligned = false;
-		LOG(DEBUG) << stringCode(metadata);
+		LOG(INFO) << stringCode(metadata);
 	}
 
 	return true;
