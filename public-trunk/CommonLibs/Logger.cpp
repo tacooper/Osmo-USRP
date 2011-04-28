@@ -170,6 +170,10 @@ Log::~Log()
 	// So just log.
 	gLogLock.lock();
 	mStream << std::endl;
+
+	if (gLoggingFile == NULL)
+		gLoggingFile = stdout;
+
 	fprintf(gLoggingFile, "%s", mStream.str().c_str());
 	fflush(gLoggingFile);
 	gLogLock.unlock();
