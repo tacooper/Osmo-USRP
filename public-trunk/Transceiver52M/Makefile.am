@@ -20,7 +20,11 @@
 
 include $(top_srcdir)/Makefile.common
 
+if UHD
+AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES) $(UHD_CFLAGS)
+else
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES) $(USRP_CFLAGS)
+endif
 AM_CXXFLAGS = -O3 -g -lpthread
 
 rev2dir = $(datadir)/usrp/rev2
@@ -38,8 +42,7 @@ noinst_LTLIBRARIES = libtransceiver.la
 libtransceiver_la_SOURCES = \
 	radioInterface.cpp \
 	sigProcLib.cpp \
-	Transceiver.cpp \
-	USRPDevice.cpp
+	Transceiver.cpp
 
 noinst_PROGRAMS = \
 	USRPping \
@@ -57,22 +60,31 @@ noinst_HEADERS = \
 USRPping_SOURCES = USRPping.cpp
 USRPping_LDADD = \
 	libtransceiver.la \
-	$(COMMON_LA) \
-	$(USRP_LIBS)
+	$(COMMON_LA)
 
 transceiver_SOURCES = runTransceiver.cpp
 transceiver_LDADD = \
 	libtransceiver.la \
 	$(GSM_LA) \
-	$(COMMON_LA) \
-	$(USRP_LIBS)
+	$(COMMON_LA)
 
 sigProcLibTest_SOURCES = sigProcLibTest.cpp
 sigProcLibTest_LDADD = \
 	libtransceiver.la \
 	$(GSM_LA) \
-	$(COMMON_LA) \
-	$(USRP_LIBS)
+	$(COMMON_LA)
+
+if UHD
+libtransceiver_la_SOURCES += UHDDevice.cpp
+transceiver_LDADD += $(UHD_LIBS)
+USRPping_LDADD += $(UHD_LIBS)
+sigProcLibTest_LDADD += $(UHD_LIBS)
+else
+libtransceiver_la_SOURCES += USRPDevice.cpp
+transceiver_LDADD += $(USRP_LIBS)
+USRPping_LDADD += $(USRP_LIBS)
+sigProcLibTest_LDADD += $(USRP_LIBS)
+endif
 
 
 MOSTLYCLEANFILES +=

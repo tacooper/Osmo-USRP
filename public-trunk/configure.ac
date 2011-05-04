@@ -107,15 +107,12 @@ AC_CONFIG_FILES([\
     SIP/Makefile \
     SMS/Makefile \
     Transceiver/Makefile \
+    Transceiver52M/Makefile \
     TRXManager/Makefile \
     CLI/Makefile \
     HLR/Makefile \
     RRLP/Makefile \
     smqueue/Makefile \
-])
-
-AS_IF([test "x$with_uhd" != "xyes"], [
-    AC_CONFIG_FILES([Transceiver52M/Makefile])
 ])
 
 #    SQL/Makefile \

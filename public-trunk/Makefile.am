@@ -32,6 +32,7 @@ SUBDIRS = \
 	GSM \
 	SMS \
 	Transceiver \
+	Transceiver52M \
 	TRXManager \
 	Control \
 	RRLP \
@@ -39,10 +40,6 @@ SUBDIRS = \
 	doc \
 	smqueue
 #	SQL 
-
-if !UHD
-SUBDIRS += Transceiver52M
-endif
 
 EXTRA_DIST = \
 	LEGAL \

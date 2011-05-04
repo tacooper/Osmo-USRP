@@ -25,7 +25,7 @@
 
 
 #include "Transceiver.h"
-#include "USRPDevice.h"
+#include "radioDevice.h"
 
 #include <time.h>
 #include <signal.h>
@@ -72,9 +72,9 @@ int main(int argc, char *argv[])
 
   srandom(time(NULL));
 
-  USRPDevice *usrp = new USRPDevice(1625.0e3/6.0); //533.333333333e3); //400e3);
-  if (!usrp->make()) {
-    delete usrp;
+  RadioDevice *usrp = RadioDevice::make(1625e3/6.0);
+  if (!usrp->open()) {
+    //delete usrp;
     return EXIT_FAILURE;
   }
   RadioInterface* radio = new RadioInterface(usrp,3);

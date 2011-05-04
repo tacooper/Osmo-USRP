@@ -177,10 +177,10 @@ private:
  public:
 
   /** Object constructor */
-  USRPDevice (double _desiredSampleRate);
+  USRPDevice (double _desiredSampleRate, bool skipRx);
 
   /** Instantiate the USRP */
-  bool make(bool skipRx = false); 
+  bool open(); 
 
   /** Start the USRP */
   bool start();
