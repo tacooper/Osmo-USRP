@@ -22,52 +22,66 @@
 
 */
 
-
 #include "Device.h"
 #include "Threads.h"
 #include "Logger.h"
 #include <uhd/usrp/single_usrp.hpp>
 #include <uhd/utils/thread_priority.hpp>
 
-
 /*
-    enableExternalRef - Enable external 10MHz clock reference
+    use_ext_ref       - Enable external 10MHz clock reference
 
-    masterClockRate   - Master clock frequency
+    master_clk_rt     - Master clock frequency
 
-    rxTimingOffset    - Timing correction in seconds between receive and
+    rx_smpl_offset    - Timing correction in seconds between receive and
                         transmit timestamps. This value corrects for delays on
                         on the RF side of the timestamping point of the device.
 
-    sampleBufSize     - The receive sample buffer size in bytes. 
+    smpl_buf_sz       - The receive sample buffer size in bytes. 
 */
-const bool enableExternalRef = false;
-const double masterClockRate = 100.0e6;
-const double rxTimingOffset = .00005;
-const size_t sampleBufSize = (1 << 20);
+const bool use_ext_ref = false;
+const double master_clk_rt = 100e6;
+const double rx_smpl_offset = .00005;
+const size_t smpl_buf_sz = (1 << 20);
 
+/** Timestamp conversion
+    @param timestamp a UHD or OpenBTS timestamp
+    @param rate sample rate
+    @return the converted timestamp
+*/
+uhd::time_spec_t convert_time(TIMESTAMP ticks, double rate)
+{
+	double secs = (double) ticks / rate;
+	return uhd::time_spec_t(secs);
+}
+
+TIMESTAMP convert_time(uhd::time_spec_t ts, double rate)
+{
+	size_t ticks = ts.get_full_secs() * rate;
+	return ts.get_tick_count(rate) + ticks;
+}
 
 /*
     Sample Buffer - Allows reading and writing of timed samples using OpenBTS
                     or UHD style timestamps. Time conversions are handled
                     internally or accessable through the static convert calls.
 */
-class SampleBuffer {
+class smpl_buf {
 public:
 	/** Sample buffer constructor
 	    @param len number of 32-bit samples the buffer should hold
 	    @param rate sample clockrate 
 	    @param timestamp 
 	*/
-	SampleBuffer(size_t len, double rate);
-	~SampleBuffer();
+	smpl_buf(size_t len, double rate);
+	~smpl_buf();
 
 	/** Query number of samples available for reading
 	    @param timestamp time of first sample
 	    @return number of available samples or error
 	*/
-	ssize_t availableSamples(TIMESTAMP timestamp) const;
-	ssize_t availableSamples(uhd::time_spec_t timestamp) const;
+	ssize_t avail_smpls(TIMESTAMP timestamp) const;
+	ssize_t avail_smpls(uhd::time_spec_t timestamp) const;
 
 	/** Read and write
 	    @param buf pointer to buffer
@@ -83,23 +97,15 @@ public:
 	/** Buffer status string
 	    @return a formatted string describing internal buffer state
 	*/
-	std::string stringStatus() const;
-
-	/** Timestamp conversion
-	    @param timestamp a UHD or OpenBTS timestamp
-	    @param rate sample rate
-	    @return the converted timestamp
-	*/
-	static uhd::time_spec_t convertTime(TIMESTAMP timestamp, double rate);
-	static TIMESTAMP convertTime(uhd::time_spec_t timestamp, double rate);
+	std::string str_status() const;
 
 	/** Formatted error string 
 	    @param code an error code
 	    @return a formatted error string
 	*/
-	static std::string stringCode(ssize_t code);
+	static std::string str_code(ssize_t code);
 
-	enum errorCode {
+	enum err_code {
 		ERROR_TIMESTAMP = -1,
 		ERROR_READ = -2,
 		ERROR_WRITE = -3,
@@ -108,29 +114,28 @@ public:
 
 private:
 	uint32_t *data;
-	size_t bufferLen;
+	size_t buf_len;
 
-	double clockRate;
+	double clk_rt;
 
-	TIMESTAMP timeStart;
-	TIMESTAMP timeEnd;
+	TIMESTAMP time_start;
+	TIMESTAMP time_end;
 
-	size_t dataStart;
-	size_t dataEnd;
+	size_t data_start;
+	size_t data_end;
 };
 
-
 /*
-    UHDDevice - UHD implementation of the Device interface. Timestamped samples
+    uhd_device - UHD implementation of the Device interface. Timestamped samples
                 are sent to and received from the device. An intermediate buffer
                 on the receive side collects and aligns packets of samples.
                 Events and errors such as underruns are reported asynchronously
                 by the device and received in a separate thread.
 */
-class UHDDevice : public Device {
+class uhd_device : public Device {
 public:
-	UHDDevice(double desiredSampleRate, bool skipRx);
-	~UHDDevice();
+	uhd_device(double rate, bool skip_rx);
+	~uhd_device();
 
 	bool open();
 	bool start();
@@ -141,84 +146,127 @@ public:
 			TIMESTAMP timestamp, bool *underrun, unsigned *RSSI);
 
 	int writeSamples(short *buf, int len, bool *underrun, 
-			TIMESTAMP timestamp, bool isControl);
+			 TIMESTAMP timestamp, bool isControl);
 
 	bool updateAlignment(TIMESTAMP timestamp);
 
 	bool setTxFreq(double wFreq);
 	bool setRxFreq(double wFreq);
 
-	inline double getSampleRate() { return actualSampleRate; }
-	inline double numberRead() { return 0; }
+	inline double getSampleRate() { return actual_smpl_rt; }
+	inline double numberRead() { return rx_pkt_cnt; }
 	inline double numberWritten() { return 0; }
 
 	/** Receive and process asynchronous message
 	    @return true if message received or false on timeout or error
 	*/
-	bool recvAsyncMesg();
+	bool recv_async_msg();
 
 private:
-	uhd::usrp::single_usrp::sptr usrpDevice;
+	uhd::usrp::single_usrp::sptr usrp_dev;
 
-	double desiredSampleRate;
-	double actualSampleRate;
+	double desired_smpl_rt;
+	double actual_smpl_rt;
 
-	size_t sendSamplesPerPacket;
-	size_t recvSamplesPerPacket;
+	size_t tx_spp;
+	size_t rx_spp;
 
 	bool started;
 	bool aligned;
-	bool skipRx; 
+	bool skip_rx;
 
-	size_t dropCount; 
+	size_t rx_pkt_cnt;
+	size_t drop_cnt;
+	uhd::time_spec_t prev_ts;
 
-	TIMESTAMP timestampOffset;
-	SampleBuffer *recvBuffer;
+	TIMESTAMP ts_offset;
+	smpl_buf *rx_smpl_buf;
 
-	std::string stringCode(uhd::rx_metadata_t metadata);
-	std::string stringCode(uhd::async_metadata_t metadata);
+	std::string str_code(uhd::rx_metadata_t metadata);
+	std::string str_code(uhd::async_metadata_t metadata);
 
-	Thread asyncEventServiceLoopThread;
-	friend void *AsyncMesgServiceLoopAdapter();
+	Thread async_event_thrd;
 };
 
-
-void *AsyncEventServiceLoopAdapter(UHDDevice *dev)
+void *async_event_loop(uhd_device *dev)
 {
 	while (1) {
-		dev->recvAsyncMesg();
+		dev->recv_async_msg();
 		pthread_testcancel();
 	}
 }
 
-
-UHDDevice::UHDDevice(double desiredSampleRate, bool skipRx)
-	: actualSampleRate(0), sendSamplesPerPacket(0), recvSamplesPerPacket(0),
-	  started(false), aligned(true), timestampOffset(0), recvBuffer(NULL),
-	  dropCount(0)
+uhd_device::uhd_device(double rate, bool skip_rx)
+	: desired_smpl_rt(rate), actual_smpl_rt(0), tx_spp(0), rx_spp(0),
+	  started(false), aligned(true), rx_pkt_cnt(0), drop_cnt(0),
+	  prev_ts(0,0), ts_offset(0), rx_smpl_buf(NULL)
 {
-	this->desiredSampleRate = desiredSampleRate;
-	this->skipRx = skipRx;
+	this->skip_rx = skip_rx;
 }
 
-
-UHDDevice::~UHDDevice()
+uhd_device::~uhd_device()
 {
 	stop();
 
-	if (recvBuffer)
-		delete recvBuffer;
+	if (rx_smpl_buf)
+		delete rx_smpl_buf;
 }
 
+static double set_usrp_rates(uhd::usrp::single_usrp::sptr dev, double rate)
+{
+	double actual_rate;
 
-bool UHDDevice::open()
+	dev->set_tx_rate(rate);
+	dev->set_rx_rate(rate);
+	actual_rate = dev->get_tx_rate();
+
+	if (actual_rate != rate) {
+		LOG(ERROR) << "Actual sample rate differs from desired rate";
+		return -1.0;
+	}
+	if (dev->get_rx_rate() != actual_rate) {
+		LOG(ERROR) << "Transmit and receive sample rates do not match";
+		return -1.0;
+	}
+
+	return actual_rate;
+}
+
+static void set_usrp_tx_gain(uhd::usrp::single_usrp::sptr dev, double)
+{
+	uhd::gain_range_t range = dev->get_tx_gain_range();
+	dev->set_tx_gain((range.start() + range.stop()) / 2);
+}
+
+static void set_usrp_rx_gain(uhd::usrp::single_usrp::sptr dev, double)
+{
+	uhd::gain_range_t range = dev->get_rx_gain_range();
+	dev->set_rx_gain((range.start() + range.stop()) / 2);
+}
+
+static void set_usrp_ref_clk(uhd::usrp::single_usrp::sptr dev, bool ext_clk)
+{
+	uhd::clock_config_t clk_cfg;
+
+	clk_cfg.pps_source = uhd::clock_config_t::PPS_SMA;
+	clk_cfg.pps_polarity = uhd::clock_config_t::PPS_NEG;
+
+	if (ext_clk)
+		clk_cfg.ref_source = uhd::clock_config_t::REF_SMA;
+	else
+		clk_cfg.ref_source = uhd::clock_config_t::REF_INT;
+
+	dev->set_clock_config(clk_cfg);
+}
+
+bool uhd_device::open()
 {
 	LOG(INFO) << "creating USRP device...";
 
-	// Use the first USRP2
+	// Use the first available USRP2 / N210
 	uhd::device_addr_t dev_addr("type=usrp2");
 	try {
-		usrpDevice = uhd::usrp::single_usrp::make(dev_addr);
+		usrp_dev = uhd::usrp::single_usrp::make(dev_addr);
 	}
 	
 	catch(...) {
@@ -226,59 +274,38 @@ bool UHDDevice::open()
 		return false;
 	}
 
+	// Set master clock rate
+	usrp_dev->set_master_clock_rate(master_clk_rt);
+
 	// Number of samples per over-the-wire packet
-	sendSamplesPerPacket =
-		usrpDevice->get_device()->get_max_send_samps_per_packet();
-	recvSamplesPerPacket =
-		usrpDevice->get_device()->get_max_recv_samps_per_packet();
+	tx_spp = usrp_dev->get_device()->get_max_send_samps_per_packet();
+	rx_spp = usrp_dev->get_device()->get_max_recv_samps_per_packet();
 
-	// Set device sample rates
-	usrpDevice->set_tx_rate(desiredSampleRate);
-	usrpDevice->set_rx_rate(desiredSampleRate);
-	actualSampleRate = usrpDevice->get_tx_rate();
-
-	if (actualSampleRate != desiredSampleRate) {
-		LOG(ERROR) << "Actual sample rate differs from desired rate";
+	// Set rates
+	actual_smpl_rt = set_usrp_rates(usrp_dev, desired_smpl_rt);
+	if (actual_smpl_rt < 0)
 		return false;
-	}
-	if (usrpDevice->get_rx_rate() != actualSampleRate) {
-		LOG(ERROR) << "Transmit and receive sample rates do not match";
-		return false;
-	}
 
 	// Create receive buffer
-	size_t bufferLen = sampleBufSize / sizeof(uint32_t);
-	recvBuffer = new SampleBuffer(bufferLen, actualSampleRate);
+	size_t buf_len = smpl_buf_sz / sizeof(uint32_t);
+	rx_smpl_buf = new smpl_buf(buf_len, actual_smpl_rt);
 
 	// Set receive chain sample offset 
-	timestampOffset = (TIMESTAMP)(rxTimingOffset * actualSampleRate);
+	ts_offset = (TIMESTAMP)(rx_smpl_offset * actual_smpl_rt);
 
 	// Set gains to midpoint
-	uhd::gain_range_t txGainRange = usrpDevice->get_tx_gain_range();
-	usrpDevice->set_tx_gain((txGainRange.start() + txGainRange.stop()) / 2);
-	uhd::gain_range_t rxGainRange = usrpDevice->get_rx_gain_range();
-	usrpDevice->set_rx_gain((rxGainRange.start() + rxGainRange.stop()) / 2);
+	set_usrp_tx_gain(usrp_dev, 0.0);
 
 	// Set reference clock
-	uhd::clock_config_t clock_config;
-	clock_config.pps_source = uhd::clock_config_t::PPS_SMA;
-	clock_config.pps_polarity = uhd::clock_config_t::PPS_NEG;
-
-	if (enableExternalRef)
-		clock_config.ref_source = uhd::clock_config_t::REF_SMA;
-	else
-		clock_config.ref_source = uhd::clock_config_t::REF_INT;
-
-	usrpDevice->set_clock_config(clock_config);
+	set_usrp_ref_clk(usrp_dev, use_ext_ref);
 
 	// Print configuration
-	LOG(INFO) << usrpDevice->get_pp_string();
+	LOG(INFO) << usrp_dev->get_pp_string();
 
 	return true;
 }
 
-
-bool UHDDevice::start()
+bool uhd_device::start()
 {
 	LOG(INFO) << "Starting USRP...";
 
@@ -290,134 +317,156 @@ bool UHDDevice::start()
 	setPriority();
 
 	// Start asynchronous event (underrun check) loop
-	asyncEventServiceLoopThread.start(
-		(void * (*)(void*))AsyncEventServiceLoopAdapter, (void*)this);
+	async_event_thrd.start((void * (*)(void*))async_event_loop, (void*)this);
 
 	// Start streaming
 	uhd::stream_cmd_t cmd = uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS;
 	cmd.stream_now = true;
-	usrpDevice->set_time_now(uhd::time_spec_t(0.0));
+	usrp_dev->set_time_now(uhd::time_spec_t(0.0));
 
-	if (!skipRx)
-		usrpDevice->issue_stream_cmd(cmd);
+	if (!skip_rx)
+		usrp_dev->issue_stream_cmd(cmd);
 
 	// Display usrp time
-	double timeNow = usrpDevice->get_time_now().get_real_secs();
-	LOG(INFO) << "The current time is " << timeNow << " seconds";
+	double time_now = usrp_dev->get_time_now().get_real_secs();
+	LOG(INFO) << "The current time is " << time_now << " seconds";
 
 	started = true;
 	return true;
 }
 
-
-bool UHDDevice::stop()
+bool uhd_device::stop()
 {
-	// Stop streaming
-	uhd::stream_cmd_t stream_cmd =
+	uhd::stream_cmd_t stream_cmd = 
 		uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
-	usrpDevice->issue_stream_cmd(stream_cmd);
+
+	usrp_dev->issue_stream_cmd(stream_cmd);
 
 	started = false;
 	return true;
 }
 
-
-void UHDDevice::setPriority()
+void uhd_device::setPriority()
 {
 	uhd::set_thread_priority_safe();
 	return;
 }
 
-int UHDDevice::readSamples(short *buf, int len, bool *overrun,
+static int check_rx_md_err(uhd::rx_metadata_t &md, uhd::time_spec_t &prev_ts)
+{
+	// Missing timestamp
+	if (!md.has_time_spec) {
+		LOG(ERROR) << "UHD: Received packet missing timestamp";
+		return -1;
+	}
+
+	// Monotonicity check
+	if (md.time_spec < prev_ts) {
+		LOG(ERROR) << "Loss of monotonicity";
+		return -1;
+	} else {
+		prev_ts = md.time_spec;
+	}
+
+	return 0;
+}
+
+int uhd_device::readSamples(short *buf, int len, bool *overrun,
 			TIMESTAMP timestamp, bool *underrun, unsigned *RSSI)
 {
-	if (skipRx)
+	ssize_t rc;
+	uhd::time_spec_t ts;
+	uhd::rx_metadata_t metadata;
+	uint32_t pkt_buf[rx_spp];
+
+	if (skip_rx)
 		return 0;
 
 	// Shift read time with respect to transmit clock
-	timestamp += timestampOffset; 
+	timestamp += ts_offset;
+
+	ts = convert_time(timestamp, actual_smpl_rt);
+	LOG(DEEPDEBUG) << "Requested timestamp = " << ts.get_real_secs();
 
 	// Check that timestamp is valid
-	ssize_t ret = recvBuffer->availableSamples(timestamp);
-	if (ret < 0) {
-		LOG(ERROR) << recvBuffer->stringCode(ret);
-		LOG(ERROR) << recvBuffer->stringStatus();
+	rc = rx_smpl_buf->avail_smpls(timestamp);
+	if (rc < 0) {
+		LOG(ERROR) << rx_smpl_buf->str_code(rc);
+		LOG(ERROR) << rx_smpl_buf->str_status();
 		return 0;
 	}
 
 	// Receive samples from the usrp until we have enough
-	while (recvBuffer->availableSamples(timestamp) < len) {
-		uhd::rx_metadata_t metadata;
-		uint32_t recvBuf[recvSamplesPerPacket];
-
-		size_t numSamples = usrpDevice->get_device()->recv(
-					(void*)recvBuf,
-					recvSamplesPerPacket,
+	while (rx_smpl_buf->avail_smpls(timestamp) < len) {
+		size_t num_smpls = usrp_dev->get_device()->recv(
+					(void*)pkt_buf,
+					rx_spp,
 					metadata,
 					uhd::io_type_t::COMPLEX_INT16,
 					uhd::device::RECV_MODE_ONE_PACKET);
 
+		rx_pkt_cnt++;
+
 		// Recv error in UHD
-		if (!numSamples) {
-			LOG(ERROR) << stringCode(metadata);
+		if (!num_smpls) {
+			LOG(ERROR) << str_code(metadata);
 			return 0;
 		}
 
-		// Missing timestamp
-		if (!metadata.has_time_spec) {
-			LOG(ERROR) << "UHD: Received packet missing timestamp";
+		// Other metadata timing checks
+		if (check_rx_md_err(metadata, prev_ts) < 0)
 			return 0;
-		}
 
-		ssize_t ret = recvBuffer->write(recvBuf,
-						numSamples,
-						metadata.time_spec);
+		ts = metadata.time_spec;
+		LOG(DEEPDEBUG) << "Received timestamp = " << ts.get_real_secs();
+
+		rc = rx_smpl_buf->write(pkt_buf,
+					num_smpls,
+					metadata.time_spec);
 
 		// Continue on local overrun, exit on other errors
-		if ((ret < 0)) {
-			LOG(ERROR) << recvBuffer->stringCode(ret);
-			LOG(ERROR) << recvBuffer->stringStatus();
-			if (ret != SampleBuffer::ERROR_OVERFLOW)
+		if ((rc < 0)) {
+			LOG(ERROR) << rx_smpl_buf->str_code(rc);
+			LOG(ERROR) << rx_smpl_buf->str_status();
+			if (rc != smpl_buf::ERROR_OVERFLOW)
 				return 0;
 		}
 	}
 
 	// We have enough samples
-	ret = recvBuffer->read(buf, len, timestamp);
-	if ((ret < 0) || (ret != len)) {
-		LOG(ERROR) << recvBuffer->stringCode(ret);
-		LOG(ERROR) << recvBuffer->stringStatus();
+	rc = rx_smpl_buf->read(buf, len, timestamp);
+	if ((rc < 0) || (rc != len)) {
+		LOG(ERROR) << rx_smpl_buf->str_code(rc);
+		LOG(ERROR) << rx_smpl_buf->str_status();
 		return 0;
 	}
 
 	return len;
 }
 
-
-int UHDDevice::writeSamples(short *buf, int len, bool *underrun,
+int uhd_device::writeSamples(short *buf, int len, bool *underrun,
 			unsigned long long timestamp,bool isControl)
 {
+	uhd::tx_metadata_t metadata;
+	metadata.has_time_spec = true;
+	metadata.start_of_burst = false;
+	metadata.end_of_burst = false;
+	metadata.time_spec = convert_time(timestamp, actual_smpl_rt);
+
 	// No control packets
 	if (isControl) {
 		LOG(ERROR) << "Control packets not supported";
 		return 0;
 	}
 
-	uhd::tx_metadata_t metadata;
-	metadata.has_time_spec = true;
-	metadata.start_of_burst = false;
-	metadata.end_of_burst = false;
-	metadata.time_spec =
-		SampleBuffer::convertTime(timestamp, actualSampleRate);
-
 	// Drop a fixed number of packets (magic value)
 	if (!aligned) {
-		dropCount++;
+		drop_cnt++;
 
-		if (dropCount == 1) {
+		if (drop_cnt == 1) {
 			LOG(DEBUG) << "Aligning transmitter: stop burst";
 			metadata.end_of_burst = true;
-		} else if (dropCount < 30) {
+		} else if (drop_cnt < 30) {
 			LOG(DEEPDEBUG) << "Aligning transmitter: packet advance";
 			*underrun = true;
 			return len;
@@ -425,61 +474,58 @@ int UHDDevice::writeSamples(short *buf, int len, bool *underrun,
 			LOG(DEBUG) << "Aligning transmitter: start burst";
 			metadata.start_of_burst = true;
 			aligned = true;
-			dropCount = 0;
+			drop_cnt = 0;
 		}
 	}
 
-	size_t samplesSent = usrpDevice->get_device()->send(buf,
+	size_t num_smpls = usrp_dev->get_device()->send(buf,
 					len,
 					metadata,
 					uhd::io_type_t::COMPLEX_INT16,
 					uhd::device::SEND_MODE_FULL_BUFF);
 
-	if (samplesSent != (unsigned)len)
-		LOG(ERROR) << "Sent fewer samples than requested";
+	if (num_smpls != (unsigned)len)
+		LOG(ERROR) << "UHD: Sent fewer samples than requested";
 
-	return samplesSent;
+	return num_smpls;
 }
 
-
-bool UHDDevice::updateAlignment(TIMESTAMP timestamp)
+bool uhd_device::updateAlignment(TIMESTAMP timestamp)
 {
 	/* NOP */
 	return true;
 }
 
-
-bool UHDDevice::setTxFreq(double wFreq) {
-	uhd::tune_result_t tr = usrpDevice->set_tx_freq(wFreq);
+bool uhd_device::setTxFreq(double wFreq)
+{
+	uhd::tune_result_t tr = usrp_dev->set_tx_freq(wFreq);
 	LOG(INFO) << tr.to_pp_string();
 	return true;
 }
 
-
-bool UHDDevice::setRxFreq(double wFreq) {
-	uhd::tune_result_t tr = usrpDevice->set_rx_freq(wFreq);
+bool uhd_device::setRxFreq(double wFreq)
+{
+	uhd::tune_result_t tr = usrp_dev->set_rx_freq(wFreq);
 	LOG(INFO) << tr.to_pp_string();
 	return true;
 }
 
-
-bool UHDDevice::recvAsyncMesg()
+bool uhd_device::recv_async_msg()
 {
 	uhd::async_metadata_t metadata;
-	if (!usrpDevice->get_device()->recv_async_msg(metadata))
+	if (!usrp_dev->get_device()->recv_async_msg(metadata))
 		return false;
 
 	// Assume that any error requires resynchronization
 	if (metadata.event_code != uhd::async_metadata_t::EVENT_CODE_BURST_ACK) {
 		aligned = false;
-		LOG(INFO) << stringCode(metadata);
+		LOG(INFO) << str_code(metadata);
 	}
 
 	return true;
 }
 
-
-std::string UHDDevice::stringCode(uhd::rx_metadata_t metadata)
+std::string uhd_device::str_code(uhd::rx_metadata_t metadata)
 {
 	std::ostringstream ost("UHD: ");
 
@@ -512,8 +558,7 @@ std::string UHDDevice::stringCode(uhd::rx_metadata_t metadata)
 	return ost.str();
 }
 
-
-std::string UHDDevice::stringCode(uhd::async_metadata_t metadata)
+std::string uhd_device::str_code(uhd::async_metadata_t metadata)
 {
 	std::ostringstream ost("UHD: ");
 
@@ -546,156 +591,130 @@ std::string UHDDevice::stringCode(uhd::async_metadata_t metadata)
 	return ost.str();
 }
 
-
-SampleBuffer::SampleBuffer(size_t len, double rate)
-	: bufferLen(len), clockRate(rate),
-	  timeStart(0), timeEnd(0), dataStart(0), dataEnd(0)
+smpl_buf::smpl_buf(size_t len, double rate)
+	: buf_len(len), clk_rt(rate),
+	  time_start(0), time_end(0), data_start(0), data_end(0)
 {
 	data = new uint32_t[len];
 }
 
-
-SampleBuffer::~SampleBuffer()
+smpl_buf::~smpl_buf()
 {
 	delete[] data;
 }
 
-
-ssize_t SampleBuffer::availableSamples(TIMESTAMP timestamp) const
+ssize_t smpl_buf::avail_smpls(TIMESTAMP timestamp) const
 {
-	if (timestamp < timeStart)
+	if (timestamp < time_start)
 		return ERROR_TIMESTAMP;
-	else if (timestamp >= timeEnd)
+	else if (timestamp >= time_end)
 		return 0;
 	else
-		return timeEnd - timestamp;
+		return time_end - timestamp;
 }
 
-
-ssize_t SampleBuffer::availableSamples(uhd::time_spec_t timespec) const
+ssize_t smpl_buf::avail_smpls(uhd::time_spec_t timespec) const
 {
-	return availableSamples(convertTime(timespec, clockRate));
+	return avail_smpls(convert_time(timespec, clk_rt));
 }
 
-
-ssize_t SampleBuffer::read(void *buf, size_t len, TIMESTAMP timestamp)
+ssize_t smpl_buf::read(void *buf, size_t len, TIMESTAMP timestamp)
 {
 	// Check for valid read
-	if (timestamp < timeStart)
+	if (timestamp < time_start)
 		return ERROR_TIMESTAMP;
-	if (timestamp >= timeEnd)
+	if (timestamp >= time_end)
 		return 0;
-	if (len >= bufferLen)
+	if (len >= buf_len)
 		return ERROR_READ;
 
 	// How many samples should be copied
-	size_t numSamples = timeEnd - timestamp;
-	if (numSamples > len);
-		numSamples = len;
+	size_t num_smpls = time_end - timestamp;
+	if (num_smpls > len);
+		num_smpls = len;
 
 	// Starting index
-	size_t readStart = dataStart + (timestamp - timeStart);
+	size_t read_start = data_start + (timestamp - time_start);
 
 	// Read it
-	if (readStart + numSamples < bufferLen) {
+	if (read_start + num_smpls < buf_len) {
 		size_t numBytes = len * 2 * sizeof(short);
-		memcpy(buf, data + readStart, numBytes);
+		memcpy(buf, data + read_start, numBytes);
+	} else {
+		size_t first_cp = (buf_len - read_start) * 2 * sizeof(short);
+		size_t second_cp = len * 2 * sizeof(short) - first_cp;
+
+		memcpy(buf, data + read_start, first_cp);
+		memcpy((char*) buf + first_cp, data, second_cp);
 	}
-	else {
-		size_t firstCopy = (bufferLen - readStart) * 2 * sizeof(short);
-		size_t secondCopy = len * 2 * sizeof(short) - firstCopy;
 
-		memcpy(buf, data + readStart, firstCopy);
-		memcpy((char*) buf + firstCopy, data, secondCopy);
-	}
+	data_start = (read_start + len) % buf_len;
+	time_start = timestamp + len;
 
-	dataStart = (readStart + len) % bufferLen;
-	timeStart = timestamp + len;
-
-	if (timeStart > timeEnd)
+	if (time_start > time_end)
 		return ERROR_READ;
 	else
-		return numSamples;
+		return num_smpls;
 }
 
-
-ssize_t SampleBuffer::read(void *buf, size_t len, uhd::time_spec_t timeSpec)
+ssize_t smpl_buf::read(void *buf, size_t len, uhd::time_spec_t ts)
 {
-	return read(buf, len, convertTime(timeSpec, clockRate));
+	return read(buf, len, convert_time(ts, clk_rt));
 }
 
-
-ssize_t SampleBuffer::write(void *buf, size_t len, TIMESTAMP timestamp)
+ssize_t smpl_buf::write(void *buf, size_t len, TIMESTAMP timestamp)
 {
 	// Check for valid write
-	if ((len == 0) || (len >= bufferLen))
-		return ERROR_WRITE; 
-	if ((timestamp + len) <= timeEnd)
+	if ((len == 0) || (len >= buf_len))
+		return ERROR_WRITE;
+	if ((timestamp + len) <= time_end)
 		return ERROR_TIMESTAMP;
 
 	// Starting index
-	size_t writeStart = (dataStart + (timestamp - timeStart)) % bufferLen;
+	size_t write_start = (data_start + (timestamp - time_start)) % buf_len;
 
 	// Write it
-	if ((writeStart + len) < bufferLen) {
+	if ((write_start + len) < buf_len) {
 		size_t numBytes = len * 2 * sizeof(short);
-		memcpy(data + writeStart, buf, numBytes);
+		memcpy(data + write_start, buf, numBytes);
+	} else {
+		size_t first_cp = (buf_len - write_start) * 2 * sizeof(short);
+		size_t second_cp = len * 2 * sizeof(short) - first_cp;
+
+		memcpy(data + write_start, buf, first_cp);
+		memcpy(data, (char*) buf + first_cp, second_cp);
 	}
-	else {
-		size_t firstCopy = (bufferLen - writeStart) * 2 * sizeof(short);
-		size_t secondCopy = len * 2 * sizeof(short) - firstCopy;
 
-		memcpy(data + writeStart, buf, firstCopy);
-		memcpy(data, (char*) buf + firstCopy, secondCopy);
-	}
+	data_end = (write_start + len) % buf_len;
+	time_end = timestamp + len;
 
-	dataEnd = (writeStart + len) % bufferLen;
-	timeEnd = timestamp + len;
-
-	if (((writeStart + len) > bufferLen) && (dataEnd > dataStart))
+	if (((write_start + len) > buf_len) && (data_end > data_start))
 		return ERROR_OVERFLOW;
-	else if (timeEnd <= timeStart)
-		return ERROR_WRITE; 
+	else if (time_end <= time_start)
+		return ERROR_WRITE;
 	else
 		return len;
 }
 
-
-ssize_t SampleBuffer::write(void *buf, size_t len, uhd::time_spec_t timeSpec)
+ssize_t smpl_buf::write(void *buf, size_t len, uhd::time_spec_t ts)
 {
-	return write(buf, len, convertTime(timeSpec, clockRate));
+	return write(buf, len, convert_time(ts, clk_rt));
 }
 
-
-uhd::time_spec_t SampleBuffer::convertTime(TIMESTAMP ticks, double rate)
-{
-	double secs = (double) ticks / rate;
-	return uhd::time_spec_t(secs);
-}
-
-
-TIMESTAMP SampleBuffer::convertTime(uhd::time_spec_t timeSpec, double rate)
-{
-	size_t secTicks = timeSpec.get_full_secs() * rate;
-	return timeSpec.get_tick_count(rate) + secTicks;
-}
-
-
-std::string SampleBuffer::stringStatus() const
+std::string smpl_buf::str_status() const
 {
 	std::ostringstream ost("Sample buffer: ");
 
-	ost << "length = " << bufferLen;
-	ost << ", timeStart = " << timeStart;
-	ost << ", timeEnd = " << timeEnd;
-	ost << ", dataStart = " << dataStart;
-	ost << ", dataEnd = " << dataEnd;
+	ost << "length = " << buf_len;
+	ost << ", time_start = " << time_start;
+	ost << ", time_end = " << time_end;
+	ost << ", data_start = " << data_start;
+	ost << ", data_end = " << data_end;
 
-	return ost.str(); 
+	return ost.str();
 }
 
-
-std::string SampleBuffer::stringCode(ssize_t code)
+std::string smpl_buf::str_code(ssize_t code)
 {
 	switch (code) {
 	case ERROR_TIMESTAMP:
@@ -711,8 +730,7 @@ std::string SampleBuffer::stringCode(ssize_t code)
 	}
 }
 
-
-Device *Device::make(double sampleRate, bool skipRx)
+Device *Device::make(double smpl_rt, bool skip_rx)
 {
-	return new UHDDevice(sampleRate, skipRx);
+	return new uhd_device(smpl_rt, skip_rx);
 }
