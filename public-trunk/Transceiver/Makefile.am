@@ -55,8 +55,7 @@ noinst_HEADERS = \
 	sendLPF_961.h \
 	sigProcLib.h \
 	Transceiver.h \
-	USRPDevice.h \
-	Device.h
+	USRPDevice.h
 
 USRPping_SOURCES = USRPping.cpp
 USRPping_LDADD = \

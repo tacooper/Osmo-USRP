@@ -22,7 +22,7 @@
 
 */
 
-#include "Device.h"
+#include "../Transceiver52M/radioDevice.h"
 #include "Threads.h"
 #include "Logger.h"
 #include <uhd/usrp/single_usrp.hpp>
@@ -133,7 +133,7 @@ private:
                 Events and errors such as underruns are reported asynchronously
                 by the device and received in a separate thread.
 */
-class uhd_device : public Device {
+class uhd_device : public RadioDevice {
 public:
 	uhd_device(double rate, bool skip_rx);
 	~uhd_device();
@@ -819,7 +819,7 @@ std::string smpl_buf::str_code(ssize_t code)
 	}
 }
 
-Device *Device::make(double smpl_rt, bool skip_rx)
+RadioDevice *RadioDevice::make(double smpl_rt, bool skip_rx)
 {
 	return new uhd_device(smpl_rt, skip_rx);
 }

@@ -38,7 +38,7 @@ GSM::Time VectorQueue::nextTime() const
   return retVal;
 }
 
-RadioInterface::RadioInterface(Device *wUsrp,
+RadioInterface::RadioInterface(RadioDevice *wUsrp,
                                int wReceiveOffset,
 			       int wSamplesPerSymbol,
 			       GSM::Time wStartTime)

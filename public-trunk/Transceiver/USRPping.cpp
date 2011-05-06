@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   else gLogInit("INFO");
   if (argc>2) gSetLogFile(argv[2]);
 
-  Device *usrp = Device::make(400e3);
+  RadioDevice *usrp = RadioDevice::make(400e3);
   if (!usrp->open()) {
     cerr << "Device open failed. Exiting..." << endl; 
     exit(1);

@@ -39,6 +39,7 @@ class RadioDevice {
   public:
   static RadioDevice *make(double desiredSampleRate, bool skipRx = false);
 
+  /** Initialize the USRP */
   virtual bool open()=0;
 
   /** Start the USRP */
@@ -46,6 +47,9 @@ class RadioDevice {
 
   /** Stop the USRP */
   virtual bool stop()=0;
+
+  /** Enable thread priority */
+  virtual void setPriority()=0;
 
   /**
 	Read samples from the radio.

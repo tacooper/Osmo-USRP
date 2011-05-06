@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 
   srandom(time(NULL));
 
-  Device *usrp = Device::make(400.0e3);
+  RadioDevice *usrp = RadioDevice::make(400.0e3);
   if (!usrp->open()) {
     cerr << "Device open failed. Exiting..." << endl;
     exit(1);
