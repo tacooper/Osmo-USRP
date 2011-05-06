@@ -36,6 +36,7 @@
     rx_smpl_offset    - Timing correction in seconds between receive and
                         transmit timestamps. This value corrects for delays on
                         on the RF side of the timestamping point of the device.
+                        This value is generally empirically measured.
 
     smpl_buf_sz       - The receive sample buffer size in bytes. 
 */
