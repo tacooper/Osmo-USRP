@@ -557,7 +557,7 @@ bool USRPDevice::setRxFreq(double wFreq) { return true;};
 #endif
 
 
-Device *Device::make(double desiredSampleRate, bool skipRx)
+RadioDevice *RadioDevice::make(double desiredSampleRate, bool skipRx)
 {
   return new USRPDevice(desiredSampleRate, skipRx);
 }

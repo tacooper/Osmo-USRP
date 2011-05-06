@@ -42,7 +42,7 @@
 #include <math.h>
 #include <string>
 #include <iostream>
-#include "Device.h"
+#include "../Transceiver52M/radioDevice.h"
 
 
 /** Define types which are not defined in libusrp-3.1 */
@@ -54,7 +54,7 @@ typedef boost::shared_ptr<usrp_standard_rx> usrp_standard_rx_sptr;
 
 
 /** A class to handle a USRP rev 4, with a two RFX900 daughterboards */
-class USRPDevice : public Device {
+class USRPDevice : public RadioDevice {
 
 private:
 
@@ -224,12 +224,29 @@ private:
   /** Set the receiver frequency */
   bool setRxFreq(double wFreq);
 
+  inline TIMESTAMP initialWriteTimestamp() { return 0; }
+  inline TIMESTAMP initialReadTimestamp() { return 0; }
+
+  inline double fullScaleInputValue() { return 13500.0; }
+  inline double fullScaleOutputValue() { return 9450.0; }
+
+  inline double setRxGain(double dB) { return 0; }
+  inline double getRxGain(void) { return 0; }
+  inline double maxRxGain(void) { return 0; }
+  inline double minRxGain(void) { return 0; }
+
+  inline double setTxGain(double dB) { return 0; }
+  inline double maxTxGain(void) { return 0; }
+  inline double minTxGain(void) { return 0; }
+
   /** Return internal status values */
   inline double getTxFreq() { return 0;}
   inline double getRxFreq() { return 0;}
   inline double getSampleRate() {return actualSampleRate;}
   inline double numberRead() { return samplesRead; }
   inline double numberWritten() { return samplesWritten;}
+
+
 
 };
 
