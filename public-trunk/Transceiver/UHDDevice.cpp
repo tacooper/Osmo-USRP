@@ -154,6 +154,24 @@ public:
 	bool setTxFreq(double wFreq);
 	bool setRxFreq(double wFreq);
 
+	inline TIMESTAMP initialWriteTimestamp() { return 0; }
+	inline TIMESTAMP initialReadTimestamp() { return 0; }
+
+	inline double fullScaleInputValue() { return 13500.0; }
+	inline double fullScaleOutputValue() { return 9450.0; }
+
+	double setRxGain(double db);
+	double getRxGain(void) { return rx_gain; }
+	double maxRxGain(void) { return rx_gain_max; }
+	double minRxGain(void) { return rx_gain_min; }
+
+	double setTxGain(double db);
+	double maxTxGain(void) { return tx_gain_max; }
+	double minTxGain(void) { return tx_gain_min; }
+
+	double getTxFreq() { return tx_freq; }
+	double getRxFreq() { return rx_freq; }
+
 	inline double getSampleRate() { return actual_smpl_rt; }
 	inline double numberRead() { return rx_pkt_cnt; }
 	inline double numberWritten() { return 0; }
@@ -166,11 +184,13 @@ public:
 private:
 	uhd::usrp::single_usrp::sptr usrp_dev;
 
-	double desired_smpl_rt;
-	double actual_smpl_rt;
+	double desired_smpl_rt, actual_smpl_rt;
 
-	size_t tx_spp;
-	size_t rx_spp;
+	double tx_gain, tx_gain_min, tx_gain_max;
+	double rx_gain, rx_gain_min, rx_gain_max;
+
+	double tx_freq, rx_freq;
+	size_t tx_spp, rx_spp;
 
 	bool started;
 	bool aligned;
@@ -183,6 +203,7 @@ private:
 	TIMESTAMP ts_offset;
 	smpl_buf *rx_smpl_buf;
 
+	void init_gains();
 	bool flush_recv(size_t num_pkts);
 	std::string str_code(uhd::rx_metadata_t metadata);
 	std::string str_code(uhd::async_metadata_t metadata);
@@ -199,7 +220,10 @@ void *async_event_loop(uhd_device *dev)
 }
 
 uhd_device::uhd_device(double rate, bool skip_rx)
-	: desired_smpl_rt(rate), actual_smpl_rt(0), tx_spp(0), rx_spp(0),
+	: desired_smpl_rt(rate), actual_smpl_rt(0),
+	  tx_gain(0.0), tx_gain_min(0.0), tx_gain_max(0.0),
+	  rx_gain(0.0), rx_gain_min(0.0), rx_gain_max(0.0),
+	  tx_freq(0.0), rx_freq(0.0), tx_spp(0), rx_spp(0),
 	  started(false), aligned(true), rx_pkt_cnt(0), drop_cnt(0),
 	  prev_ts(0,0), ts_offset(0), rx_smpl_buf(NULL)
 {
@@ -234,16 +258,45 @@ static double set_usrp_rates(uhd::usrp::single_usrp::sptr dev, double rate)
 	return actual_rate;
 }
 
-static void set_usrp_tx_gain(uhd::usrp::single_usrp::sptr dev, double)
+double uhd_device::setTxGain(double db)
 {
-	uhd::gain_range_t range = dev->get_tx_gain_range();
-	dev->set_tx_gain((range.start() + range.stop()) / 2);
+	usrp_dev->set_tx_gain(db);
+	tx_gain = usrp_dev->get_tx_gain();
+
+	LOG(INFO) << "Set TX gain to " << tx_gain << "dB";
+
+	return tx_gain;
 }
 
-static void set_usrp_rx_gain(uhd::usrp::single_usrp::sptr dev, double)
+double uhd_device::setRxGain(double db)
 {
-	uhd::gain_range_t range = dev->get_rx_gain_range();
-	dev->set_rx_gain((range.start() + range.stop()) / 2);
+	usrp_dev->set_rx_gain(db);
+	rx_gain = usrp_dev->get_rx_gain();
+
+	LOG(INFO) << "Set RX gain to " << rx_gain << "dB";
+
+	return rx_gain;
+}
+
+void uhd_device::init_gains()
+{
+	uhd::gain_range_t range;
+
+	range = usrp_dev->get_tx_gain_range();
+	tx_gain_min = range.start();
+	tx_gain_max = range.stop();
+
+	range = usrp_dev->get_rx_gain_range();
+	rx_gain_min = range.start();
+	rx_gain_max = range.stop();
+
+	usrp_dev->set_tx_gain((tx_gain_min + tx_gain_max) / 2);
+	usrp_dev->set_rx_gain((rx_gain_min + rx_gain_max) / 2);
+
+	tx_gain = usrp_dev->get_tx_gain();
+	rx_gain = usrp_dev->get_rx_gain();
+
+	return;
 }
 
 static void set_usrp_ref_clk(uhd::usrp::single_usrp::sptr dev, bool ext_clk)
@@ -295,9 +348,8 @@ bool uhd_device::open()
 	// Set receive chain sample offset 
 	ts_offset = (TIMESTAMP)(rx_smpl_offset * actual_smpl_rt);
 
-	// Set gains to midpoint
-	set_usrp_tx_gain(usrp_dev, 0.0);
-	set_usrp_rx_gain(usrp_dev, 0.0);
+	// Initialize and shadow gain values 
+	init_gains();
 
 	// Set reference clock
 	set_usrp_ref_clk(usrp_dev, use_ext_ref);
@@ -533,6 +585,8 @@ bool uhd_device::setTxFreq(double wFreq)
 {
 	uhd::tune_result_t tr = usrp_dev->set_tx_freq(wFreq);
 	LOG(INFO) << tr.to_pp_string();
+	tx_freq = usrp_dev->get_tx_freq();
+
 	return true;
 }
 
@@ -540,6 +594,8 @@ bool uhd_device::setRxFreq(double wFreq)
 {
 	uhd::tune_result_t tr = usrp_dev->set_rx_freq(wFreq);
 	LOG(INFO) << tr.to_pp_string();
+	rx_freq = usrp_dev->get_rx_freq();
+
 	return true;
 }
 
