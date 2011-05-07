@@ -190,7 +190,7 @@ public:
   bool tuneRx(double freq);
 
   /** set thread priority */
-  void setPriority();
+  void setPriority() { usrp->setPriority(); } 
 
 protected:
 

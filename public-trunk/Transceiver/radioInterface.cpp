@@ -276,12 +276,6 @@ bool RadioInterface::tuneRx(double freq)
   return usrp->setRxFreq(freq);
 }
 
-void RadioInterface::setPriority()
-{
-  usrp->setPriority();
-  return;
-}
-
 void RadioInterface::start()
 {
   LOG(INFO) << "starting radio interface...";
