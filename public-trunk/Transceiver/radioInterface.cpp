@@ -58,7 +58,7 @@ RadioInterface::RadioInterface(RadioDevice *wUsrp,
   receiveOffset = wReceiveOffset;
   samplesPerSymbol = wSamplesPerSymbol;
   mClock.set(wStartTime);
-
+  powerScaling = 1.0;
 }
 
 RadioInterface::~RadioInterface(void) {
@@ -82,7 +82,12 @@ double RadioInterface::fullScaleOutputValue(void) {
 
 void RadioInterface::setPowerAttenuation(double atten)
 {
-  usrp->setTxGain(usrp->maxTxGain() - atten);
+  double HWatten = usrp->setTxGain(usrp->maxTxGain() - atten);
+  atten -= HWatten;
+  if (atten < 1.0)
+    powerScaling = 1.0;
+  else
+    powerScaling = 1.0 / sqrt(pow(10, (atten / 10.0)));
 }
 
 short *RadioInterface::USRPifyVector(signalVector &wVector) 
@@ -150,8 +155,7 @@ void RadioInterface::pushBuffer(void) {
   delete inputVector;
  
   // Set transmit gain and power here.
-  scaleVector(*resampledVector,13500.0); ///2.25); // this gets 2W out of 3318PA at 885Mhz
-  //scaleVector(*resampledVector,100.0);
+  scaleVector(*resampledVector, powerScaling * usrp->fullScaleInputValue());
 
   short *resampledVectorShort = USRPifyVector(*resampledVector);
 

@@ -142,6 +142,8 @@ private:
 
   bool mOn;				      ///< indicates radio is on
 
+  double powerScaling;
+
   /** format samples to USRP */ 
   short *USRPifyVector(signalVector &wVector);
 

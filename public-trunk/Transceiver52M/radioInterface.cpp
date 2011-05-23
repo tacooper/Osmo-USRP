@@ -110,11 +110,11 @@ double RadioInterface::fullScaleOutputValue(void) {
 void RadioInterface::setPowerAttenuation(double atten)
 {
   double HWatten = mRadio->setTxGain(mRadio->maxTxGain() - atten);
-  atten -= (-HWatten);
+  atten -= HWatten;
   if (atten < 1.0)
     powerScaling = 1.0;
   else
-    powerScaling = 1.0/sqrt(atten);
+    powerScaling = 1.0 / sqrt(pow(10, (atten / 10.0)));
 }
 
 short *RadioInterface::radioifyVector(signalVector &wVector, short *retVector, double scale, bool zeroOut) 
