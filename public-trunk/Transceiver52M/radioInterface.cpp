@@ -109,7 +109,7 @@ double RadioInterface::fullScaleOutputValue(void) {
 
 void RadioInterface::setPowerAttenuation(double atten)
 {
-  double HWatten = mRadio->setTxGain(-atten);
+  double HWatten = mRadio->setTxGain(mRadio->maxTxGain() - atten);
   atten -= (-HWatten);
   if (atten < 1.0)
     powerScaling = 1.0;
