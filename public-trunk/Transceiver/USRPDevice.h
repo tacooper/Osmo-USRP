@@ -166,14 +166,14 @@ private:
   inline double fullScaleInputValue() { return 13500.0; }
   inline double fullScaleOutputValue() { return 9450.0; }
 
-  inline double setRxGain(double dB) { return 0; }
-  inline double getRxGain(void) { return 0; }
-  inline double maxRxGain(void) { return 0; }
-  inline double minRxGain(void) { return 0; }
+  inline double setRxGain(double dB);
+  inline double getRxGain(void) { return rxGain; }
+  inline double maxRxGain(void);
+  inline double minRxGain(void);
 
-  inline double setTxGain(double dB) { return 0; }
-  inline double maxTxGain(void) { return 0; }
-  inline double minTxGain(void) { return 0; }
+  inline double setTxGain(double dB);
+  inline double maxTxGain(void);
+  inline double minTxGain(void);
 
   /** Return internal status values */
   inline double getTxFreq() { return 0;}

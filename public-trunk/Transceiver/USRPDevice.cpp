@@ -223,6 +223,53 @@ bool USRPDevice::stop()
 #endif
 }
 
+double USRPDevice::maxTxGain()
+{
+  return m_dbTx->gain_max();
+}
+
+double USRPDevice::minTxGain()
+{
+  return m_dbTx->gain_min();
+}
+
+double USRPDevice::maxRxGain()
+{
+  return m_dbRx->gain_max();
+}
+
+double USRPDevice::minRxGain()
+{
+  return m_dbRx->gain_min();
+}
+
+double USRPDevice::setTxGain(double dB)
+{
+   if (dB > maxTxGain()) dB = maxTxGain();
+   if (dB < minTxGain()) dB = minTxGain();
+
+   LOG(NOTICE) << "Setting TX gain to " << dB << " dB.";
+
+   if (!m_dbRx->set_gain(dB))
+     LOG(ERROR) << "Error setting TX gain";
+
+   return dB;
+}
+
+double USRPDevice::setRxGain(double dB)
+{
+   if (dB > maxRxGain()) dB = maxRxGain();
+   if (dB < minRxGain()) dB = minRxGain();
+
+   LOG(NOTICE) << "Setting TX gain to " << dB << " dB.";
+
+   if (!m_dbRx->set_gain(dB))
+     LOG(ERROR) << "Error setting RX gain";
+   else
+     rxGain = dB;
+
+   return rxGain;
+}
 
 // NOTE: Assumes sequential reads
 int USRPDevice::readSamples(short *buf, int len, bool *overrun, 
