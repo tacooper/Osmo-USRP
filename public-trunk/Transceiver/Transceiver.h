@@ -68,6 +68,8 @@ private:
   GSM::Time mLastClockUpdateTime;         ///< last time clock update was sent up to core
 
   RadioInterface *mRadioInterface;	  ///< associated radioInterface object
+  double txFullScale;                     ///< full scale input to radio
+  double rxFullScale;                     ///< full scale output to radio
 
   /** Codes for burst types of received bursts*/
   typedef enum {

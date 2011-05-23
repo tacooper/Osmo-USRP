@@ -189,16 +189,30 @@ public:
   /** set receive frequency */
   bool tuneRx(double freq);
 
-  /** set thread priority */
-  void setPriority() { usrp->setPriority(); } 
+  /** set receive gain */
+  double setRxGain(double dB);
 
-protected:
+  /** get receive gain */
+  double getRxGain(void);
 
   /** drive transmission of GSM bursts */
   void driveTransmitRadio();
 
   /** drive reception of GSM bursts */
   void driveReceiveRadio();
+
+  void setPowerAttenuation(double atten);
+
+  /** returns the full-scale transmit amplitude **/
+  double fullScaleInputValue();
+
+  /** returns the full-scale receive amplitude **/
+  double fullScaleOutputValue();
+
+  /** set thread priority */
+  void setPriority() { usrp->setPriority(); } 
+
+protected:
 
   /** drive synchronization of Tx/Rx of USRP */
   void alignRadio();

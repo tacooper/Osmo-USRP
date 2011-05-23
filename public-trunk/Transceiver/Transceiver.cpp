@@ -61,6 +61,9 @@ Transceiver::Transceiver(int wBasePort,
   LOG(DEBUG) << "gsmPulse: " << *gsmPulse;
   sigProcLibSetup(mSamplesPerSymbol);
 
+  txFullScale = mRadioInterface->fullScaleInputValue();
+  rxFullScale = mRadioInterface->fullScaleOutputValue();
+
   // initialize filler tables with dummy bursts, initialize other per-timeslot variables
   for (int i = 0; i < 8; i++) {
     signalVector* modBurst = modulateBurst(gDummyBurst,*gsmPulse,
@@ -484,6 +487,22 @@ void Transceiver::driveControl()
       }
     }
   }
+  else if (strcmp(command,"SETRXGAIN")==0) {
+    //set expected maximum time-of-arrival
+    int newGain;
+    sscanf(buffer,"%3s %s %d",cmdcheck,command,&newGain);
+    newGain = mRadioInterface->setRxGain(newGain);
+    sprintf(response,"RSP SETRXGAIN 0 %d",newGain);
+  }
+  else if (strcmp(command,"NOISELEV")==0) {
+    if (mOn) {
+      sprintf(response,"RSP NOISELEV 0 %d",
+              (int) round(20.0*log10(rxFullScale/mEnergyThreshold)));
+    }
+    else {
+      sprintf(response,"RSP NOISELEV 1  0");
+    }
+  }   
   else if (strcmp(command,"SETPOWER")==0) {
     // set output power in dB
     int dbPwr;
@@ -492,6 +511,7 @@ void Transceiver::driveControl()
       sprintf(response,"RSP SETPOWER 1 %d",dbPwr);
     else {
       mPower = dbPwr;
+      mRadioInterface->setPowerAttenuation(dbPwr);
       sprintf(response,"RSP SETPOWER 0 %d",dbPwr);
     }
   }

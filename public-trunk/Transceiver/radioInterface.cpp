@@ -72,6 +72,19 @@ RadioInterface::~RadioInterface(void) {
   mReceiveFIFO.clear();
 }
 
+double RadioInterface::fullScaleInputValue(void) {
+  return usrp->fullScaleInputValue();
+}
+
+double RadioInterface::fullScaleOutputValue(void) {
+  return usrp->fullScaleOutputValue();
+}
+
+void RadioInterface::setPowerAttenuation(double atten)
+{
+  usrp->setTxGain(usrp->maxTxGain() - atten);
+}
+
 short *RadioInterface::USRPifyVector(signalVector &wVector) 
 {
 
@@ -274,6 +287,22 @@ bool RadioInterface::tuneRx(double freq)
 {
   if (mOn) return false;
   return usrp->setRxFreq(freq);
+}
+
+double RadioInterface::setRxGain(double dB)
+{
+  if (usrp)
+    return usrp->setRxGain(dB);
+  else
+    return -1;
+}
+
+double RadioInterface::getRxGain(void)
+{
+  if (usrp)
+    return usrp->getRxGain();
+  else
+    return -1;
 }
 
 void RadioInterface::start()
