@@ -41,101 +41,15 @@
 
 using namespace std;
 
-string write_it(unsigned v) {
-  string s = "   ";
-  s[0] = (v>>16) & 0x0ff;
-  s[1] = (v>>8) & 0x0ff;
-  s[2] = (v) & 0x0ff;
-  return s;
-}
+enum dboardConfigType {
+  TXA_RXB,
+  TXB_RXA,
+  TXA_RXA,
+  TXB_RXB
+};
 
-
-const float USRPDevice::LO_OFFSET = 4.0e6;
-const double USRPDevice::masterClockRate = (double) 64.0e6;
-
-bool USRPDevice::compute_regs(double freq,
-			      unsigned *R,
-			      unsigned *control,
-			      unsigned *N,
-			      double *actual_freq) 
-{
-  
-  float phdet_freq = 64.0e6/R_DIV;
-  int desired_n = (int) round(freq*freq_mult/phdet_freq);
-  *actual_freq = desired_n * phdet_freq/freq_mult;
-  float B = floor(desired_n/16);
-  float A = desired_n - 16*B;
-  unsigned B_DIV = int(B);
-  unsigned A_DIV = int(A);
-  if (B < A) return false;
-  *R = (R_RSV<<22) | 
-    (BSC << 20) | 
-    (TEST << 19) | 
-    (LDP << 18) | 
-    (ABP << 16) | 
-    (R_DIV << 2);
-  *control = (P<<22) | 
-    (PD<<20) | 
-    (CP2 << 17) | 
-    (CP1 << 14) | 
-    (PL << 12) | 
-    (MTLD << 11) | 
-    (CPG << 10) | 
-    (CP3S << 9) | 
-    (PDP << 8) | 
-    (MUXOUT << 5) | 
-    (CR << 4) | 
-    (PC << 2);
-  *N = (DIVSEL<<23) | 
-    (DIV2<<22) | 
-    (CPGAIN<<21) | 
-    (B_DIV<<8) | 
-    (N_RSV<<7) | 
-    (A_DIV<<2);
-  return true;
-}
-
-
-bool USRPDevice::tx_setFreq(double freq, double *actual_freq) 
-{
-  unsigned R, control, N;
-  if (!compute_regs(freq, &R, &control, &N, actual_freq)) return false;
-  if (R==0) return false;
-  
-  m_uTx->_write_spi(0,SPI_ENABLE_TX_A,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((R & ~0x3) | 1));
-  m_uTx->_write_spi(0,SPI_ENABLE_TX_A,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((control & ~0x3) | 0));
-  usleep(10000);
-  m_uTx->_write_spi(0,SPI_ENABLE_TX_A,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((N & ~0x3) | 2));
-  
-  if (m_uTx->read_io(0) & PLL_LOCK_DETECT)  return true;
-  if (m_uTx->read_io(0) & PLL_LOCK_DETECT)  return true;
-  return false;
-}
-
-
-bool USRPDevice::rx_setFreq(double freq, double *actual_freq) 
-{
-  unsigned R, control, N;
-  if (!compute_regs(freq, &R, &control, &N, actual_freq)) return false;
-  if (R==0) return false;
-  
-  m_uRx->_write_spi(0,SPI_ENABLE_RX_B,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((R & ~0x3) | 1));
-  m_uRx->_write_spi(0,SPI_ENABLE_RX_B,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((control & ~0x3) | 0));
-  usleep(10000);
-  m_uRx->_write_spi(0,SPI_ENABLE_RX_B,SPI_FMT_MSB | SPI_FMT_HDR_0,
-		    write_it((N & ~0x3) | 2));
-  
-  
-  if (m_uRx->read_io(1) & PLL_LOCK_DETECT)  return true;
-  if (m_uRx->read_io(1) & PLL_LOCK_DETECT)  return true;
-  return false;
-}
-
+const dboardConfigType dboardConfig = TXA_RXB;
+const double USRPDevice::masterClockRate = 64.0e6;
 
 USRPDevice::USRPDevice (double _desiredSampleRate, bool wSkipRx)
   : skipRx(wSkipRx)
@@ -211,6 +125,38 @@ bool USRPDevice::open()
   
 #endif
 
+  switch (dboardConfig) {
+  case TXA_RXB:
+    m_dbTx = m_uTx->db(0)[0];
+    m_dbRx = m_uRx->db(1)[0];
+    txSubdevSpec = usrp_subdev_spec(0,0);
+    rxSubdevSpec = usrp_subdev_spec(1,0);
+    break;
+  case TXB_RXA:
+    m_dbTx = m_uTx->db(1)[0];
+    m_dbRx = m_uRx->db(0)[0];
+    txSubdevSpec = usrp_subdev_spec(1,0);
+    rxSubdevSpec = usrp_subdev_spec(0,0);
+    break;
+  case TXA_RXA:
+    m_dbTx = m_uTx->db(0)[0];
+    m_dbRx = m_uRx->db(0)[0];
+    txSubdevSpec = usrp_subdev_spec(0,0);
+    rxSubdevSpec = usrp_subdev_spec(0,0);
+    break;
+  case TXB_RXB:
+    m_dbTx = m_uTx->db(1)[0];
+    m_dbRx = m_uRx->db(1)[0];
+    txSubdevSpec = usrp_subdev_spec(1,0);
+    rxSubdevSpec = usrp_subdev_spec(1,0);
+    break;
+  default:
+    m_dbTx = m_uTx->db(0)[0];
+    m_dbRx = m_uRx->db(1)[0];
+    txSubdevSpec = usrp_subdev_spec(0,0);
+    rxSubdevSpec = usrp_subdev_spec(1,0);
+  }
+
   samplesRead = 0;
   samplesWritten = 0;
   started = false;
@@ -228,36 +174,17 @@ bool USRPDevice::start()
   if (!skipRx) m_uRx->stop();
   m_uTx->stop();
 
-  // power up and configure daughterboards
-  m_uTx->_write_oe(0,0,0xffff);
-  m_uTx->_write_oe(0,(POWER_UP|RX_TXN|ENABLE), 0xffff);
-  m_uTx->write_io(0,ENABLE,(POWER_UP|RX_TXN|ENABLE)); /* POWER_UP inverted */
-  m_uTx->_write_fpga_reg(FR_ATR_MASK_0 ,0);//RX_TXN|ENABLE);
-  m_uTx->_write_fpga_reg(FR_ATR_TXVAL_0,0);//,0 |ENABLE);
-  m_uTx->_write_fpga_reg(FR_ATR_RXVAL_0,0);//,RX_TXN|0);
-  m_uTx->_write_fpga_reg(40,0);
-  m_uTx->_write_fpga_reg(42,0);
-  m_uTx->set_pga(0,m_uTx->pga_max()); // should be 20dB
-  m_uTx->set_pga(1,m_uTx->pga_max());
-  m_uTx->set_mux(0x00000098);
-  LOG(INFO) << "TX pgas: " << m_uTx->pga(0) << ", " << m_uTx->pga(1);
+  // Transmit settings - gain at midpoint 
+  m_dbTx->set_gain((m_dbRx->gain_min() + m_dbRx->gain_max()) / 2);
+  m_dbTx->set_enable(true);
+  m_uTx->set_mux(m_uTx->determine_tx_mux_value(txSubdevSpec));
 
-  if (!skipRx) {
-    m_uRx->_write_fpga_reg(FR_ATR_MASK_0  + 3*3,0);
-    m_uRx->_write_fpga_reg(FR_ATR_TXVAL_0 + 3*3,0);
-    m_uRx->_write_fpga_reg(FR_ATR_RXVAL_0 + 3*3,0);
-    m_uRx->_write_fpga_reg(43,0);
-    m_uRx->_write_oe(1,(POWER_UP|RX_TXN|ENABLE), 0xffff);
-    m_uRx->write_io(1,(RX_TXN|ENABLE),(POWER_UP|RX_TXN|ENABLE)); /* POWER_UP inverted */
-    //m_uRx->write_io(1,0,RX2_RX1N); // using Tx/Rx/
-    m_uRx->write_io(1,RX2_RX1N,RX2_RX1N); // using Rx2
-    m_uRx->set_adc_buffer_bypass(2,true);
-    m_uRx->set_adc_buffer_bypass(3,true);
-    m_uRx->set_pga(2,m_uRx->pga_max()); // should be 20dB
-    m_uRx->set_pga(3,m_uRx->pga_max());
-    m_uRx->set_mux(0x00000032);
-    m_uRx->write_aux_dac(1,0,(int) ceil(0.2*4096.0/3.3)); // set to maximum gain 
-  }
+  // Receive settings - gain at max, antenna RX2 (if available)
+  m_dbRx->set_gain(m_dbRx->gain_max());
+  m_uRx->set_mux(m_uRx->determine_rx_mux_value(rxSubdevSpec));
+
+  if (!m_dbRx->select_rx_antenna(1))
+    m_dbRx->select_rx_antenna(0);
 
   data = new short[currDataSize];
   dataStart = 0;
@@ -270,7 +197,6 @@ bool USRPDevice::start()
   hi32Timestamp = 0;
   isAligned = false;
 
- 
   if (!skipRx) 
   started = (m_uRx->start() && m_uTx->start());
   else
@@ -287,10 +213,6 @@ bool USRPDevice::stop()
 #ifndef SWLOOPBACK 
   if (!m_uRx) return false;
   if (!m_uTx) return false;
-  
-  // power down
-  m_uTx->write_io(0,(POWER_UP|RX_TXN),(POWER_UP|RX_TXN|ENABLE));
-  m_uRx->write_io(1,POWER_UP,(POWER_UP|ENABLE));
   
   delete[] currData;
   
@@ -529,27 +451,45 @@ bool USRPDevice::updateAlignment(TIMESTAMP timestamp)
 }
 
 #ifndef SWLOOPBACK 
-bool USRPDevice::setTxFreq(double wFreq) {
-  // Tune to wFreq+LO_OFFSET, to prevent LO bleedthrough from interfering with transmitted signal.
-  double actFreq;
-  if (!tx_setFreq(wFreq+LO_OFFSET,&actFreq)) return false;
-  bool retVal = m_uTx->set_tx_freq(0,(wFreq-actFreq));
-  LOG(INFO) << "set TX: " << wFreq-actFreq << " actual TX: " << m_uTx->tx_freq(0);
-  return retVal;
-};
+bool USRPDevice::setTxFreq(double wFreq)
+{
+  usrp_tune_result result;
 
-bool USRPDevice::setRxFreq(double wFreq) {
-  // Tune to wFreq-2*LO_OFFSET, to
-  //   1) prevent LO bleedthrough (as with the setTxFreq method above)
-  //   2) The extra LO_OFFSET pushes potential transmitter energy (GSM BS->MS transmissions 
-  //        are 45Mhz above MS->BS transmissions) into a notch of the baseband lowpass filter 
-  //        in front of the ADC.  This possibly gives us an extra 10-20dB Tx/Rx isolation.
-  double actFreq;
-  if (!rx_setFreq(wFreq-2*LO_OFFSET,&actFreq)) return false;
-  bool retVal = m_uRx->set_rx_freq(0,(wFreq-actFreq));
-  LOG(DEBUG) << "set RX: " << wFreq-actFreq << " actual RX: " << m_uRx->rx_freq(0);
-  return retVal;
-};
+  if (m_uTx->tune(0, m_dbTx, wFreq, &result)) {
+    LOG(INFO) << "set TX: " << wFreq << std::endl
+              << "    baseband freq: " << result.baseband_freq << std::endl
+              << "    DDC freq:      " << result.dxc_freq << std::endl
+              << "    residual freq: " << result.residual_freq;
+    return true;
+  }
+  else {
+    LOG(ERROR) << "set TX: " << wFreq << "failed" << std::endl
+               << "    baseband freq: " << result.baseband_freq << std::endl
+               << "    DDC freq:      " << result.dxc_freq << std::endl
+               << "    residual freq: " << result.residual_freq;
+    return false;
+  }
+}
+
+bool USRPDevice::setRxFreq(double wFreq)
+{
+  usrp_tune_result result;
+
+  if (m_uRx->tune(0, m_dbRx, wFreq, &result)) {
+    LOG(INFO) << "set RX: " << wFreq << std::endl
+              << "    baseband freq: " << result.baseband_freq << std::endl
+              << "    DDC freq:      " << result.dxc_freq << std::endl
+              << "    residual freq: " << result.residual_freq;
+    return true;
+  }
+  else {
+    LOG(ERROR) << "set RX: " << wFreq << "failed" << std::endl
+               << "    baseband freq: " << result.baseband_freq << std::endl
+               << "    DDC freq:      " << result.dxc_freq << std::endl
+               << "    residual freq: " << result.residual_freq;
+    return false;
+  }
+}
 
 #else
 bool USRPDevice::setTxFreq(double wFreq) { return true;};
