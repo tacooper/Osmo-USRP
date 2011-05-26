@@ -97,6 +97,8 @@ private:
   unsigned long hi32Timestamp;
   unsigned long lastPktTimestamp;
 
+  double rxGain;
+
 #ifdef SWLOOPBACK 
   short loopbackBuffer[1000000];
   int loopbackBufferSize;
