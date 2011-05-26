@@ -161,7 +161,7 @@ private:
   double powerScaling;
 
   /** format samples to USRP */ 
-  short *radioifyVector(signalVector &wVector, short *shortVector, double scale, bool zeroOut);
+  short *radioifyVector(signalVector &wVector, short *shortVector, bool zeroOut);
 
   /** format samples from USRP */
   void unRadioifyVector(short *shortVector, signalVector &wVector);

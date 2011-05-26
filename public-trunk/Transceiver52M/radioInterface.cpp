@@ -91,7 +91,6 @@ RadioInterface::RadioInterface(RadioDevice *wRadio,
   receiveOffset = wReceiveOffset;
   samplesPerSymbol = wRadioOversampling;
   mClock.set(wStartTime);
-  powerScaling = 1.0;
 }
 
 RadioInterface::~RadioInterface(void) {
@@ -109,31 +108,17 @@ double RadioInterface::fullScaleOutputValue(void) {
 
 void RadioInterface::setPowerAttenuation(double atten)
 {
-  double HWatten = mRadio->setTxGain(mRadio->maxTxGain() - atten);
-  atten -= HWatten;
-  if (atten < 1.0)
-    powerScaling = 1.0;
-  else
-    powerScaling = 1.0 / sqrt(pow(10, (atten / 10.0)));
+  mRadio->setTxGain(mRadio->maxTxGain() - atten);
 }
 
-short *RadioInterface::radioifyVector(signalVector &wVector, short *retVector, double scale, bool zeroOut) 
+short *RadioInterface::radioifyVector(signalVector &wVector, short *retVector, bool zeroOut) 
 {
-
-
   signalVector::iterator itr = wVector.begin();
   short *shortItr = retVector;
   if (zeroOut) {
     while (itr < wVector.end()) {
       *shortItr++ = 0;
       *shortItr++ = 0;
-      itr++;
-    }
-  }
-  else if (scale != 1.0) { 
-    while (itr < wVector.end()) {
-      *shortItr++ = (short) (itr->real()*scale);
-      *shortItr++ = (short) (itr->imag()*scale);
       itr++;
     }
   }
@@ -146,7 +131,6 @@ short *RadioInterface::radioifyVector(signalVector &wVector, short *retVector, d
   }
 
   return retVector;
-
 }
 
 void RadioInterface::unRadioifyVector(short *shortVector, signalVector& newVector)
@@ -254,7 +238,7 @@ void RadioInterface::driveTransmitRadio(signalVector &radioBurst, bool zeroBurst
 
   if (!mOn) return;
 
-  radioifyVector(radioBurst, sendBuffer+sendCursor, powerScaling, zeroBurst);
+  radioifyVector(radioBurst, sendBuffer+sendCursor, zeroBurst);
 
   sendCursor += (radioBurst.size()*2);
 
