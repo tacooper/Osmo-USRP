@@ -28,14 +28,14 @@
 #
 
 # The initial global logging level: ERROR, WARN, NOTICE, INFO, DEBUG, DEEPDEBUG
-Log.Level NOTICE
+Log.Level ERROR
 # Logging levels can also be defined for individual source files.
 # This example set shows normal operations in the control layer (L3).
-Log.Level.MobilityManagement.cpp INFO
+Log.Level.MobilityManagement.cpp ERROR
 $optional Log.Level.MobilityManagement.cpp
-Log.Level.CallControl.cpp INFO
+Log.Level.CallControl.cpp ERROR
 $optional Log.Level.CallControl.cpp
-Log.Level.RadioResource.cpp INFO
+Log.Level.RadioResource.cpp ERROR
 $optional Log.Level.RadioResource.cpp
 
 # The log file path.  If not set, logging goes to stdout.
@@ -91,7 +91,7 @@ $static TRX.Path
 # TRX logging.
 # Logging level.
 # IF TRX.Path IS DEFINED, THIS MUST ALSO BE DEFINED.
-TRX.LogLevel NOTICE
+TRX.LogLevel ERROR
 $static TRX.LogLevel
 # Logging file.  If not defined, logs to stdout.
 TRX.LogFileName test.TRX.out
@@ -305,7 +305,7 @@ GSM.MaxExpectedDelaySpread 1
 # With RxGain 57, -71.0dBm <-> 0dB RSSI, -113dBm <-> -38.2dB RSSI, -120dBm <-> -41.4dB RSSI
 # With RxGain 47, -57.4dBm <-> 0dB RSSI, -113dBm <-> -51.3dB RSSI, -120dBm <-> -54.5dB RSSI
 # With RxGain 37, -43.6dBm <-> 0dB RSSI, -113dBm <-> -63.1dB RSSI, -120dBm <-> -65.4dB RSSI
-GSM.RxGain 47
+GSM.RxGain 19
 
 
 # Downlink adaptive power management.
