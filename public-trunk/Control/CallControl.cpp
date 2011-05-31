@@ -601,14 +601,25 @@ void Control::MOCStarter(const L3CMServiceRequest* req, LogicalChannel *LCH)
 
 	// Get the Setup message.
 	// GSM 04.08 5.2.1.2
-	L3Message* msg_setup = getMessage(LCH);
-	const L3Setup *setup = dynamic_cast<const L3Setup*>(msg_setup);
-	if (!setup) {
-		if (msg_setup) {
-			LOG(WARN) << "Unexpected message " << *msg_setup;
-			delete msg_setup;
+	const L3Setup *setup = NULL;
+	L3Message* msg_setup = NULL;
+	while (msg_setup = getMessage(LCH)) {
+		setup = dynamic_cast<const L3Setup*>(msg_setup);
+		if (!setup) {
+			L3GPRSSuspensionRequest *r = dynamic_cast<L3GPRSSuspensionRequest*>(msg_setup);
+			if (!r) {
+				if (msg_setup) {
+					LOG(WARN) << "Unexpected message " << *msg_setup;
+					delete msg_setup;
+				}
+				throw UnexpectedMessage();
+			} else {
+				LOG(INFO) << "Ignored L3 RR GPRS Suspension Request.";
+				if (msg_setup) delete msg_setup;
+				continue;
+			}
 		}
-		throw UnexpectedMessage();
+		break;
 	}
 	LOG(INFO) << *setup;
 	// Pull out the L3 short transaction information now.

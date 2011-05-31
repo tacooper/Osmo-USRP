@@ -683,11 +683,21 @@ unsigned  Control::resolveIMSI(bool sameLAI, L3MobileIdentity& mobID, LogicalCha
 	// If the IMSI's not in the table, ASK for it.
 	LCH->send(L3IdentityRequest(IMSIType));
 	// FIXME -- This request times out on T3260, 12 sec.  See GSM 04.08 Table 11.2.
-	L3Message* msg = getMessage(LCH);
-	L3IdentityResponse *resp = dynamic_cast<L3IdentityResponse*>(msg);
-	if (!resp) {
-		if (msg) delete msg;
-		throw UnexpectedMessage();
+	L3Message* msg = NULL;
+	L3IdentityResponse *resp = NULL;
+	while (msg = getMessage(LCH)) {
+		resp = dynamic_cast<L3IdentityResponse*>(msg);
+		if (!resp) {
+			L3GPRSSuspensionRequest *r = dynamic_cast<L3GPRSSuspensionRequest*>(msg);
+			if (!r) {
+				if (msg) delete msg;
+				throw UnexpectedMessage();
+			} else {
+				LOG(INFO) << "Ignored GPRS Suspension Request";
+			}
+		} else {
+			break;
+		}
 	}
 	mobID = resp->mobileID();
 	LOG(INFO) << resp;
@@ -721,8 +731,15 @@ void  Control::resolveIMSI(L3MobileIdentity& mobileIdentity, LogicalChannel* LCH
 		L3Message* msg = getMessage(LCH);
 		L3IdentityResponse *resp = dynamic_cast<L3IdentityResponse*>(msg);
 		if (!resp) {
-			if (msg) delete msg;
-			throw UnexpectedMessage();
+			L3GPRSSuspensionRequest *r = dynamic_cast<L3GPRSSuspensionRequest*>(msg);
+			if (!r) {
+				if (msg) delete msg;
+				throw UnexpectedMessage();
+			} else {
+				LOG(INFO) << "Ignored L3 RR GPRS Suspension Request.";
+				if (msg) delete msg;
+				return;
+			}
 		}
 		mobileIdentity = resp->mobileID();
 		delete msg;

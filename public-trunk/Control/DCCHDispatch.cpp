@@ -88,6 +88,9 @@ void DCCHDispatchRR(const L3RRMessage* req, LogicalChannel *DCCH)
 			AssignmentCompleteHandler(dynamic_cast<const L3AssignmentComplete*>(req),
 										dynamic_cast<TCHFACCHLogicalChannel*>(DCCH));
 			break;
+		case L3RRMessage::GPRSSuspensionRequest:
+			LOG(INFO) << "ignored RR message " << MTI << " on " << DCCH->type();
+			break;
 		default:
 			LOG(NOTICE) << "unhandled RR message " << MTI << " on " << DCCH->type();
 			throw UnsupportedMessage();
