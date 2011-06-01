@@ -57,16 +57,12 @@ AC_TYPE_SIZE_T
 AC_HEADER_TIME
 AC_C_BIGENDIAN
 
-AC_ARG_WITH(uhd, [
-    AS_HELP_STRING([--with-uhd],
-        [enable USRP2 Transceiver (Transceiver52M will not be built)])
+AC_ARG_WITH(usrp1, [
+    AS_HELP_STRING([--with-usrp1],
+        [enable USRP1 gnuradio based transceiver])
 ])
 
-AS_IF([test "x$with_uhd" = "xyes"], [
-    PKG_CHECK_MODULES(UHD, uhd)
-    AC_DEFINE(USE_UHD, 1, Define to 1 if using UHD)
-],
-    [test "x$with_uhd" != "xyes"], [
+AS_IF([test "x$with_usrp1" = "xyes"], [
     # Defines USRP_CFLAGS, USRP_INCLUDEDIR, and USRP_LIBS
     PKG_CHECK_MODULES(USRP, usrp > 3.1)
     # Check whether we have libusrp >= 3.2
@@ -79,9 +75,12 @@ AS_IF([test "x$with_uhd" = "xyes"], [
     if test "x$libusrp_3_3" = "xyes";then
         AC_DEFINE(HAVE_LIBUSRP_3_3, 1, Define to 1 if you have libusrp >= 3.3)
     fi
+],
+    [PKG_CHECK_MODULES(UHD, uhd)
+    AC_DEFINE(USE_UHD, 1, Define to 1 if using UHD)
 ])
 
-AM_CONDITIONAL(UHD, [test "x$with_uhd" = "xyes"])
+AM_CONDITIONAL(UHD, [test "x$with_usrp1" != "xyes"])
 
 # Defines OSIP_CFLAGS, OSIP_INCLUDEDIR, and OSIP_LIBS
 PKG_CHECK_MODULES(OSIP, libosip2)
