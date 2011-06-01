@@ -386,13 +386,6 @@ int USRPDevice::readSamples(short *buf, int len, bool *overrun,
   timeStart = timestamp + len;
   if (readBuf!=NULL) delete[] readBuf;
 
-  // do IQ swap here
-  for (int i = 0; i < len; i++) {
-    short tmp = usrp_to_host_short(buf[2*i]);
-    buf[2*i] = usrp_to_host_short(buf[2*i+1]);
-    buf[2*i+1] = tmp;
-  }
- 
   return len;
   
 #else
