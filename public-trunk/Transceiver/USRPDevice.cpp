@@ -263,10 +263,11 @@ double USRPDevice::setRxGain(double dB)
 
    LOG(NOTICE) << "Setting TX gain to " << dB << " dB.";
 
-   if (!m_dbRx->set_gain(dB))
+   if (!m_dbRx->set_gain(dB)) {
      LOG(ERROR) << "Error setting RX gain";
-   else
+   } else {
      rxGain = dB;
+   }
 
    return rxGain;
 }
