@@ -58,6 +58,7 @@ RadioInterface::RadioInterface(RadioDevice *wUsrp,
   receiveOffset = wReceiveOffset;
   samplesPerSymbol = wSamplesPerSymbol;
   mClock.set(wStartTime);
+  powerScaling = 1.0;
 }
 
 RadioInterface::~RadioInterface(void) {
@@ -81,7 +82,15 @@ double RadioInterface::fullScaleOutputValue(void) {
 
 void RadioInterface::setPowerAttenuation(double atten)
 {
-  usrp->setTxGain(usrp->maxTxGain() - atten);
+  double rfAtten, digAtten;
+
+  rfAtten = usrp->setTxGain(usrp->maxTxGain() - atten);
+  digAtten = atten - rfAtten;
+
+  if (digAtten < 1.0)
+    powerScaling = 1.0;
+  else
+    powerScaling = 1.0/sqrt(pow(10, (digAtten/10.0)));
 }
 
 short *RadioInterface::USRPifyVector(signalVector &wVector) 
@@ -149,7 +158,7 @@ void RadioInterface::pushBuffer(void) {
   delete inputVector;
  
   // Set transmit gain and power here.
-  scaleVector(*resampledVector, usrp->fullScaleInputValue());
+  scaleVector(*resampledVector, powerScaling * usrp->fullScaleInputValue());
 
   short *resampledVectorShort = USRPifyVector(*resampledVector);
 
