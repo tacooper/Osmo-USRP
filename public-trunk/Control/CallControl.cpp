@@ -361,8 +361,11 @@ bool callManagementDispatchGSM(TransactionEntry& transaction, LogicalChannel* LC
 		return false;
 	}
 
-	if (message) LOG(NOTICE) << "no support for message " << *message << " from " << transaction.subscriber();
-	else LOG(NOTICE) << "no support for unrecognized message from " << transaction.subscriber();
+	if (message) {
+		LOG(NOTICE) << "no support for message " << *message << " from " << transaction.subscriber();
+	} else {
+		LOG(NOTICE) << "no support for unrecognized message from " << transaction.subscriber();
+	}
 
 
 	// If we got here, we're ignoring the message.

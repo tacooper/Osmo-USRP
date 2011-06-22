@@ -242,8 +242,11 @@ void Control::LocationUpdatingController(const L3LocationUpdatingRequest* lur, S
 	// Otherwise, we are here because of open registration.
 	// Either way, we're going to register a phone if we arrive here.
 
-	if (success) LOG(INFO) << "registration SUCCESS: " << mobID;
-	else LOG(INFO) << "registration ALLOWED: " << mobID;
+	if (success) {
+		LOG(INFO) << "registration SUCCESS: " << mobID;
+	} else {
+		LOG(INFO) << "registration ALLOWED: " << mobID;
+	}
 
 
 	// Send the "short name".
