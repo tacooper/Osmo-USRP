@@ -42,6 +42,7 @@
 
 
 #include <stdio.h>
+#include <sstream>
 #include <GSMLogicalChannel.h>
 #include <GSML3MMMessages.h>
 #include "ControlCommon.h"
@@ -86,99 +87,8 @@ L3Frame* getFrameSMS(LogicalChannel *LCH, GSM::Primitive primitive=DATA)
 }
 
 
-
-
-
-/**@name Functions for transmitting through various gateways. */
-//@{
-
-
-/** Substitute spaces with +'s for compatibility with some protocols. */
-void convertText(char *dest, const char *src)
+bool sendSIP(const L3MobileIdentity &mobileID, const char* address, const char* body)
 {
-	// FIXME -- We should just do full "percent encoding" here.
-	while (*src != '\0') {
-		if (*src == ' ') *dest++ = '+';
-		else *dest++ = *src;
-		src++;
-	}
-	*dest = '\0';
-}
-
-
-
-/** Send SMS via and HTTP interface. */
-bool sendHTTP(const char* destination, const char* message)
-{
-	char convMessage[strlen(message)+2];
-	convertText(convMessage,message);
-	char command[2048];
-	// FIXME -- Check specs for a good timeout value here.
-	sprintf(command,"wget -T 5 -C -q -O - \"http://%s/http/%s&to=%s&text=%s\" >& /dev/null",
-		gConfig.getStr("SMS.HTTP.Gateway"),
-		gConfig.getStr("SMS.HTTP.AccessString"),
-		destination, convMessage);
-	LOG(DEBUG) << "MOSMS: sendHTTP sending with " << command;
-
-	// HTTP "GET" method with wget.
-	// FIXME -- Look at the output of wget to check success.
-	FILE* wget = popen(command,"r");
-	if (!wget) {
-		LOG(ALARM) << "cannot open wget with " << command;
-		return false;
-	}
-	pclose(wget);
-	return true;
-}
-
-
-/** Send e-mail with local sendmail program. */
-bool sendEMail(const char* address, const char* body, const char* subject=NULL)
-{
-	// We're not checking for overflow because the TPDU can't be more than a few hundred bytes.
-
-	// Build the command line.
-	// FIXME -- Use sendmail to have better header control.
-	char command[1024];
-	if (subject) sprintf(command,"mail -s \"%s\" %s",subject,address);
-	else sprintf(command,"mail %s",address);
-	LOG(INFO) << "sending SMTP: \"" << body << "\" via \"" << command << "\"";
-
-	// Send the mail.
-	FILE* mail = popen(command,"w");
-	if (!mail) {
-		LOG(ALARM) << "cannot send mail with \"" << command << "\"";
-		return false;
-	}
-	// FIXME -- We should be sure body is 7-bit clean.
-	fprintf(mail,"%s",body);
-	if (pclose(mail) == -1) return false;
-	return true;
-}
-
-
-//@}
-
-
-
-
-/**
-	Send a TDPU to a numeric address.
-	@param mobileID The sender's IMSI.
-	@param submit A TL-SUBMIT PDU.
-	@return true on success
-*/
-bool sendToNumericAddress(const L3MobileIdentity &mobileID, const TLSubmit& submit)
-{
-	LOG(INFO) << "from " << mobileID << " message: " << submit;
-	const TLAddress& address = submit.DA();
-	const char* body = submit.UD().data();
-
-	// If there is an external HTTP gateway, use it.
-	if (gConfig.defines("SMS.HTTP.Gateway")) return sendHTTP(address.digits(), body);
-
-	// Otherwise, we are looking for a SIP interface to smsd.
-
 	// Steps:
 	// 1 -- Create a transaction record.
 	// 2 -- Send it to the server.
@@ -186,20 +96,19 @@ bool sendToNumericAddress(const L3MobileIdentity &mobileID, const TLSubmit& subm
 	// 4 -- Return true for OK or ACCEPTED, false otherwise.
 
 	// Form the TLAddress into a CalledPartyNumber for the transaction.
-	L3CalledPartyBCDNumber calledParty(address.digits());
+	L3CalledPartyBCDNumber calledParty(address);
 	// Step 1 -- Create a transaction record.
-	TransactionEntry transaction(
-		mobileID,
-		L3CMServiceType::ShortMessage,
-		0,		// doesn't matter
-		calledParty);
+	TransactionEntry transaction(mobileID,
+	                             L3CMServiceType::ShortMessage,
+	                             0,		// doesn't matter
+	                             calledParty);
 	transaction.SIP().User(mobileID.digits());
 	transaction.Q931State(TransactionEntry::SMSSubmitting);
 	gTransactionTable.add(transaction);
 	LOG(DEBUG) << "MOSMS: transaction: " << transaction;
 
 	// Step 2 -- Send the message to the server.
-	transaction.SIP().MOSMSSendMESSAGE(address.digits(),gConfig.getStr("SIP.IP"),body);
+	transaction.SIP().MOSMSSendMESSAGE(address, gConfig.getStr("SIP.IP"), body, false);
 
 	// Step 3 -- Wait for OK or ACCEPTED.
 	SIPState state = transaction.SIP().MOSMSWaitForSubmit();
@@ -208,67 +117,6 @@ bool sendToNumericAddress(const L3MobileIdentity &mobileID, const TLSubmit& subm
 	clearTransactionHistory(transaction);
 	return state==SIP::Cleared;
 }
-
-
-
-
-/** Send a TPDU through whatever gateway is available.  */
-bool submitSMS(const L3MobileIdentity& mobileID, const TLSubmit& submit)
-{
-	LOG(INFO) << "from " << mobileID;
-	//const TLAddress& address = submit.DA();
-	const char* body = submit.UD().data();
-
-	// Check for direct e-mail address at start of message body.
-	// FIXME -- This doesn't really follow the spec.  See GSM 03.40 3.8.
-	static const Regexp emailAddress("^[[:graph:]]+@[[:graph:]]+ ");
-	if (emailAddress.match(body)) {
-		// FIXME -- Get the sender's E.164 to put in the subject line.
-		char bodyCopy[strlen(body)+2];
-		strcpy(bodyCopy,body);
-		char* SMTPAddress = bodyCopy;
-		char* term = strchr(bodyCopy,' ');
-		// If term's NULL, the regexp is broken.
-		assert(term);
-		*term = '\0';
-		char* SMTPPayload = term+1;
-		LOG(INFO) << "sending SMTP to " << SMTPAddress << ": " << SMTPPayload;
-		if (SMTPPayload) return sendEMail(SMTPAddress,SMTPPayload,"from OpenBTS gateway");
-		else return sendEMail(SMTPAddress,"(empty)","from OpenBTS gateway");
-	}
-
-	// Send to smsd or HTTP gateway, depending on what's defined in the conig.
-	return sendToNumericAddress(mobileID,submit);
-}
-
-
-
-/**
-	Process the incoming TPDU.
-	@param mobileID Sender's IMSI.
-	@param TPDU The TPDU (duh).
-	@return true if successful
-*/
-bool handleTPDU(const L3MobileIdentity& mobileID, const TLFrame& TPDU)
-{
-	LOG(DEBUG) << "SMS: handleTPDU MTI=" << TPDU.MTI();
-	// Handle just the uplink cases.
-	switch ((TLMessage::MessageType)TPDU.MTI()) {
-		case TLMessage::DELIVER_REPORT:
-		case TLMessage::STATUS_REPORT:
-			return false;
-		case TLMessage::SUBMIT: {
-			TLSubmit submit;
-			submit.parse(TPDU);
-			LOG(INFO) << "SMS SMS-SUBMIT " << submit;
-			return submitSMS(mobileID,submit);
-		}
-		default:
-			return false;
-	}
-}
-
-
 
 /**
 	Process the RPDU.
@@ -281,10 +129,9 @@ bool handleRPDU(const L3MobileIdentity& mobileID, const RLFrame& RPDU)
 	LOG(DEBUG) << "SMS: handleRPDU MTI=" << RPDU.MTI();
 	switch ((RPMessage::MessageType)RPDU.MTI()) {
 		case RPMessage::Data: {
-			RPData data;
-			data.parse(RPDU);
-			LOG(INFO) << "SMS RP-DATA " << data;
-			return handleTPDU(mobileID,data.TPDU());
+			ostringstream body;
+			RPDU.hex(body);
+			return sendSIP(mobileID, gConfig.getStr("SIP.SMSC"), body.str().data());
 		}
 		case RPMessage::Ack:
 		case RPMessage::SMMA:
@@ -427,13 +274,7 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 	// This function is used to deliver messages that originate INSIDE the BTS.
 	// For the normal SMS delivery, see MTSMSController.
 
-	// Start ABM in SAP3.
-	LCH->send(ESTABLISH,3);
-	// Wait for SAP3 ABM to connect.
-	// The next read on SAP3 should the ESTABLISH primitive.
-	// This won't return NULL.  It will throw an exception if it fails.
-	delete getFrameSMS(LCH,ESTABLISH);
-
+#if 0
 	// HACK
 	// Check for "Easter Eggs"
 	// TL-PID
@@ -449,6 +290,44 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 		RPData(reference,
 			RPAddress(gConfig.getStr("SMS.FakeSrcSMSC")),
 			TLDeliver(callingPartyDigits,message,TLPID)));
+#else
+	unsigned reference = random() % 255;
+	BitVector RPDUbits(strlen(message)*4);
+	if (!RPDUbits.unhex(message)) {
+		LOG(WARN) << "Hex string parsing failed (in incoming SIP MESSAGE)";
+		throw UnexpectedMessage();
+	}
+
+	RPData rp_data;
+	try {
+		RLFrame RPDU(RPDUbits);
+		LOG(DEBUG) << "SMS RPDU: " << RPDU;
+
+		rp_data.parse(RPDU);
+		LOG(DEBUG) << "SMS RP-DATA " << rp_data;
+	}
+	catch (SMSReadError) {
+		LOG(WARN) << "SMS parsing failed (above L3)";
+		// Cause 95, "semantically incorrect message".
+		LCH->send(CPData(1,TI,RPError(95,reference)),3);
+		throw UnexpectedMessage();
+	}
+	catch (L3ReadError) {
+		LOG(WARN) << "SMS parsing failed (in L3)";
+		// TODO:: send error back to the phone
+		throw UnsupportedMessage();
+	}
+	CPData deliver(0,TI,rp_data);
+
+#endif
+
+	// Start ABM in SAP3.
+	LCH->send(ESTABLISH,3);
+	// Wait for SAP3 ABM to connect.
+	// The next read on SAP3 should the ESTABLISH primitive.
+	// This won't return NULL.  It will throw an exception if it fails.
+	delete getFrameSMS(LCH,ESTABLISH);
+
 	LOG(INFO) << "sending " << deliver;
 	LCH->send(deliver,3);
 
@@ -543,7 +422,9 @@ void Control::MTSMSController(TransactionEntry& transaction,
 	// but instead to an RRLP transaction over the already allocated LogicalChannel.
 	const char* m = transaction.message(); // NOTE - not very nice, my way of checking.
 	if ((strlen(m) > 4) && (std::string("RRLP") == std::string(m, m+4))) {
-		BitVector rrlp_position_request = hex2bitvector(transaction.message() + 4);
+		const char *transaction_hex = transaction.message() + 4;
+		BitVector rrlp_position_request(strlen(transaction_hex)*4);
+		rrlp_position_request.unhex(transaction_hex);
 		LOG(INFO) << "MTSMS: Sending RRLP";
 		// TODO - how to get mobID here?
 		L3MobileIdentity mobID = L3MobileIdentity("000000000000000");
@@ -579,15 +460,29 @@ void Control::MTSMSController(TransactionEntry& transaction,
 	transaction.Q931State(TransactionEntry::SMSDelivering);
 	gTransactionTable.update(transaction);
 
-	bool success = deliverSMSToMS(transaction.calling().digits(),transaction.message(),random()%7,LCH);
+	try {
+		bool success = deliverSMSToMS(transaction.calling().digits(),transaction.message(),random()%7,LCH);
 
-	// Close the Dm channel.
-	LOG(INFO) << "MTSMS: closing";
-	LCH->send(L3ChannelRelease());
+		// Close the Dm channel.
+		LOG(INFO) << "MTSMS: closing";
+		LCH->send(L3ChannelRelease());
 
-	// Ack in SIP domain and update transaction state.
-	if (success) {
+		// Ack in SIP domain and update transaction state.
+		if (success) {
+			engine.MTSMSSendOK();
+			clearTransactionHistory(transaction);
+		}
+	}
+	catch (UnexpectedMessage) {
+		// TODO -- MUST SEND PERMANENT ERROR HERE!!!!!!!!!
 		engine.MTSMSSendOK();
+		LCH->send(L3ChannelRelease());
+		clearTransactionHistory(transaction);
+	}
+	catch (UnsupportedMessage) {
+		// TODO -- MUST SEND PERMANENT ERROR HERE!!!!!!!!!
+		engine.MTSMSSendOK();
+		LCH->send(L3ChannelRelease());
 		clearTransactionHistory(transaction);
 	}
 }

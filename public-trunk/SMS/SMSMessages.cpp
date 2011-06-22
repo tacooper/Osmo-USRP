@@ -76,6 +76,61 @@ CPMessage * SMS::parseSMS( const GSM::L3Frame& frame )
 }
 
 
+RPData *SMS::hex2rpdata(const char *hexstring)
+{
+	RPData *rp_data = NULL;
+
+	BitVector RPDUbits(strlen(hexstring)*4);
+	if (!RPDUbits.unhex(hexstring)) {
+		return false;
+	}
+	LOG(DEBUG) << "SMS RPDU bits: " << RPDUbits;
+
+	try {
+		RLFrame RPDU(RPDUbits);
+		LOG(DEBUG) << "SMS RPDU: " << RPDU;
+
+		rp_data = new RPData();
+		rp_data->parse(RPDU);
+		LOG(DEBUG) << "SMS RP-DATA " << *rp_data;
+	}
+	catch (SMSReadError) {
+		LOG(WARN) << "SMS parsing failed (above L3)";
+		// TODO:: send error back to the phone
+		delete rp_data;
+		rp_data = NULL;
+	}
+	catch (L3ReadError) {
+		LOG(WARN) << "SMS parsing failed (in L3)";
+		// TODO:: send error back to the phone
+		delete rp_data;
+		rp_data = NULL;
+	}
+
+	return rp_data;
+}
+
+TLMessage *SMS::parseTPDU(const TLFrame& TPDU)
+{
+	LOG(DEBUG) << "SMS: parseTPDU MTI=" << TPDU.MTI();
+	// Handle just the uplink cases.
+	switch ((TLMessage::MessageType)TPDU.MTI()) {
+		case TLMessage::DELIVER_REPORT:
+		case TLMessage::STATUS_REPORT:
+			// FIXME -- Not implemented yet.
+			LOG(WARN) << "Unsupported TPDU type: " << (TLMessage::MessageType)TPDU.MTI();
+			return NULL;
+		case TLMessage::SUBMIT: {
+			TLSubmit *submit = new TLSubmit;
+			submit->parse(TPDU);
+			LOG(INFO) << "SMS SMS-SUBMIT " << *submit;
+			return submit;
+		}
+		default:
+			return NULL;
+	}
+}
+
 void CPMessage::text(ostream& os) const 
 {
 	os << (CPMessage::MessageType)MTI();
@@ -163,8 +218,13 @@ ostream& SMS::operator<<(ostream& os, const RPMessage& msg)
 
 void RPUserData::parseV(const L3Frame& src, size_t &rp, size_t expectedLength)
 {
+	LOG(DEBUG) << "src=" << src << " (length=" << src.length() << ") rp=" << rp << " expectedLength=" << expectedLength;
 	unsigned numBits = expectedLength*8;
+	if (rp+numBits > src.size()) {
+		SMS_READ_ERROR;
+	}
 	mTPDU.resize(numBits);
+	LOG(DEBUG) << "mTPDU length=" << mTPDU.length() << "data=" << mTPDU;
 	src.segmentCopyTo(mTPDU,rp,numBits);
 	rp += numBits;
 }
@@ -410,16 +470,96 @@ void TLValidityPeriod::text(ostream& os) const
 	os << "expiration=(" << str << ")";
 }
 
+void TLUserData::encode7bit(const char *text)
+{
+	size_t wp = 0;
+	
+	// 1. Prepare.
+	// Default alphabet (7-bit)
+	mDCS = 0;
+	// With 7-bit encoding TP-User-Data-Length count septets, i.e. just number
+	// of characters.
+	mLength = strlen(text);
+	int bytes = (mLength*7+7)/8;
+	int filler_bits = bytes*8-mLength*7;
+	mRawData.resize(bytes*8);
 
+	// 2. Write TP-UD
+	// This tail() works because UD is always the last field in the PDU.
+	BitVector chars = mRawData.tail(wp);
+	for (unsigned i=0; i<mLength; i++) {
+		char gsm = encodeGSMChar(text[i]);
+		mRawData.writeFieldReversed(wp,gsm,7);
+	}
+	mRawData.writeField(wp,0,filler_bits);
+}
+
+std::string TLUserData::decode() const
+{
+	std::string text;
+
+	switch (mDCS) {
+		case 0:
+		case 244:
+		case 245:
+		case 246:
+		case 247:
+		{
+			// GSM 7-bit encoding, GSM 03.38 6.
+			// Check bounds.
+			if (mLength*7 > (mRawData.size())) {
+				LOG(NOTICE) << "badly formatted TL-UD";
+				SMS_READ_ERROR;
+			}
+
+			size_t crp = 0;
+			unsigned text_length = mLength;
+
+			// Skip User-Data-Header. We don't decode it here.
+			// User-Data-Header handling is described in GSM 03.40 9.2.3.24
+			// and is pictured in GSM 03.40 Figure 9.2.3.24 (a)
+			if (mUDHI) {
+				// Length-of-User-Data-Header
+				unsigned udhl = mRawData.peekFieldReversed(crp,8);
+				// Calculate UDH length in septets, including fill bits.
+				unsigned udh_septets = (udhl*8 + 8 + 6) / 7;
+				// Adjust actual text position and length.
+				crp += udh_septets * 7;
+				text_length -= udh_septets;
+				LOG(DEBUG) << "UDHL(octets)=" << udhl
+				           << " UDHL(septets)=" << udh_septets
+				           << " pointer(bits)=" << crp
+				           << " text_length(septets)=" << text_length;
+			}
+
+			// Do decoding
+			text.resize(text_length);
+			for (unsigned i=0; i<text_length; i++) {
+				char gsm = mRawData.readFieldReversed(crp,7);
+				text[i] = decodeGSMChar(gsm);
+			}
+			break;
+		}
+
+		default:
+			LOG(NOTICE) << "unsupported DCS 0x" << mDCS;
+			SMS_READ_ERROR;
+			break;
+	}
+
+	return text;
+}
 
 size_t TLUserData::length() const
 {
 	// The reported value includes the length byte itself.
 	// The length() method only needs to work for formats supported 
 	// by the write() method.
-	assert(!mUDHI);		// We don't support user headers.
 	assert(mDCS<0x100);	// Someone forgot to initialize the DCS.
-	size_t sum = 1;		// Start by counting the length byte.
+	size_t sum = 1;		// Start by counting the TP-User-Data-Length byte.
+#if 1
+	sum += (mRawData.size()+7)/8;
+#else
 	// The DCS is defined in GSM 03.38 4.
 	if (mDCS==0) {
 		// Default 7-bit alphabet
@@ -428,23 +568,31 @@ size_t TLUserData::length() const
 		unsigned octets = bits/8;
 		if (bits%8) octets += 1;
 		sum += octets;
-		return sum;
 	} else {
 		LOG(ERROR) << "unsupported SMS DCS 0x" << hex << mDCS;
 		// It's OK to abort here.  This method is only used for encoding.
 		// So we should never end up here.
 		assert(0);	// We don't support this DCS.
 	}
+#endif
+	return sum;
 }
 
 
 
 void TLUserData::parse(const TLFrame& src, size_t& rp)
 {
-	assert(!mUDHI);		// We don't support user headers.
 	// The DCS is defined in GSM 03.38 4.
 	assert(mDCS<0x100);	// Someone forgot to initialize the DCS.
-	unsigned numChar = src.readField(rp,8);
+	// TP-User-Data-Length
+	mLength = src.readField(rp,8);
+#if 1
+	// This tail() works because UD is always the last field in the PDU.
+	mRawData.clone(src.tail(rp));
+	// Should we do this here?
+	mRawData.LSB8MSB();
+#else
+	assert(!mUDHI);		// We don't support user headers.
 	switch (mDCS) {
 		case 0:
 		case 244:
@@ -478,11 +626,22 @@ void TLUserData::parse(const TLFrame& src, size_t& rp)
 			SMS_READ_ERROR;
 		}
 	}
+#endif
 }
 
 
 void TLUserData::write(TLFrame& dest, size_t& wp) const
 {
+#if 1
+	// First write TP-User-Data-Length
+	dest.writeField(wp,mLength,8);
+
+	// Then write TP-User-Data
+	// This tail() works because UD is always the last field in the PDU.
+	BitVector ud_dest = dest.tail(wp);
+	mRawData.copyTo(ud_dest);
+	ud_dest.LSB8MSB();
+#else
 	// Stuff we don't support...
 	assert(!mUDHI);
 	assert(mDCS==0);
@@ -496,14 +655,17 @@ void TLUserData::write(TLFrame& dest, size_t& wp) const
 		dest.writeFieldReversed(wp,gsm,7);
 	}
 	chars.LSB8MSB();
+#endif
 }
 
 
 
 void TLUserData::text(ostream& os) const
 {
-	if (mDCS==0) os << mData;
-	else os << "unknown encoding";
+	os << "DCS=" << mDCS;
+	os << " UDHI=" << mUDHI;
+	os << " UDLength=" << mLength;
+	os << " UD=("; mRawData.hex(os); os << ")";
 }
 
 
@@ -533,10 +695,12 @@ size_t TLSubmit::bodyLength() const
 
 void TLSubmit::parseBody(const TLFrame& src, size_t& rp)
 {
+	bool udhi;
+
 	parseRD(src);
 	parseVPF(src);
 	parseRP(src);
-	parseUDHI(src);
+	udhi = parseUDHI(src);
 	parseSRR(src);
 	mMR = src.readField(rp,8);
 	mDA.parse(src,rp);
@@ -545,6 +709,7 @@ void TLSubmit::parseBody(const TLFrame& src, size_t& rp)
 	mVP.VPF(mVPF);
 	mVP.parse(src,rp);
 	mUD.DCS(mDCS);
+	mUD.UDHI(udhi);
 	mUD.parse(src,rp);
 }
 
@@ -555,7 +720,7 @@ void TLSubmit::text(ostream& os) const
 	os << " RD=" << mRD;
 	os << " VPF=" << mVPF;
 	os << " RP=" << mRP;
-	os << " UDHI=" << mUDHI;
+	os << " UDHI=" << mUD.UDHI();
 	os << " SRR=" << mSRR;
 	os << " MR=" << mMR;
 	os << " DA=(" << mDA << ")";
@@ -568,7 +733,7 @@ void TLSubmit::text(ostream& os) const
 
 size_t TLDeliver::bodyLength() const
 {
-	LOG(DEBUG) << "TLDEliver::bodyLength OA " << mOA.length() << " SCTS " << mSCTS.length() << " UD " << mUD.length();
+	LOG(DEBUG) << "TLDeliver::bodyLength OA " << mOA.length() << " SCTS " << mSCTS.length() << " UD " << mUD.length();
 	return mOA.length() + 1 + 1 + mSCTS.length() + mUD.length();
 }
 
@@ -577,11 +742,11 @@ void TLDeliver::writeBody(TLFrame& dest, size_t& wp) const
 {
 	writeMMS(dest);
 	writeRP(dest);
-	writeUDHI(dest);
+	writeUDHI(dest, mUD.UDHI());
 	writeSRI(dest);
 	mOA.write(dest,wp);
 	dest.writeField(wp,mPID,8);
-	dest.writeField(wp,0,8);		// hardcode DCS
+	dest.writeField(wp,mUD.DCS(),8);
 	mSCTS.write(dest,wp);
 	writeUnused(dest);
 	mUD.write(dest,wp);

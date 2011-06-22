@@ -611,6 +611,9 @@ class TransactionTable {
 	//@}
 
 	size_t size();
+
+	/** Write entries as text to a stream. */
+	void dump(std::ostream&) const;
 };
 
 //@} // Transaction Table

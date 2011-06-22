@@ -23,6 +23,7 @@
 
 #include "smqueue.h"
 #include "smnet.h"
+#include "smsc.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -379,5 +380,8 @@ SMqueue::init_smcommands (short_code_map_t *scm)
 		(*scm)[gConfig.getStr("SC.ZapQueued.Code")] = shortcode_zap_queued;
 	if (gConfig.defines("SC.WhiplashQuit.Code"))
 		(*scm)[gConfig.getStr("SC.WhiplashQuit.Code")] = whiplash_quit;
+	if (gConfig.defines("SC.SMSC.Code")) {
+		(*scm)[gConfig.getStr("SC.SMSC.Code")] = shortcode_smsc;
+	}
 //	(*scm)["666"]    = shortcode_text_access;
 }

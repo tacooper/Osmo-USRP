@@ -29,6 +29,7 @@
 #include <pthread.h>
 #include <iostream>
 #include <assert.h>
+#include <semaphore.h>
 
 class Mutex;
 
@@ -120,7 +121,62 @@ class Signal {
 
 };
 
+/** Semaphore */
+class ThreadSemaphore {
 
+	private:
+
+	sem_t mSem;
+
+	public:
+
+	enum Result {
+		TSEM_OK,       ///< Success.
+		TSEM_TIMEOUT,  ///< wait() or trywait() timed out.
+		TSEM_OVERFLOW, ///< post() overflows a semaphore
+		TSEM_ERROR     ///< Generic error.
+	};
+
+	/** Create and initialize semaphore.
+	* @param[in] value - initial semaphore value.
+	*/
+	ThreadSemaphore(unsigned value = 0)
+	{
+		int s = sem_init(&mSem,0,value);
+		assert(s == 0);
+	}
+
+	~ThreadSemaphore() { sem_destroy(&mSem); }
+
+	/** Wait for semaphore to be signaled with timeout.
+	* @param[in] timeoutMs - timeout in milliseconds
+	*
+	* @retval TSEM_OK on success.
+	* @retval TSEM_TIMEOUT on timeout.
+	* @retval TSEM_ERROR on error.
+	*/
+	Result wait(unsigned timeoutMs);
+
+	/** Wait for semaphore to be signaled infinitely.
+	* @retval TSEM_OK on success.
+	* @retval TSEM_ERROR on error.
+	*/
+	Result wait();
+
+	/** Check if semaphore has been signaled and disarm it.
+	* @retval TSEM_OK is semaphore is signaled.
+	* @retval TSEM_TIMEOUT if semaphore is not signaled.
+	* @retval TSEM_ERROR on error.
+	*/
+	Result trywait();
+
+	/** Signal semaphore.
+	* @retval TSEM_OK on success.
+	* @retval TSEM_ERROR on error.
+	*/
+	Result post();
+
+};
 
 #define START_THREAD(thread,function,argument) \
 	thread.start((void *(*)(void*))function, (void*)argument);

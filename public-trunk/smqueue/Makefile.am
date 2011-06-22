@@ -20,15 +20,34 @@
 
 include $(top_srcdir)/Makefile.common
 
+AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES)
+AM_CXXFLAGS = -O3 -g -lpthread
+
 EXTRA_DIST = \
-	Makefile.standalone \
 	README.smqueue \
-	poll.c \
-	smcommands.cpp \
-	smnet.cpp \
 	smqueue.config.example \
-	smqueue.cpp \
+	runloop.sh
+
+noinst_PROGRAMS = \
+	smqueue
+
+noinst_HEADERS = \
 	poll.h \
 	smnet.h \
 	smqueue.h \
-	runloop.sh
+	smsc.h
+
+smqueue_SOURCES = \
+	poll.c \
+	smcommands.cpp \
+	smnet.cpp \
+	smqueue.cpp \
+	smsc.cpp
+smqueue_LDADD = \
+	$(GLOBALS_LA) \
+	$(SMS_LA) \
+	$(GSM_LA) \
+	$(COMMON_LA) \
+	$(HLR_LA) \
+	$(SIP_LA) \
+	$(OSIP_LIBS)

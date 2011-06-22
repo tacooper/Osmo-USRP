@@ -28,6 +28,7 @@
 #include "Threads.h"
 #include "Timeval.h"
 
+#include <errno.h>
 
 using namespace std;
 
@@ -96,6 +97,67 @@ void Signal::wait(Mutex& wMutex, unsigned timeout) const
 	pthread_cond_timedwait(&mSignal,&wMutex.mMutex,&waitTime);
 }
 
+ThreadSemaphore::Result ThreadSemaphore::wait(unsigned timeoutMs)
+{
+	Timeval then(timeoutMs);
+	struct timespec waitTime = then.timespec();
+	int s;
+	while ((s = sem_timedwait(&mSem,&waitTime)) == -1 && errno == EINTR)
+		continue;
+
+	if (s == -1)
+	{
+		if (errno == ETIMEDOUT)
+		{
+			return TSEM_TIMEOUT;
+		}
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
+}
+
+ThreadSemaphore::Result ThreadSemaphore::wait()
+{
+	int s;
+	while ((s = sem_wait(&mSem)) == -1 && errno == EINTR)
+		continue;
+
+	if (s == -1)
+	{
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
+}
+
+ThreadSemaphore::Result ThreadSemaphore::trywait() 
+{
+	int s;
+	while ((s = sem_trywait(&mSem)) == -1 && errno == EINTR)
+		continue;
+
+	if (s == -1)
+	{
+		if (errno == EAGAIN)
+		{
+			return TSEM_TIMEOUT;
+		}
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
+}
+
+ThreadSemaphore::Result ThreadSemaphore::post()
+{
+	if (sem_post(&mSem) != 0)
+	{
+		if (errno == EOVERFLOW)
+		{
+			return TSEM_OVERFLOW;
+		}
+		return TSEM_ERROR;
+	}
+	return TSEM_OK;
+}
 
 void Thread::start(void *(*task)(void*), void *arg)
 {

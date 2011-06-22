@@ -654,7 +654,7 @@ int SIPEngine::RxFrame(unsigned char * rx_frame){
 
 
 SIPState SIPEngine::MOSMSSendMESSAGE(const char * wCalledUsername, 
-	const char * wCalledDomain , const char *messageText)
+	const char * wCalledDomain , const char *messageText, bool plainText)
 {
 	LOG(DEBUG) << "mState=" << mState;
 	LOG(INFO) << "SIP send to " << wCalledUsername << "@" << wCalledDomain << " MESSAGE " << messageText;
@@ -673,11 +673,18 @@ SIPState SIPEngine::MOSMSSendMESSAGE(const char * wCalledUsername,
 	mRemoteUsername = wCalledUsername;
 	mRemoteDomain = wCalledDomain;
 
+	const char *content_type;
+	if (plainText)	{
+		content_type = "text/plain";
+	} else {
+		content_type = "application/vnd.3gpp.sms";
+	}
+
 	osip_message_t * message = sip_message(
 		mRemoteUsername.c_str(), mSIPUsername.c_str(), 
 		mSIPPort, gConfig.getStr("SIP.IP"), mMessengerIP, 
 		mFromTag.c_str(), mViaBranch.c_str(), mCallID.c_str(), mCSeq,
-		messageText); 
+		messageText, content_type); 
 	
 	// Send Invite to Asterisk.
 	gSIPInterface.writeMessenger(message);

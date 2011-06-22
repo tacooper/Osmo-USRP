@@ -38,7 +38,9 @@
 #include <GSML3Message.h>
 #include <GSML3CCElements.h>
 #include <GSML3MMElements.h>
+#include <Logger.h>
 
+using namespace GSM;
 
 namespace SMS {
 
@@ -164,7 +166,9 @@ class TLUserData : public TLElement {
 
 	unsigned mDCS;		///< data coding scheme
 	bool mUDHI;			///< header indicator
-	char mData[161];	///< actual data, as a C string
+	unsigned mLength; ///< TP-User-Data-Length, see GSM 03.40 Fig. 9.2.3.24(a),
+	                  ///< GSM 03.40 Fig. 9.2.3.24(b) and GSM 03.40 9.2.3.16.
+	BitVector mRawData;  ///< raw packed data
 
 	public:
 
@@ -172,19 +176,49 @@ class TLUserData : public TLElement {
 	TLUserData(unsigned wDCS=0x100, bool wUDHI=false)
 		:TLElement(),
 		mDCS(wDCS),
-		mUDHI(wUDHI)
-	{ mData[0]='\0'; }
+		mUDHI(wUDHI),
+		mLength(0)
+	{
+	}
 
-	/** Initialze from a simple C string. */
-	TLUserData(const char* text, bool wUDHI=false)
+	/** Initialize from a raw encoded data. */
+	TLUserData(unsigned wDCS, const BitVector wRawData, unsigned wLength,
+	           bool wUDHI=false)
+		:TLElement(),
+		mDCS(wDCS),
+		mUDHI(wUDHI),
+		mLength(wLength)
+	{
+		mRawData.clone(wRawData);
+	}
+
+	/** Initialize from a simple C string. */
+	TLUserData(const char* text, GSMAlphabet alphabet=ALPHABET_7BIT, bool wUDHI=false)
 		:TLElement(),
 		mDCS(0),
-		mUDHI(wUDHI)
-	{ strncpy(mData,text,sizeof(mData)-1); mData[sizeof(mData)-1]='\0'; }
+		mUDHI(wUDHI),
+		mLength(0)
+	{
+		switch(alphabet) {
+		case ALPHABET_7BIT:
+			encode7bit(text);
+			break;
+		case ALPHABET_8BIT:
+		case ALPHABET_UCS2:
+		default:
+			LOG(WARN) << "Unsupported alphabet: " << alphabet;
+			break;
+		}
+	}
 
 	void DCS(unsigned wDCS) { mDCS=wDCS; }
+	unsigned DCS() const { return mDCS; }
 	void UDHI(unsigned wUDHI) { mUDHI=wUDHI; }
-	const char* data() const { return mData; }
+	unsigned UDHI() const { return mUDHI; }
+	/** Encode text into this element, using 7-bit alphabet */
+	void encode7bit(const char *text);
+	/** Decode text from this element, using 7-bit alphabet */
+	std::string decode() const;
 
 	/** This length includes a byte for the length field. */
 	size_t length() const;
@@ -225,7 +259,7 @@ class TLMessage {
 	bool mSRR;			///< status report request
 	bool mSRI;			///< status report indication
 	bool mSRQ;			///< status report qualifier
-	bool mUDHI;			///< user-data header-indicator
+//	bool mUDHI;			///< user-data header-indicator. Stored in TLUserData.
 	bool mRP;			///< reply path
 	//@}
 
@@ -236,16 +270,16 @@ class TLMessage {
 
 	/** GSM 03.40 9.2.3.1 */
 	enum MessageType {
-		DELIVER = 0x0,
-		DELIVER_REPORT = 0x0,
-		STATUS_REPORT = 0x2,
-		COMMAND = 0x02,
-		SUBMIT = 0x1,
-		SUBMIT_REPORT = 0x1
+		DELIVER = 0x0,        // SC -> MS
+		DELIVER_REPORT = 0x0, // MS -> SC
+		STATUS_REPORT = 0x2,  // SC -> MS
+		COMMAND = 0x02,       // MS -> SC
+		SUBMIT = 0x1,         // MS -> SC
+		SUBMIT_REPORT = 0x1   // SC -> MS
 	};
 
 	TLMessage()
-		:mMMS(false),mSRI(false),mUDHI(false),mRP(true)
+		:mMMS(false),mSRI(false),mRP(true)
 	{}
 
 	virtual ~TLMessage(){}
@@ -286,8 +320,8 @@ class TLMessage {
 	void parseSRI(const TLFrame& fm) { mSRI=fm[2]; }
 	void writeSRQ(TLFrame& fm) const { fm[2]=mSRQ; }
 	void parseSRQ(const TLFrame& fm) { mSRQ=fm[2]; }
-	void writeUDHI(TLFrame& fm) const { fm[1]=mUDHI; }
-	void parseUDHI(const TLFrame& fm) { mUDHI=fm[1]; }
+	void writeUDHI(TLFrame& fm, bool udhi) const { fm[1]=udhi; }
+	bool parseUDHI(const TLFrame& fm) { return fm[1]; }
 	void writeRP(TLFrame& fm) const { fm[0]=mRP; }
 	void parseRP(const TLFrame& fm) { mRP=fm[0]; }
 	void writeUnused(TLFrame& fm) const { fm.fill(0,3,2); } ///< Fill unused bits with 0s
@@ -352,7 +386,7 @@ class TLDeliver : public TLMessage {
 
 	TLAddress mOA;			///< origination address, GSM 03.40 9.3.2.7
 	unsigned mPID;			///< TL-PID, GSM 03.40 9.2.3.9
-	// Hardcode DCS.
+	// DCS is taken from mUD.
 	TLTimestamp mSCTS;		///< service center timestamp, GSM 03.40 9.2.3.11
 	TLUserData mUD;			///< user data
 
@@ -773,6 +807,21 @@ std::ostream& operator<<(std::ostream& os, CPMessage::MessageType MTI);
 	This is the top-level SMS parser, called along side other L3 parsers.
 */
 CPMessage * parseSMS( const GSM::L3Frame& frame );
+
+/**
+   Parse msgtext from a hex string to RPData struct.
+   @param hexstring RPData encoded into hex-string.
+   @return Pointer to parsed RPData or NULL on error.
+*/
+RPData *hex2rpdata(const char *hexstring);
+
+/**
+	Parse a TPDU.
+	Currently only SMS-SUBMIT is supported.
+	@param TPDU The TPDU.
+	@return Pointer to parsed TLMessage or NULL on error.
+*/
+TLMessage *parseTPDU(const TLFrame& TPDU);
 
 /** A factory method for SMS L3 (CM) messages. */
 CPMessage * CPFactory( CPMessage::MessageType MTI );

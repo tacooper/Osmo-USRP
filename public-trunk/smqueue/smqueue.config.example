@@ -15,6 +15,13 @@ Log.Level.smcommands.cpp DEBUG
 # Logging file.  Logs to stdout if this is not defined.
 #Log.FileName smqueue.log
 
+# LOG(ALARM) is printed and also sent as udp to this address.
+Log.Alarms.TargetIP 192.168.10.200
+$optional Log.Alarms.TargetIP
+Log.Alarms.TargetPort 10101
+# Number of alarms saved in internal queue
+Log.Alarms.Max 10
+
 
 savefile savedqueue.txt
 
@@ -37,10 +44,26 @@ $optional Debug.print_as_we_validate
 #SIP.global_relay 81.201.82.50:5060
 SIP.global_relay 
 
+#
+# SMS parameters
+#
+# ISDN address of source SMSC when we fake out a source SMSC.
+SMS.FakeSrcSMSC 0000
+
+# The SMS HTTP gateway.
+# Comment out if you don't have one or if you want to use smqueue.
+#SMS.HTTP.Gateway api.clickatell.com
+
+# IF SMS.HTTP.Gateway IS DEFINED, SMS.HTTP.AccessString MUST ALSO BE DEFINED.
+#SMS.HTTP.AccessString sendmsg?user=xxxx&password=xxxx&api_id=xxxx
+
 
 # return SMS messages
-BounceMessage.IMSILookupFailed Cannot determine return address; bouncing message.  Text your phone number to 101 to register and try again.
-BounceMessage.NotRegistered Phone not registered here.
+Bounce.Message.IMSILookupFailed Cannot determine return address; bouncing message.  Text your phone number to 101 to register and try again.
+Bounce.Message.NotRegistered Phone not registered here. Message
+
+# Bounce from address
+Bounce.Code 411
 
 
 
@@ -62,7 +85,7 @@ SC.Register.Msg.TakenA The phone number
 SC.Register.Msg.TakenB is already in use. Try another, then call that one to talk to whoever took yours.
 # Message for internal errors, sent as <A> << phonenumber << <B> << imsi
 SC.Register.Msg.ErrorA Error in assigning
-SC.Register.Msg.ErrorB to IMSI
+SC.Register.Msg.ErrorB to 
 # Bounds for valid number length
 SC.Register.Digits.Max 10
 SC.Register.Digits.Min 7
@@ -87,4 +110,6 @@ SC.WhiplashQuit.Code 314158
 SC.WhiplashQuit.Password Snidely
 SC.WhiplashQuit.SaveFile testsave.txt
 
-
+# SMS-Center code. OpenBTS will send messages from mobile phones
+# to this short code and will work as usual SMS-Center.
+SC.SMSC.Code smsc

@@ -200,10 +200,12 @@ public:
 		@param called_username SIP userid or E.164 address.
 		@param called_domain SIP user's domain.
 		@param message_text MESSAGE payload as a C string.
+		@param plainText True if message is text/plain, otherwise it's application/vnd.3gpp.sms
 		@return New SIP call state.
 	*/
 	SIPState MOSMSSendMESSAGE(const char * called_username,
-		const char * called_domain, const char *message_text);
+		const char * called_domain, const char *message_text,
+		bool plainText);
 
 	SIPState MOSMSWaitForSubmit();
 
