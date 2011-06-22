@@ -103,16 +103,24 @@ std::ostringstream& operator<<(std::ostringstream& os, Log::Level);
 std::list<std::string> gGetLoggerAlarms();		///< Get a copy of the recent alarm list.
 
 
-/**@ Global control and initialization of the logging system. */
-//@{
-void gLogInit(const char* defaultLevel = DEFAULT_LOGGING_LEVEL);
-Log::Level gLoggingLevel(const char *filename);
-//@}
-
 /**@name Global logging file control. */
 //@{
 void gSetLogFile(FILE*);
 bool gSetLogFile(const char*);
+//@}
+
+/**@ Global control and initialization of the logging system. */
+//@{
+void gLogInit(const char* defaultLevel = DEFAULT_LOGGING_LEVEL);
+Log::Level gLoggingLevel(const char *filename);
+
+/** Class to initialize Logger during static variables initialization. */
+class LogInitializer {
+public:
+
+	LogInitializer(const char *logFile=NULL);
+
+};
 //@}
 
 

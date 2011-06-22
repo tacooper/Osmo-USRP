@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdexcept>
 #include "Threads.h"
 #include "USRPDevice.h"
 
@@ -81,6 +82,8 @@ bool USRPDevice::open()
     m_uRx = usrp_standard_rx_sptr(usrp_standard_rx::make(0,decimRate,1,-1,
                                                          usrp_standard_rx::FPGA_MODE_NORMAL,
                                                          1024,16*8,rbf));
+    if (!m_uRx) throw runtime_error("");
+	 
 #ifdef HAVE_LIBUSRP_3_2
     m_uRx->set_fpga_master_clock_freq(masterClockRate);
 #endif
@@ -104,6 +107,7 @@ bool USRPDevice::open()
   try {
     m_uTx = usrp_standard_tx_sptr(usrp_standard_tx::make(0,decimRate*2,1,-1,
                                                          1024,16*8,rbf));
+    if (!m_uTx) throw runtime_error("");
 #ifdef HAVE_LIBUSRP_3_2
     m_uTx->set_fpga_master_clock_freq(masterClockRate);
 #endif

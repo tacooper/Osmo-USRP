@@ -1,6 +1,5 @@
-/**@file Global system parameters. */
 /*
-* Copyright 2008, 2009 Free Software Foundation, Inc.
+* Copyright 2009, 2010 Free Software Foundation, Inc.
 *
 * This software is distributed under the terms of the GNU Affero Public License.
 * See the COPYING file in the main directory for details.
@@ -23,22 +22,44 @@
 
 */
 
-/*
-	This file keeps global system parameters.
-*/
 
-#ifndef GLOBALS_H
-#define GLOBALS_H
+#ifndef OPENBTSCLICLIENT_H
+#define OPENBTSCLICLIENT_H
 
-#include <Configuration.h>
+#include <string>
+#include <iostream>
+#include <CLIConnection.h>
+#include <CLIParserBase.h>
 
-/**
-	Just about everything goes into the configuration table.
-	This should be defined in the main body of the top-level application.
-*/
-extern ConfigurationTable gConfig;
+namespace CommandLine {
 
-/** The OpenBTS welcome message. */
-extern const char* gOpenBTSWelcome;
+class CLIClientProcessor : public ParserBase {
+public:
+
+	CLIClientProcessor(ConnectionSocket *pSock)
+	: mConnection(pSock)
+	{};
+
+	~CLIClientProcessor() {};
+
+	/**
+		Process a command line.
+		@return 0 on success, -1 on exit request, error codes otherwise
+	*/
+	virtual int process(const std::string &line, std::ostream& os);
+
+protected:
+
+	CLIConnection mConnection; ///< Network connection to a server
+
+};
+
+// Run CLI client
+void runCLIClient(ConnectionSocket *sock);
+
+} // CLI
+
+
 
 #endif
+// vim: ts=4 sw=4

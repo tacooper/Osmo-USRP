@@ -1,6 +1,5 @@
-/**@file Global system parameters. */
 /*
-* Copyright 2008, 2009 Free Software Foundation, Inc.
+* Copyright 2009, 2010 Free Software Foundation, Inc.
 *
 * This software is distributed under the terms of the GNU Affero Public License.
 * See the COPYING file in the main directory for details.
@@ -23,22 +22,53 @@
 
 */
 
-/*
-	This file keeps global system parameters.
-*/
 
-#ifndef GLOBALS_H
-#define GLOBALS_H
+#ifndef OPENBTSCLICONNECTION_H
+#define OPENBTSCLICONNECTION_H
 
-#include <Configuration.h>
+#include <string>
+#include <Sockets.h>
 
-/**
-	Just about everything goes into the configuration table.
-	This should be defined in the main body of the top-level application.
-*/
-extern ConfigurationTable gConfig;
 
-/** The OpenBTS welcome message. */
-extern const char* gOpenBTSWelcome;
+namespace CommandLine {
+
+class CLIConnection {
+public:
+
+	/** Constructor */
+	CLIConnection(ConnectionSocket *pSocket)
+	: mSocket(pSocket)
+	{
+		assert(mSocket);
+	}
+
+	/** Return a reference to the actual socket. */
+	ConnectionSocket *socket() { return mSocket; }
+
+	/**
+	  Send a block of data
+	  @return true if sent successfully, false otherwise.
+	*/
+	bool sendBlock(const std::string &block);
+
+	/**
+	  Receive a block of data
+	  @return true if received successfully, false otherwise.
+	*/
+	bool receiveBlock(std::string &block);
+
+protected:
+
+	ConnectionSocket *mSocket; ///< Actual socket for the connection
+
+	/** Logs the error in a readable form and closes socket. */
+	void onError(int errnum, const char *oper);
+
+};
+
+} // CLI
+
+
 
 #endif
+// vim: ts=4 sw=4

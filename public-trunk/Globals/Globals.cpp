@@ -59,6 +59,3 @@ const char* gOpenBTSWelcome =
 	"All users of this software are expected to comply with applicable\n"
 	"regulations and laws.\n"
 ;
-
-
-CommandLine::Parser gParser;

@@ -108,15 +108,13 @@ bool gSetLogFile(const char *name)
 	assert(name);
 	LOG(DEEPDEBUG) << "setting log path to " << name;
 	bool retVal = true;
-	gLogLock.lock();
 	FILE* newLoggingFile = fopen(name,"a+");
 	if (!newLoggingFile) {
 		LOG(ERROR) << "cannot open \"" << name << "\" for logging.";
 		retVal = false;
 	} else {
-		gLoggingFile = newLoggingFile;
+		gSetLogFile(newLoggingFile);
 	}
-	gLogLock.unlock();
 	LOG(FORCE) << "new log path " << name;
 	return retVal;
 }
@@ -205,7 +203,17 @@ void gLogInit(const char* defaultLevel)
 	}
 }
 
-
+LogInitializer::LogInitializer(const char *logFile)
+{
+	gLogInit("INFO");
+	if (logFile != NULL) {
+		gSetLogFile(logFile);
+	} else if (gConfig.defines("Log.FileName")) {
+		gSetLogFile(gConfig.getStr("Log.FileName"));
+	} else {
+		gSetLogFile(stdout);
+	}
+}
 
 
 // vim: ts=4 sw=4

@@ -24,6 +24,41 @@
 
 
 #
+# Daemonization options.
+#
+
+# Define Server.Daemonize to run OpenBTS in background.
+#Server.Daemonize
+$optional Server.Daemonize
+
+# If Server.RestartOnCrash is defined, OpenBTS forks a child
+# and restart it if child dies. This is kind of failsafe.
+#Server.RestartOnCrash
+$optional Server.RestartOnCrash
+
+# Path to OpenBTS PID file.
+# Filesystem Hierarchy Standard specifies it daemons should write PID
+# to /var/run, but you may specify any other directory if you run
+# OpenBTS manually.
+#Server.WritePID /var/run/OpenBTS.pid
+Server.WritePID OpenBTS.pid
+$static Server.WritePID
+
+# Set umask.
+# 027(oct)=23(dec) which equals to file creation mode 0750(oct)
+Server.umask 23
+$static Server.umask
+
+# Define Server.ChdirToRoot to change directory to / on daemon startup.
+# This is the recommended behaviour if daemon runs system-wide, because
+# prevents the current directory from being locked; hence not being able
+# to remove it. But when you run manually this behaviour may be inconvenient
+# for you, because all paths should be absolute.
+#Server.ChdirToRoot
+$optional Server.ChdirToRoot
+
+
+#
 # Logging and reporting parameters
 #
 
@@ -87,6 +122,14 @@ $static TRX.Port
 TRX.Path ../Transceiver/transceiver
 #TRX.Path ../Transceiver52M/transceiver
 $static TRX.Path
+
+# Path to transceiver PID file.
+# Filesystem Hierarchy Standard specifies it daemons should write PID
+# to /var/run, but you may specify any other directory if you run
+# OpenBTS manually.
+#TRX.WritePID /var/run/transceiver.pid
+TRX.WritePID transceiver.pid
+$static TRX.WritePID
 
 # TRX logging.
 # Logging level.
@@ -514,8 +557,37 @@ GSM.MaxSpeechLatency 2
 # CLI paramters
 #
 
+# A string, used as a CLI prompt
 CLI.Prompt OpenBTS> 
 
+# CLI type has three possible values:
+#  Local - command line is provided by the same process.
+#          Useful when you don't daemonize OpenBTS process.
+#  Unix  - command line is provided over a UNIX-socket.
+#          Useful for local access to command line when you run
+#          OpenBTS as a daemon.
+#  TCP   - command line is provided by a TCP connection.
+#          Useful when you want to control your OpenBTS remotely.
+#
+#   !!!  WARNING  !!!
+# Current implementation of remote CLI doesn't support authentication
+# and encryption. Use remote CLI with care!
+CLI.Type Local
 
+# Parameters for TCP remote CLI.
+#   Interface to bind to:
+CLI.TCP.IP 127.0.0.1
+$static CLI.TCP.IP
+#   Port to bind to:
+CLI.TCP.Port 22239
+$static CLI.TCP.Port
 
+# Parameters for UNIX remote CLI.
+#   Path to the socket
+# Filesystem Hierarchy Standard specifies it daemons should store runtime
+# files in /var/run, but you may specify any other directory if you run
+# OpenBTS manually.
+#CLI.Unix.Path /var/run/OpenBTS.control
+CLI.Unix.Path OpenBTS.control
+$static CLI.Unix.Path
 

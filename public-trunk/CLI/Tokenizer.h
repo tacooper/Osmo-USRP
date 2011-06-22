@@ -1,6 +1,5 @@
-/**@file Global system parameters. */
 /*
-* Copyright 2008, 2009 Free Software Foundation, Inc.
+* Copyright 2010 Free Software Foundation, Inc.
 *
 * This software is distributed under the terms of the GNU Affero Public License.
 * See the COPYING file in the main directory for details.
@@ -23,22 +22,20 @@
 
 */
 
-/*
-	This file keeps global system parameters.
-*/
 
-#ifndef GLOBALS_H
-#define GLOBALS_H
+#ifndef OPENBTSTOKENIZER_H
+#define OPENBTSTOKENIZER_H
 
-#include <Configuration.h>
+namespace CommandLine {
 
 /**
-	Just about everything goes into the configuration table.
-	This should be defined in the main body of the top-level application.
+  Split given string into tokens.
+  WARNING: String will be changed during processing and argv will point
+           to parts of this string.
 */
-extern ConfigurationTable gConfig;
+int tokenize(char *line, char **argv, int maxArgs);
 
-/** The OpenBTS welcome message. */
-extern const char* gOpenBTSWelcome;
+}
 
 #endif
+// vim: ts=4 sw=4

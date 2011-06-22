@@ -22,23 +22,51 @@
 
 */
 
-
-#ifndef OPENBTSCLI_H
-#define OPENBTSCLI_H
-
 #include <string>
-#include <map>
-#include <iostream>
-#include <CLIParserBase.h>
 
+#include <config.h>
+#include "CLIClient.h"
+#include <Globals.h>
+#include <Logger.h>
+#include <CLI.h>
 
-namespace CommandLine {
+using namespace std;
+using namespace CommandLine;
 
-void runCLI(ParserBase *processor);
+int CLIClientProcessor::process(const std::string &line, std::ostream& os)
+{
+	// Step 1 -- Send command
+	if (!mConnection.sendBlock(line))
+		return -1;
 
-} 	// CLI
+	// Step 2 -- Receive response
+	std::string recvBlock;
+	if (!mConnection.receiveBlock(recvBlock))
+		return -1;
 
+	// Step 3 -- Print out response
+	os << recvBlock;
+	os << endl;
 
+	return 0;
+}
 
-#endif
+void CommandLine::runCLIClient(ConnectionSocket *sock)
+{
+	// Connect to a server
+	int res = sock->connect();
+	if (res < 0) {
+		int errsv = errno;
+		LOG(WARN) << "sock.connect() failed with errno="
+		          << errsv << " (0x" << hex << errsv << dec << "): "
+		          << strerror(errsv);
+		sock->close();
+		return;
+	}
+
+	// Start the main loop
+	CLIClientProcessor proc(sock);
+	runCLI(&proc);
+}
+
 // vim: ts=4 sw=4

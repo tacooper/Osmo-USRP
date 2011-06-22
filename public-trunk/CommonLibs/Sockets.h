@@ -33,10 +33,9 @@
 #include <sys/un.h>
 #include <errno.h>
 #include <list>
+#include <ostream>
 #include <assert.h>
 #include <stdint.h>
-#include <stdio.h>
-
 
 
 
@@ -182,6 +181,233 @@ public:
 
 };
 
+/** A base class for connection-oriented sockets. */
+class ConnectionSocket {
+
+public:
+
+	/** An almost-does-nothing constructor. */
+	ConnectionSocket(int af, int type, int protocol);
+
+protected:
+	/** Constructor for the use with ConnectionServerSocket. */
+	ConnectionSocket(int socketFD) : mSocketFD(socketFD) {}
+public:
+
+	virtual ~ConnectionSocket();
+
+	/**
+		Connect to the specified destination.
+		@return Same as system connect() function - 0 on success, -1 on error.
+	*/
+	virtual int connect() =0;
+
+	/**
+		Send data.
+		@param buffer The data bytes to send.
+		@param length Number of bytes to send.
+		@return number of bytes written, or -1 on error.
+	*/
+	int write( const char * buffer, int length);
+
+	/**
+		Receive data.
+		@param buffer A buffer to read data to.
+		@param length Length of the buffer.
+		@return The number of bytes received or -1 on non-blocking pass.
+	*/
+	int read(char* buffer, size_t length);
+
+	/** Make the socket non-blocking. */
+	void nonblocking();
+
+	/** Make the socket blocking (the default). */
+	void blocking();
+
+	/** Close the socket. */
+	void close();
+
+friend std::ostream& operator<<(std::ostream& os, const ConnectionSocket& conn);
+friend class ConnectionServerSocket;
+
+protected:
+
+	int mSocketFD;				///< underlying file descriptor
+
+};
+
+class ConnectionSocketTCP : public ConnectionSocket {
+	friend class ConnectionServerSocketTCP;
+public:
+	
+	/** Constructor */
+	ConnectionSocketTCP(const struct sockaddr_in &remote)
+	: ConnectionSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
+	, mRemote(remote)
+	{}
+
+	/** Constructor */
+	ConnectionSocketTCP(int port, const char* address);
+
+protected:
+	/** Constructor for the use with ConnectionServerSocket. */
+	ConnectionSocketTCP(int socketFD, const sockaddr_in &peerAddr)
+	: ConnectionSocket(socketFD), mRemote(peerAddr) {}
+public:
+
+	/**
+		Connect to the specified destination.
+		@return Same as system connect() function - 0 on success, -1 on error.
+	*/
+	virtual int connect();
+
+protected:
+
+	sockaddr_in mRemote;
+
+};
+
+class ConnectionSocketUnix : public ConnectionSocket {
+friend class ConnectionServerSocketUnix;
+public:
+	
+	/** Constructor */
+	ConnectionSocketUnix(const struct sockaddr_un &remote)
+	: ConnectionSocket(AF_UNIX, SOCK_STREAM, 0)
+	, mRemote(remote)
+	{}
+
+	/** Constructor */
+	ConnectionSocketUnix(const std::string &path)
+	: ConnectionSocket(AF_UNIX, SOCK_STREAM, 0)
+	{
+		mRemote.sun_family = AF_UNIX;
+		strncpy(mRemote.sun_path, path.data(), 108);
+		mRemote.sun_path[108-1] = '\0';
+	}
+
+protected:
+	/** Constructor for the use with ConnectionServerSocket. */
+	ConnectionSocketUnix(int socketFD, const sockaddr_un &peerAddr)
+	: ConnectionSocket(socketFD), mRemote(peerAddr) {}
+public:
+
+	/**
+		Connect to the specified destination.
+		@return Same as system connect() function - 0 on success, -1 on error.
+	*/
+	virtual int connect();
+
+protected:
+
+	sockaddr_un mRemote;
+
+};
+
+/** Abstract class for a server side of connection-oriented sockets. */
+class ConnectionServerSocket {
+
+public:
+
+	/** Constructor - creates a socket. */
+	ConnectionServerSocket(int af, int type, int protocol);
+
+	virtual ~ConnectionServerSocket() {};
+
+	/**
+		Perform bind.
+		@return True on success, false otherwise.
+	*/
+	virtual bool bind(int connectionQueueSize = 16) =0;
+
+	/**
+		Wait for the next incoming connection request.
+		@return Incoming connection or NULL on error.
+	*/
+	virtual ConnectionSocket* accept() =0;
+
+	/** Close the socket. */
+	void close();
+
+protected:
+
+	int mSocketFD;       ///< underlying file descriptor
+
+	/**
+		Bind to given address.
+		@return True on success, false otherwise.
+	*/
+	bool bindInternal(const sockaddr *addr, int addrlen, int connectionQueueSize = 16);
+
+	/**
+		Wait for the next incoming connection request.
+		@return Same as system accept() - descriptor on success, -1 on error.
+	*/
+	int acceptInternal(sockaddr *addr, socklen_t &addrlen);
+
+};
+
+class ConnectionServerSocketTCP : public ConnectionServerSocket {
+public:
+
+	enum {
+		DEFAULT_PORT = 0  ///< Use this value for bindPort to let OS select port for you.
+	};
+
+	/** Constructor */
+	ConnectionServerSocketTCP(int bindPort, const char* bindAddress);
+
+	/** Destructor */
+	virtual ~ConnectionServerSocketTCP() {close();}
+
+	/**
+		Perform bind.
+		@return True on success, false otherwise.
+	*/
+	virtual bool bind(int connectionQueueSize = 16);
+
+	/**
+		Wait for the next incoming connection request.
+		@return Incoming connection or NULL on error.
+	*/
+	virtual ConnectionSocket* accept();
+
+protected:
+
+	sockaddr_in mLocal;
+
+};
+
+class ConnectionServerSocketUnix : public ConnectionServerSocket {
+public:
+
+	/** Constructor */
+	ConnectionServerSocketUnix(const std::string &path);
+
+	/** Destructor */
+	virtual ~ConnectionServerSocketUnix() {
+		close();
+		if (mBound) ::unlink(mLocal.sun_path);
+	}
+
+	/**
+		Perform bind.
+		@return True on success, false otherwise.
+	*/
+	virtual bool bind(int connectionQueueSize = 16);
+
+	/**
+		Wait for the next incoming connection request.
+		@return Incoming connection or NULL on error.
+	*/
+	virtual ConnectionSocket* accept();
+
+protected:
+
+	sockaddr_un mLocal;
+	bool mBound; ///< Set to true if we successfully bound the socket.
+
+};
 
 #endif
 
