@@ -29,8 +29,10 @@ stamp-h1
 *.lo
 
 # final executables
+CLI/TokenizerTest
 CommonLibs/BitVectorTest
 CommonLibs/ConfigurationTest
+CommonLibs/ConnectionSocketsTest
 CommonLibs/F16Test
 CommonLibs/InterthreadTest
 CommonLibs/LogTest
@@ -45,6 +47,12 @@ Transceiver52M/USRPping
 Transceiver52M/sigProcLibTest
 Transceiver52M/transceiver
 apps/OpenBTS
+apps/OpenBTScli
+smqueue/smqueue
+
+# untracked config and temporary files
+apps/OpenBTS.config
+apps/TMSITable.txt
 
 # Temporary/Backup files
 *.*~
