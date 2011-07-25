@@ -41,9 +41,11 @@
 #include <ControlCommon.h>
 #include <TRXManager.h>
 #include <PowerManager.h>
+#include <SMSMessages.h>
 
 using namespace std;
 using namespace CommandLine;
+using namespace SMS;
 
 enum erorrCode {
 	SUCCESS=0,
@@ -293,8 +295,8 @@ int findimsi(int argc, char** argv, ostream& os)
 
 
 
-/** Submit an SMS for delivery to an IMSI. */
-int sendsms(int argc, char** argv, ostream& os)
+/** Submit an SMS RPDU for delivery to an IMSI. */
+int sendsmsrpdu(int argc, char** argv, ostream& os)
 {
 	if (argc!=4) return BAD_NUM_ARGS;
 
@@ -310,6 +312,52 @@ int sendsms(int argc, char** argv, ostream& os)
 		GSM::L3CMServiceType::MobileTerminatedShortMessage,
 		GSM::L3CallingPartyBCDNumber(srcAddr),
 		txtBuf);
+	transaction.Q931State(Control::TransactionEntry::Paging);
+	Control::initiateMTTransaction(transaction,GSM::SDCCHType,30000);
+	os << "message submitted for delivery" << endl;
+	return SUCCESS;
+}
+
+/** Submit an SMS for delivery to an IMSI. */
+int sendsms(int argc, char** argv, ostream& os)
+{
+	if (argc!=5) return BAD_NUM_ARGS;
+
+//	os << "enter text to send: ";
+//	char txtBuf[161];
+//	cin.getline(txtBuf,160,'\n');
+	char *IMSI = argv[1];
+	char *srcAddr = argv[2];
+	char *smscAddr = argv[3];
+	char *txtBuf = argv[4];
+
+	// HACK
+	// Check for "Easter Eggs"
+	// TL-PID
+	// See 03.40 9.2.3.9.
+	unsigned TLPID=0;
+	if (strncmp(txtBuf,"#!TLPID",7)==0) sscanf(txtBuf,"#!TLPID%d",&TLPID);
+
+	// Generate RP-DATA with SMS-DELIVER
+	unsigned reference = random() % 255;
+	TLDeliver deliver(srcAddr, TLUserData(txtBuf), TLPID);
+	RPData rp_data(reference, RPAddress(smscAddr), deliver);
+	LOG(DEBUG) << "New RPData: " << rp_data;
+
+	// Pack RP-DATA to bitstream
+	RLFrame RPDU_new(rp_data.bitsNeeded());
+	rp_data.write(RPDU_new);
+	LOG(DEBUG) << "New RLFrame: " << RPDU_new;
+
+	// Get hex string of the packed data
+	ostringstream body_stream;
+	RPDU_new.hex(body_stream);
+
+	Control::TransactionEntry transaction(
+		GSM::L3MobileIdentity(IMSI),
+		GSM::L3CMServiceType::MobileTerminatedShortMessage,
+		GSM::L3CallingPartyBCDNumber(srcAddr),
+		body_stream.str().data());
 	transaction.Q931State(Control::TransactionEntry::Paging);
 	Control::initiateMTTransaction(transaction,GSM::SDCCHType,30000);
 	os << "message submitted for delivery" << endl;
@@ -823,7 +871,8 @@ Parser::Parser()
 	addCommand("tmsis", tmsis, "[\"clear\"] or [\"dump\" filename] -- print/clear the TMSI table or dump it to a file.");
 	addCommand("trans", trans, "-- print the transactions table.");
 	addCommand("findimsi", findimsi, "[IMSIPrefix] -- prints all imsi's that are prefixed by IMSIPrefix");
-	addCommand("sendsms", sendsms, "<IMSI> <src> <text> -- send SMS to <IMSI>, addressed from <src>.");
+	addCommand("sendsmsrpdu", sendsmsrpdu, "<IMSI> <src> <RPDU hex string> -- send pre-encoded SMS RPDU to <IMSI>, addressed from <src>.");
+	addCommand("sendsms", sendsms, "<IMSI> <src> <smsc> <text> -- send SMS to <IMSI>, addressed from <src> with SMS-Center <smsc>.");
 	addCommand("sendrrlp", sendrrlp, "<IMSI> <hexstring> -- send RRLP message <hexstring> to <IMSI>.");
 	addCommand("load", cliPrintStats, "-- print the current activity loads.");
 	addCommand("cellid", cellID, "[MCC MNC LAC CI] -- get/set location area identity (MCC, MNC, LAC) and cell ID (CI)");
