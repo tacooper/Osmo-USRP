@@ -82,10 +82,10 @@ double RadioInterface::fullScaleOutputValue(void) {
 
 void RadioInterface::setPowerAttenuation(double atten)
 {
-  double rfAtten, digAtten;
+  double rfGain, digAtten;
 
-  rfAtten = usrp->setTxGain(usrp->maxTxGain() - atten);
-  digAtten = atten - rfAtten;
+  rfGain = usrp->setTxGain(usrp->maxTxGain() - atten);
+  digAtten = atten - usrp->maxTxGain() + rfGain;
 
   if (digAtten < 1.0)
     powerScaling = 1.0;
