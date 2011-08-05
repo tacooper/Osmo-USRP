@@ -344,14 +344,14 @@ bool uhd_device::open()
 {
 	LOG(INFO) << "creating USRP device...";
 
-	// Use the first available USRP2 / N210
+	// Use the first available USRP2 / N2xx
 	uhd::device_addr_t dev_addr("type=usrp2");
 	try {
 		usrp_dev = uhd::usrp::single_usrp::make(dev_addr);
 	}
 	
 	catch(...) {
-		LOG(ERROR) << "USRP make failed";
+		LOG(ERROR) << "Failed to find USRP2 / N2xx device";
 		return false;
 	}
 
