@@ -26,7 +26,7 @@
 
 
 #include "ControlCommon.h"
-
+#include <CLIParser.h>
 #include <GSMLogicalChannel.h>
 #include <GSML3Message.h>
 #include <GSML3CCMessages.h>
@@ -37,11 +37,12 @@
 #include <SIPEngine.h>
 #include <SIPInterface.h>
 
+#include <Regexp.h>
 
 using namespace std;
 using namespace GSM;
 using namespace Control;
-
+using namespace CommandLine;
 
 
 // The global transaction table.
@@ -51,12 +52,31 @@ TransactionTable gTransactionTable;
 TMSITable gTMSITable;
 
 
+ostream& Control::operator<<(ostream& os, USSDData::USSDMessageType type)
+{
+	switch (type) {
+		case USSDData::REGrequest: os << "register request"; break;
+		case USSDData::request: os << "request"; break;
+		case USSDData::notify: os << "notify"; break;
+		case USSDData::response: os << "response"; break;
+		case USSDData::error: os << "error"; break;
+		case USSDData::release: os << "release"; break;
+		default: os << "?" << (int)type << "?";
+	}
+	return os;
+}
 
-
+ostream& Control::operator<<(ostream& os, const USSDData& data)
+{
+	os << "USSD message type: " << data.MessageType();
+	os << "USSD string: " << data.USSDString();
+	return os;
+}
 
 TransactionEntry::TransactionEntry()
 	:mID(gTransactionTable.newID()),
 	mQ931State(NullState),
+	mUSSDData(NULL),
 	mT301(T301ms), mT302(T302ms), mT303(T303ms),
 	mT304(T304ms), mT305(T305ms), mT308(T308ms),
 	mT310(T310ms), mT313(T313ms),
@@ -75,6 +95,7 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mTIFlag(1), mTIValue(0),
 	mCalling(wCalling),
 	mQ931State(NullState),
+	mUSSDData(NULL),
 	mT301(T301ms), mT302(T302ms), mT303(T303ms),
 	mT304(T304ms), mT305(T305ms), mT308(T308ms),
 	mT310(T310ms), mT313(T313ms),
@@ -94,6 +115,7 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mTIFlag(0), mTIValue(wTIValue),
 	mCalled(wCalled),
 	mQ931State(NullState),
+	mUSSDData(NULL),
 	mT301(T301ms), mT302(T302ms), mT303(T303ms),
 	mT304(T304ms), mT305(T305ms), mT308(T308ms),
 	mT310(T310ms), mT313(T313ms),
@@ -111,6 +133,7 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 	mSubscriber(wSubscriber),mService(wService),
 	mTIFlag(1),mTIValue(wTIValue),mCalling(wCalling),
 	mQ931State(NullState),
+	mUSSDData(NULL),
 	mT301(T301ms), mT302(T302ms), mT303(T303ms),
 	mT304(T304ms), mT305(T305ms), mT308(T308ms),
 	mT310(T310ms), mT313(T313ms),
@@ -119,6 +142,25 @@ TransactionEntry::TransactionEntry(const L3MobileIdentity& wSubscriber,
 {
 }
 
+/** This form is used for USSD. */
+TransactionEntry::TransactionEntry(const GSM::L3MobileIdentity& wSubscriber,
+	const GSM::L3CMServiceType& wService,
+	unsigned wTIFlag,
+	unsigned wTIValue,
+	USSDData* wUSSDData)
+	:mID(gTransactionTable.newID()),
+	mSubscriber(wSubscriber),mService(wService),
+	mTIFlag(wTIFlag),mTIValue(wTIValue),
+	mQ931State(NullState),
+	mUSSDData(wUSSDData),
+	mT301(T301ms), mT302(T302ms), mT303(T303ms),
+	mT304(T304ms), mT305(T305ms), mT308(T308ms),
+	mT310(T310ms), mT313(T313ms),
+	mT3113(gConfig.getNum("GSM.T3113")),
+	mTR1M(GSM::TR1Mms)
+{
+	mMessage[0]='\0';
+}
 
 
 bool TransactionEntry::timerExpired() const
@@ -203,6 +245,8 @@ ostream& Control::operator<<(ostream& os, TransactionEntry::Q931CallState state)
 		case TransactionEntry::ReleaseRequest: os << "release request"; break;
 		case TransactionEntry::SMSDelivering: os << "SMS delivery"; break;
 		case TransactionEntry::SMSSubmitting: os << "SMS submission"; break;
+		case TransactionEntry::USSDworking: os << "USSD working"; break;
+		case TransactionEntry::USSDclosing: os << "USSD closing"; break;
 		default: os << "?" << (int)state << "?";
 	}
 	return os;
@@ -218,6 +262,7 @@ ostream& Control::operator<<(ostream& os, const TransactionEntry& entry)
 	if (entry.calling().digits()[0]) os << " from=" << entry.calling().digits();
 	os << " Q.931State=" << entry.Q931State();
 	os << " SIPState=" << entry.SIP().state();
+	os << " USSDData=" << entry.ussdData();
 	os << " (" << (entry.stateAge()+500)/1000 << " sec)";
 	if (entry.message()[0]) os << " message=\"" << entry.message() << "\"";
 	return os;
@@ -326,6 +371,34 @@ bool TransactionTable::find(const L3MobileIdentity& mobileID, TransactionEntry& 
 	while (itr!=mTable.end()) {
 		const TransactionEntry& transaction = itr->second;
 		if (transaction.subscriber()==mobileID) {
+			// No need to check dead(), since we just cleared the table.
+			foundIt = true;
+			target = transaction;
+			break;
+		}
+		++itr;
+	}
+	mLock.unlock();
+	return foundIt;
+}
+
+
+
+bool TransactionTable::find(const L3MobileIdentity& mobileID, GSM::L3CMServiceType serviceType, TransactionEntry& target)
+{
+	// Yes, it's linear time.
+	// Even in a 6-ARFCN system, it should rarely be more than a dozen entries.
+
+	// Since clearDeadEntries is also linear, do that here, too.
+
+	// Brute force search.
+	bool foundIt = false;
+	mLock.lock();
+	clearDeadEntries();
+	TransactionMap::const_iterator itr = mTable.begin();
+	while (itr!=mTable.end()) {
+		const TransactionEntry& transaction = itr->second;
+		if (transaction.subscriber()==mobileID && transaction.service()==serviceType) {
 			// No need to check dead(), since we just cleared the table.
 			foundIt = true;
 			target = transaction;
@@ -597,7 +670,436 @@ void TMSITable::load(const char* filename)
 	fclose(fp);
 }
 
+USSDHandler::ResultCode USSDHandler::waitUSSDData(Control::USSDData::USSDMessageType* messageType,
+                                                  std::string* USSDString,
+                                                  unsigned timeout)
+{
+	TransactionEntry transaction;
+	USSDData *pUssdData = NULL;
 
+	// Step 1 -- Find transaction
+	if (!gTransactionTable.find(mTransactionID, transaction))
+	{
+		LOG(DEBUG) << "Transaction with ID=" << mTransactionID << " not found";
+		return USSD_NO_TRANSACTION;
+	}
+	if ((pUssdData = transaction.ussdData()) == NULL)
+	{
+		LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
+		return USSD_BAD_STATE;
+	}
+
+	// Step 2 -- Wait for MS to signal that data is ready
+	if (timeout >= USSDHandler::infinitely)
+	{
+		// wait infinitely
+		if (pUssdData->waitMS()!=0)
+		{
+			LOG(ERROR) << "USSDDate semaphore returned error: " << errno;
+			return USSD_ERROR;
+		}
+	}
+	else if ((timeout > USSDHandler::trywait) && (timeout < USSDHandler::infinitely))
+	{
+		// wait
+		if (pUssdData->waitMS(timeout)!=0)
+		{
+			LOG(DEBUG) << "USSDDate semaphore returned error or timeout";
+			return USSD_TIMEOUT;
+		}
+	}
+	else
+	{
+		// trywait
+		if (pUssdData->trywaitMS()!=0)
+		{
+			LOG(DEBUG) << "USSDDate semaphore returned error";
+			return USSD_TIMEOUT;
+		}
+	}
+
+	// Step 3 -- Get data from MS and check for closing condition
+	if (!gTransactionTable.find(mTransactionID, transaction))
+	{
+		LOG(DEBUG) << "Transaction with ID=" << mTransactionID << " not found";
+		return USSD_NO_TRANSACTION;
+	}
+	if ((pUssdData = transaction.ussdData()) == NULL)
+	{
+		LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
+		return USSD_BAD_STATE;
+	}
+	if (transaction.Q931State() == Control::TransactionEntry::USSDclosing)
+	{
+		clearTransactionHistory(transaction);
+		LOG(DEBUG) << "Clearing USSD transaction: " << transaction;
+		return USSD_CLEARED;
+	}
+	*messageType = pUssdData->MessageType();
+	*USSDString = pUssdData->USSDString();
+	return USSD_OK;
+}
+
+USSDHandler::ResultCode USSDHandler::postUSSDData(Control::USSDData::USSDMessageType messageType,
+                                                  const std::string &iUSSDString)
+{
+	// Step 0 -- Prepare long strings for continuation
+	std::string USSDString(iUSSDString);
+	if (USSDString.length()>USSD_MAX_CHARS_7BIT)
+	{
+		int contLen = mContinueStr.length();
+		mString = USSDString.substr(USSD_MAX_CHARS_7BIT-contLen,
+		                            USSDString.length()-(USSD_MAX_CHARS_7BIT-contLen));
+		USSDString.erase(USSDString.begin()+USSD_MAX_CHARS_7BIT-contLen, USSDString.end());
+		USSDString += mContinueStr;
+	}
+	else
+	{
+		mString = "";
+	}
+
+	// Step 1 -- Find transaction
+	TransactionEntry transaction;
+	USSDData *pUssdData = NULL;
+	if (!gTransactionTable.find(mTransactionID, transaction))
+	{
+		LOG(DEBUG) << "Transaction with ID=" << mTransactionID << " not found";
+		return USSD_NO_TRANSACTION;
+	}
+	if ((pUssdData = transaction.ussdData()) == NULL)
+	{
+		LOG(DEBUG) << "Transaction has no USSD data: " << transaction;
+		return USSD_BAD_STATE;
+	}
+
+	// Step 2 -- Update transaction with the data to send
+	pUssdData->MessageType(messageType);
+	pUssdData->USSDString(USSDString);
+	gTransactionTable.update(transaction);
+
+	// Step 3 -- Notify the dispatcher thread that data is ready to be sent
+	if (pUssdData->postNW() != 0)
+	{
+		return USSD_ERROR;
+	}
+
+	// Success.
+	return USSD_OK;
+}
+
+void *USSDHandler::runWrapper(void *pThis)
+{
+	((USSDHandler*)pThis)->run();
+	return NULL;
+}
+
+void MOTestHandler::run()
+{
+	LOG(DEBUG) << "USSD MO Test Handler RUN";
+	while(true)
+	{
+		Control::USSDData::USSDMessageType messageType;
+		std::string USSDString;
+		if (waitUSSDData(&messageType, &USSDString, gConfig.getNum("USSD.timeout"))) break;
+		if (USSDString == ">")
+		{
+			if (mString == "")
+			{
+				messageType = USSDData::release;
+			}
+			else
+			{
+				USSDString = mString;
+				messageType = USSDData::request;
+			}
+		}
+		else if (USSDString == "*100#")
+		{
+			USSDString = "handle response ";
+			messageType = USSDData::response;
+		}
+		else if(USSDString == "*101#")
+		{
+			USSDString = "handle request String objects are a special type of container, specifically designed to operate with sequences of characters. Unlike traditional c-strings, which are mere sequences of characters in a memory array, C++ string objects belong to a class with many built-in features to operate with strings in a more intuitive way and with some additional useful features common to C++ containers. The string class is an instantiation of the basic_string class template, defined in string as:";
+			messageType = USSDData::request;
+		}
+		else if(USSDString == "*1011#")
+		{
+			USSDString = "handle request";
+			messageType = USSDData::request;
+		}
+		else if(USSDString == "*102#")
+		{
+			USSDString = "handle notify";
+			messageType = USSDData::notify;
+		}
+		else if(USSDString == "*103#")
+		{
+			USSDString = "";
+			messageType = USSDData::release;
+		}
+		else if(USSDString == "*104#")
+		{
+			messageType = USSDData::error;
+		}
+		else
+		{
+			messageType = USSDData::release;
+		}
+
+		postUSSDData(messageType, USSDString);
+	}	
+}
+
+void MOHttpHandler::run()
+{
+	LOG(DEBUG) << "USSD MO Http Handler RUN";
+	while(true)
+	{
+		Control::USSDData::USSDMessageType messageType;
+		std::string USSDString;
+		if (waitUSSDData(&messageType, &USSDString, gConfig.getNum("USSD.timeout"))) break;
+
+		if (USSDString == ">")
+		{
+			if (mString == "")
+			{
+				messageType = USSDData::release;
+			}
+			else
+			{
+				USSDString = mString;
+				messageType = USSDData::request;
+			}
+		}    
+		else if(USSDString == "*101#")
+		{
+			USSDString = "send command";
+			messageType = USSDData::request;
+		}
+		else 
+		{
+			char command[2048];
+			sprintf(command,"wget -T 5 -q -O - \"http://%s/http/%s&to=%s&text=%s\"",
+						gConfig.getStr("USSD.HTTP.Gateway"),
+						gConfig.getStr("USSD.HTTP.AccessString"),
+						"server", USSDString.c_str());
+			LOG(NOTICE) << "MOUSSD: send HTTP sending with " << command;
+			// HTTP "GET" method with wget.
+			char mystring [182];
+			FILE* wget = popen(command,"r");
+			if (!wget) {
+				LOG(NOTICE) << "cannot open wget with " << command;
+				USSDString = "cannot open wget";
+				messageType = USSDData::error;
+			}
+			fgets (mystring , 182 , wget);
+			LOG(NOTICE) << "wget response " << mystring;
+			std::string tmpStr(mystring);
+			USSDString = tmpStr;
+			messageType = USSDData::request;
+		}
+		postUSSDData(messageType, USSDString);
+	}	
+}
+
+void MOCLIHandler::run()
+{
+	LOG(DEBUG) << "USSD MO CLI Handler RUN";
+	while(true)
+	{
+		Control::USSDData::USSDMessageType messageType;
+		std::string USSDString;
+		if (waitUSSDData(&messageType, &USSDString, gConfig.getNum("USSD.timeout"))) break;
+	    
+		if (USSDString == ">")
+		{
+			if (mString == "")
+			{
+				messageType = USSDData::release;
+			}
+			else
+			{
+				USSDString = mString;
+				messageType = USSDData::request;
+			}
+		}
+		else if(USSDString == "*101#")
+		{
+			USSDString = "send command";
+			messageType = USSDData::request;
+		}
+		else
+		{
+			const char* line;
+			line =  USSDString.c_str();
+			std::ostringstream os;
+			std::istringstream is;
+			gParser.process(line, os);
+			LOG(INFO) << "Running line \"" << line << "\" returned result \"" << os.str() << "\"";
+			USSDString = os.str();
+			messageType = USSDData::request;
+		}
+		postUSSDData(messageType, USSDString);
+	}	
+}
+
+void MTTestHandler::run()
+{
+	LOG(DEBUG) << "USSD MT Test Handler RUN";
+	while(true)
+	{
+		Control::USSDData::USSDMessageType messageType;
+		std::string USSDString;
+		if (waitUSSDData(&messageType, &USSDString, gConfig.getNum("USSD.timeout"))) break;
+			
+		if(messageType == USSDData::REGrequest)
+		{
+			USSDString = "REGrequest message";
+		}
+		else if(messageType == USSDData::response)
+		{
+			if (USSDString == "111")
+			{
+				USSDString = "release message";
+				messageType = USSDData::release;
+			}
+			else if (USSDString == "100")
+			{
+				USSDString = "request message";
+				messageType = USSDData::request;
+			}
+			else if (USSDString == "101")
+			{
+				messageType = USSDData::error;
+			}
+			else if (USSDString == "102")
+			{
+				USSDString = "notify message";
+				messageType = USSDData::notify;
+			}
+		}
+		else
+		{
+			USSDString = "release message";
+			messageType = USSDData::release;
+		}
+	
+		postUSSDData(messageType, USSDString);
+	}
+}
+
+void UssdSipHandler::run()
+{
+	LOG(DEBUG) << "USSD SIP Handler RUN";
+	mNum = 0;
+	while(true)
+	{
+		Control::USSDData::USSDMessageType messageType;
+		std::string USSDString;
+		unsigned timeout = 100000;
+
+		// Get next data string from ME
+		ResultCode result = waitUSSDData(&messageType, &USSDString, timeout);
+		if (result != USSD_OK)
+		{
+			// Operation has been canceled by ME or timed out.
+			// Finish USSD session if it hasn't been not cleared in waitUSSDData();
+			postUSSDData(USSDData::error, "");
+
+			// TODO:: Send error to SIP side too?
+			break;
+		}
+
+		if (USSDString == ">")
+		{
+			if (mString == "")
+			{
+				messageType = USSDData::release;
+			}
+			else
+			{
+				USSDString = mString;
+				messageType = USSDData::request;
+			}
+		} else {
+			// Steps:
+			// 1 -- Setup SIP part of the transaction record.
+			// 2 -- Send the message to the server.
+			// 3 -- Wait for a response message and parse it.
+
+			// Step 1 -- Setup SIP part of the transaction record.
+			TransactionEntry transaction;
+			if (!gTransactionTable.find(transactionID(), transaction))
+			{
+				// Transaction not found. Something is wrong. Bail out.
+				break;
+			}
+			SIP::SIPEngine& engine = transaction.SIP();
+
+			// If we got a TMSI, find the IMSI.
+			L3MobileIdentity mobileID = transaction.subscriber();
+			if (mobileID.type()==TMSIType) {
+				const char *IMSI = gTMSITable.IMSI(mobileID.TMSI());
+				if (IMSI) mobileID = L3MobileIdentity(IMSI);
+				else {
+					// Something is wrong on the ME side.
+					postUSSDData(USSDData::error, "");
+					break;
+				}
+			}
+
+			engine.User(mobileID.digits());
+			LOG(DEBUG) << "MOUSSD: transaction: " << transaction;
+
+			// Step 2 -- Send the message to the server.
+			std::ostringstream outSipBody;
+			outSipBody << (int)messageType << std::endl << USSDString;
+			LOG(DEBUG) << "Created USSD SIP message: " << outSipBody.str();
+			engine.MOSMSSendMESSAGE(gConfig.getStr("USSD.SIP.user"),
+				gConfig.getStr("USSD.SIP.domain"),
+				outSipBody.str().c_str(), true);
+			SIP::SIPState state = engine.MOSMSWaitForSubmit();
+
+			LOG(DEBUG) << "Clearing call ID " << engine.callID()
+			           << " from transaction " << transaction.ID();
+			gSIPInterface.removeCall(engine.callID());
+
+			if (state != SIP::Cleared)
+			{
+				// Something is wrong on the SIP side.
+				postUSSDData(USSDData::error, "");
+				break;
+			}
+
+			// Step 3 -- Wait for a response SIP message and ACK it.
+			transaction.ussdData()->waitIncomingData(/*TODO:: timeout */);
+			engine.MTSMSSendOK();
+			LOG(DEBUG) << "Clearing call ID " << engine.callID()
+			           << " from transaction " << transaction.ID();
+			gSIPInterface.removeCall(engine.callID());
+
+			// Step 4 -- Get response and parse it.
+			if (!gTransactionTable.find(transactionID(), transaction))
+			{
+				// Transaction not found. Something is wrong. Bail out.
+				break;
+			}
+			std::istringstream inSipBody(transaction.message());
+			std::stringbuf messageText;
+			int tmp;
+			inSipBody >> tmp >> &messageText;
+			messageType = (Control::USSDData::USSDMessageType)tmp;
+			USSDString = messageText.str();
+			LOG(DEBUG) << "Parsed USSD server response. messageType=" << messageType
+			           << "(" << tmp << ")"
+			           << " string=\"" << USSDString << "\"";
+
+		}
+
+		postUSSDData(messageType, USSDString);
+	}
+}
 
 
 bool Control::waitForPrimitive(LogicalChannel *LCH, Primitive primitive, unsigned timeout_ms)
@@ -770,7 +1272,81 @@ void  Control::resolveIMSI(L3MobileIdentity& mobileIdentity, LogicalChannel* LCH
 	}
 }
 
+bool Control::USSDMatchHandler(const std::string &handlerName, const std::string &ussdString)
+{
+	std::string handlerKeyName("USSD.Handler.");
+	handlerKeyName += handlerName;
+	if (gConfig.defines(handlerKeyName))
+	{
+		std::string handlerRegexpStr = gConfig.getStr(handlerKeyName);
+		Regexp handlerRegexp(handlerRegexpStr.data());
+		if (handlerRegexp.match(ussdString.data()))
+		{
+			LOG(DEBUG) << "Request " << ussdString << " matches regexp \""
+			           << handlerRegexpStr << "\" for USSD handler " << handlerName;
+			return true;
+		}
+	}
+	return false;
+}
 
+unsigned Control::USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,
+                                 unsigned TIFlag,
+                                 unsigned TIValue,
+                                 Control::USSDData::USSDMessageType messageType,
+                                 const std::string &ussdString,
+                                 bool MO)
+{
+	TransactionEntry transaction(mobileIdentity, GSM::L3CMServiceType::SupplementaryService, TIFlag, TIValue, new USSDData(messageType));
+	gTransactionTable.add(transaction);
+	LOG(DEBUG) << "USSD Dispatcher";
+	transaction.ussdData()->USSDString(ussdString);
+	if (MO)
+	{
+		//MO
+		transaction.Q931State(Control::TransactionEntry::USSDworking);
+		transaction.ussdData()->postMS();
+		gTransactionTable.update(transaction);
+
+		Thread* thread = new Thread;
+		if (USSDMatchHandler("HTTP", ussdString))
+		{
+			 MOHttpHandler* handler = new MOHttpHandler(transaction.ID());
+			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
+		}
+		else if (USSDMatchHandler("CLI", ussdString))
+		{
+			 MOCLIHandler* handler = new MOCLIHandler(transaction.ID());
+			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
+		}
+		else if (USSDMatchHandler("Test", ussdString))
+		{
+			MOTestHandler* handler = new MOTestHandler(transaction.ID());
+			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
+		}
+		else if (USSDMatchHandler("SIP", ussdString))
+		{
+			UssdSipHandler* handler = new UssdSipHandler(transaction.ID());
+			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
+		}
+		else
+		{
+			MOTestHandler* handler = new MOTestHandler(transaction.ID());
+			thread->start((void*(*)(void*))USSDHandler::runWrapper, handler);
+		}
+	}
+	else
+	{
+		//MT
+		transaction.ussdData()->postNW();
+		transaction.Q931State(Control::TransactionEntry::Paging);
+		//gTransactionTable.add(transaction);
+		gTransactionTable.update(transaction);
+		LOG(DEBUG) << "USSD Start Paging";
+		gBTS.pager().addID(transaction.subscriber(),GSM::SDCCHType,transaction);
+	}
+	return transaction.ID();
+}
 
 
 // vim: ts=4 sw=4

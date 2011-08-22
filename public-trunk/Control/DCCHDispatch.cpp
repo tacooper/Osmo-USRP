@@ -105,14 +105,18 @@ void DCCHDispatchRR(const L3RRMessage* req, LogicalChannel *DCCH)
 /** Example of a closed-loop, persistent-thread control function for the DCCH. */
 void Control::DCCHDispatcher(LogicalChannel *DCCH)
 {
+	const L3Message *message = NULL;
 	while (1) {
 		try {
-			// Wait for a transaction to start.
-			LOG(DEBUG) << "waiting for " << DCCH->type() << " ESTABLISH";
-			waitForPrimitive(DCCH,ESTABLISH);
-			// Pull the first message and dispatch a new transaction.
-			const L3Message *message = getMessage(DCCH);
-			LOG(DEBUG) << "received " << *message;
+			if (!message)
+			{
+				// Wait for a transaction to start.
+				LOG(DEBUG) << "waiting for " << DCCH->type() << " ESTABLISH";
+				waitForPrimitive(DCCH,ESTABLISH);
+				// Pull the first message and dispatch a new transaction.
+				message = getMessage(DCCH);
+				LOG(DEBUG) << "received " << *message;
+			}
 			// Each protocol has it's own sub-dispatcher.
 			switch (message->PD()) {
 				case L3MobilityManagementPD:
@@ -123,9 +127,12 @@ void Control::DCCHDispatcher(LogicalChannel *DCCH)
 					break;
 				default:
 					LOG(NOTICE) << "unhandled protocol " << message->PD() << " on " << DCCH->type();
+					delete message;
+					message = NULL;
 					throw UnsupportedMessage();
 			}
 			delete message;
+			message = NULL;
 		}
 
 		// Catch the various error cases.
@@ -145,8 +152,16 @@ void Control::DCCHDispatcher(LogicalChannel *DCCH)
 		catch (UnexpectedMessage except) {
 			clearTransactionHistory(except.transactionID());
 			LOG(NOTICE) << "UnexpectedMessage";
-			// Cause 0x62 means "message type not not compatible with protocol state".
-			DCCH->send(L3ChannelRelease(0x62));
+			if (except.mpFrame)
+			{
+				message = parseL3(*except.mpFrame);
+				delete except.mpFrame;
+			}
+			else
+			{
+				// Cause 0x62 means "message type not not compatible with protocol state".
+				DCCH->send(L3ChannelRelease(0x62));
+			}
 		}
 		catch (UnsupportedMessage except) {
 			clearTransactionHistory(except.transactionID());
@@ -177,8 +192,5 @@ void Control::DCCHDispatcher(LogicalChannel *DCCH)
 		//waitForPrimitive(DCCH,RELEASE,20000);
 	}
 }
-
-
-
 
 // vim: ts=4 sw=4

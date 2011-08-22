@@ -208,7 +208,8 @@ class Thread {
 	void start(void *(*task)(void*), void *arg);
 
 	/** Join a thread that will stop on its own. */
-	void join() { pthread_join(mThread,NULL); }
+
+	void join() { int s = pthread_join(mThread,NULL); assert(s==0); }
 
 };
 

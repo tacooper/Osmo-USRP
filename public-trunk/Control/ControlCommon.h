@@ -61,6 +61,9 @@ class L3IMSIDetachIndication;
 class L3PagingResponse;
 };
 
+// Reference to a global config table, used all over the system.
+extern ConfigurationTable gConfig;
+
 
 /**@namespace Control This namepace is for use by the control layer. */
 namespace Control {
@@ -145,7 +148,14 @@ void clearTransactionHistory(unsigned transactionID);
 
 //@}
 
+/**@name USSD */
+//@{
+/** MO USSD controller */
+void MOUSSDController(const GSM::L3CMServiceRequest *req, GSM::LogicalChannel *LCH);
 
+/** MTUSSD controller */
+void MTUSSDController(TransactionEntry& transaction, GSM::LogicalChannel *LCH);
+//@}
 
 /**@name Functions for mobility manangement operations. */
 //@{
@@ -208,6 +218,8 @@ void MTSMSController(TransactionEntry& transaction,
 						GSM::LogicalChannel *LCH);
 //@}
 
+
+
 /** Create a new transaction entry and start paging. */
 void initiateMTTransaction(TransactionEntry& transaction,
 		GSM::ChannelType chanType, unsigned pageTime);
@@ -239,7 +251,6 @@ unsigned  resolveIMSI(bool sameLAI, GSM::L3MobileIdentity& mobID, GSM::LogicalCh
 	@param SDCCH The Dm channel to the mobile.
 */
 void  resolveIMSI(GSM::L3MobileIdentity& mobID, GSM::LogicalChannel* LCH);
-
 
 
 
@@ -365,8 +376,62 @@ void *PagerServiceLoopAdapter(Pager*);
 //@}	// paging mech
 
 
+/**@name USSD data */
+//@{
 
+class USSDData {
 
+	public:
+	/** USSD message types based on GSM 03.09 */
+	enum USSDMessageType {
+		REGrequest,
+		request,
+		notify,
+		response,
+		error,
+		release
+	};
+	
+	protected:
+
+	ThreadSemaphore mSemWaitMS;
+	ThreadSemaphore mSemWaitNW;
+	ThreadSemaphore mSemIncomingData; ///< External entity has sent us some data
+	USSDMessageType mType; ///< USSD message type
+	std::string mUSSDString; ///< USSD message string
+
+	public:
+
+	USSDData(const USSDMessageType& wType)
+		:mType(wType)
+		{}
+
+	void MessageType(USSDMessageType wType) { mType=wType; } 
+	USSDMessageType MessageType() const { return mType; }
+	std::string USSDString() const { return mUSSDString; }
+	void USSDString(std::string wUSSDString) { mUSSDString = wUSSDString; }
+	
+	ThreadSemaphore::Result waitMS() { return mSemWaitMS.wait(); }
+	ThreadSemaphore::Result waitNW() { return mSemWaitNW.wait(); }
+	ThreadSemaphore::Result waitIncomingData() { return mSemIncomingData.wait(); }
+
+	ThreadSemaphore::Result waitMS(unsigned timeout) { return mSemWaitMS.wait(timeout); }
+	ThreadSemaphore::Result waitNW(unsigned timeout) { return mSemWaitNW.wait(timeout); }
+	ThreadSemaphore::Result waitIncomingData(unsigned timeout) { return mSemIncomingData.wait(timeout); }
+
+	ThreadSemaphore::Result trywaitMS() { return mSemWaitMS.trywait(); }
+	ThreadSemaphore::Result trywaitNW() { return mSemWaitNW.trywait(); }
+	ThreadSemaphore::Result trywaitIncomingData() { return mSemIncomingData.trywait(); }
+
+	ThreadSemaphore::Result postMS() { return mSemWaitMS.post(); }
+	ThreadSemaphore::Result postNW() { return mSemWaitNW.post(); }
+	ThreadSemaphore::Result signalIncomingData() { return mSemIncomingData.post(); }
+};
+
+std::ostream& operator<<(std::ostream& os, USSDData::USSDMessageType);
+std::ostream& operator<<(std::ostream& os, const USSDData&);
+
+//@}
 
 /**@name Transaction Table mechanisms. */
 //@{
@@ -395,6 +460,8 @@ class TransactionEntry {
 		ReleaseRequest,
 		SMSDelivering,
 		SMSSubmitting,
+		USSDworking,
+		USSDclosing
 	};
 
 	private:
@@ -413,6 +480,8 @@ class TransactionEntry {
 	Timeval mStateTimer;					///< timestamp of last state change.
 
 	std::string mMessage;				///< text messaging payload
+
+	USSDData* mUSSDData;					///< USSD message data
 
 	/**@name Timers from GSM and Q.931 (network side) */
 	//@{
@@ -452,6 +521,13 @@ class TransactionEntry {
 		unsigned wTIValue,
 		const GSM::L3CallingPartyBCDNumber& wCalling);
 
+	/** This form is used for USSD. */
+	TransactionEntry(const GSM::L3MobileIdentity& wSubscriber,
+		const GSM::L3CMServiceType& wService,
+		unsigned wTIFlag,
+		unsigned wTIValue,
+		USSDData* wUSSDData);
+
 	/**@name Accessors. */
 	//@{
 	unsigned TIValue() const { return mTIValue; }
@@ -485,6 +561,9 @@ class TransactionEntry {
 	}
 
 	Q931CallState Q931State() const { return mQ931State; }
+
+	void ussdData(USSDData* wUSSDData) { mUSSDData=wUSSDData; }
+	USSDData* ussdData() const { return mUSSDData; }
 
 	unsigned stateAge() const { return mStateTimer.elapsed(); }
 
@@ -599,6 +678,16 @@ class TransactionTable {
 	bool find(const GSM::L3MobileIdentity& mobileID, TransactionEntry& target);
 
 	/**
+		Find an entry by its mobile ID and service type.
+		Also clears dead entries during search.
+		@param mobileID The mobile at to search for.
+		@param serviceType Service type we're looking for.
+		@param target A TransactionEntry to accept the found record.
+		@return true is the mobile ID was found.
+	*/
+	bool find(const GSM::L3MobileIdentity& mobileID, GSM::L3CMServiceType serviceType, TransactionEntry& target);
+
+	/**
 		Remove "dead" entries from the table.
 		A "dead" entry is a transaction that is no longer active.
 	*/
@@ -701,7 +790,7 @@ class TMSITable {
 	/**
 		Find an IMSI in the table.
 		This is a log-time operation.
-		@param TMSI The TMSI to find.
+		@param TMSI The TMSI to find.post to
 		@return Pointer to c-string IMSI or NULL.
 	*/
 	const char* IMSI(unsigned TMSI) const;
@@ -788,9 +877,10 @@ class ControlLayerException {
 /** Thrown when the control layer gets the wrong message */
 class UnexpectedMessage : public ControlLayerException {
 	public:
-	UnexpectedMessage(unsigned wTransactionID=0)
-		:ControlLayerException(wTransactionID)
+	UnexpectedMessage(unsigned wTransactionID=0, const GSM::L3Frame *pFrame=NULL)
+		:ControlLayerException(wTransactionID), mpFrame(pFrame)
 	{}
+	const GSM::L3Frame *mpFrame;
 };
 
 /** Thrown when recvL3 returns NULL */
@@ -824,13 +914,7 @@ class Q931TimerExpired : public ControlLayerException {
 		:ControlLayerException(wTransactionID)
 	{}
 };
-
-
-//@}
-
-
-}	//Control
-
+}
 
 
 /**@addtogroup Globals */
@@ -840,6 +924,120 @@ extern Control::TransactionTable gTransactionTable;
 /** A single global TMSI table in the global namespace. */
 extern Control::TMSITable gTMSITable;
 //@}
+
+
+namespace Control {
+
+bool USSDMatchHandler(const std::string &handlerName, const std::string &ussdString);
+unsigned USSDDispatcher(GSM::L3MobileIdentity &mobileIdentity,	unsigned TIFlag,
+                        unsigned TIValue, Control::USSDData::USSDMessageType messageType,
+                        const std::string &ussdString, bool MO);
+
+
+class USSDHandler {
+
+	public:
+	enum USSDtimeout {
+		trywait = 0,
+		infinitely = 120000
+	};
+	enum
+	{
+		USSD_MAX_CHARS_7BIT = 182    ///< See GSM 03.38 5 Cell Broadcast Data Coding Scheme
+	};
+	enum ResultCode {
+		USSD_OK = 0,   ///< Operation performed
+
+		USSD_CLEARED,  ///< USSD state has been cleared as a result of operation
+		USSD_TIMEOUT,  ///< USSD operation timed out
+
+		USSD_NO_TRANSACTION, ///< Can't find transaction
+		USSD_BAD_STATE,      ///< Wrong transaction state
+		USSD_ERROR           ///< Generic error
+	};
+
+	private:
+	unsigned mTransactionID;
+
+	protected:
+	std::string mString;
+	std::string mContinueStr;
+
+	public:
+		/** This form is used for MO USSD */
+		USSDHandler(unsigned wTransactionID)
+			:mTransactionID(wTransactionID),
+			mContinueStr(gConfig.getStr("USSD.ContinueStr"))
+		{}
+
+		/** Wait USSD data from MS. Return: 0 - successful, 1 - clear transaction, 2 - error or timeout */
+		USSDHandler::ResultCode waitUSSDData(Control::USSDData::USSDMessageType* messageType, std::string* USSDString, unsigned timeout = USSDHandler::infinitely);
+		/** Post USSD data and update transaction with new USSDData (messageType and USSDString)*/
+		USSDHandler::ResultCode postUSSDData( Control::USSDData::USSDMessageType messageType, const std::string &USSDString);
+		unsigned transactionID() { return mTransactionID; }
+		void transactionID(unsigned wTransactionID) { wTransactionID = mTransactionID; }
+		static void *runWrapper(void *pThis);
+
+	protected:
+		virtual void run() = 0;	
+
+};
+
+
+class MOTestHandler : public USSDHandler {
+	public:
+		MOTestHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
+		{}
+		void run();
+};
+
+class MOHttpHandler : public USSDHandler {
+	public:
+		MOHttpHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
+		{}
+	
+		void run();
+};
+
+class UssdSipHandler : public USSDHandler {
+	private:
+	   std::string mStr;
+	   unsigned mNum;
+	public:
+
+	   UssdSipHandler(unsigned wTransactionID)
+	   : USSDHandler(wTransactionID)
+	   {}
+
+	   void run();
+};
+
+class MOCLIHandler : public USSDHandler {
+	public:
+		MOCLIHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
+		{}
+	
+		void run();
+};
+
+class MTTestHandler : public USSDHandler {
+	public:
+		MTTestHandler(unsigned wTransactionID)
+			:USSDHandler(wTransactionID)
+		{}	
+	
+		void run();
+};
+
+//@}
+
+
+}	//Control
+
+
 
 
 

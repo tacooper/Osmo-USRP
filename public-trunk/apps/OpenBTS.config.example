@@ -213,6 +213,31 @@ SMS.DefaultDestSMSC 0000
 SIP.SMSC smsc
 
 
+#
+# USSD parameters
+#
+# USSD timeout for waiting MS response
+USSD.timeout 100000
+
+# USSD handlers map.
+# Option key has form USSD.Handler.<handler>, where <handler> is
+# one of the following: HTTP, CLI and Test.
+# Option value is a regexp. If it matches initial MO-USSD request,
+# then request is passed for processing to according USSD handler.
+# Comment out a handler option to completely disable the handler.
+#USSD.Handler.CLI \*101#
+USSD.Handler.Test \*(100|1011|102)#
+#USSD.Handler.HTTP 
+
+# The USSD HTTP gateway.
+USSD.HTTP.Gateway api.clickatell.com
+
+# IF USSD.HTTP.Gateway IS DEFINED, USSD.HTTP.AccessString MUST ALSO BE DEFINED.
+USSD.HTTP.AccessString sendmsg?user=xxxx&password=xxxx&api_id=xxxx
+
+# We split long messages into few screens. This string is appended
+# to the end of each screen to notify user that text is to be continued.
+USSD.ContinueStr ...1>
 
 
 # Things to query during registration updates.

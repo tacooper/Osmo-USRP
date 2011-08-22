@@ -251,6 +251,7 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 	// Check for INVITE or MESSAGE methods.
 	GSM::ChannelType requiredChannel;
 	bool channelAvailable = false;
+	bool shouldPage = true;
 	GSM::L3CMServiceType serviceType;
 	if (strcmp(method,"INVITE") == 0) {
 		// INVITE is for MTC.
@@ -267,10 +268,25 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 		serviceType = L3CMServiceType::MobileTerminatedCall;
 	}
 	else if (strcmp(method,"MESSAGE") == 0) {
-		// MESSAGE is for MTSMS.
-		requiredChannel = GSM::SDCCHType;
-		channelAvailable = gBTS.SDCCHAvailable();
-		serviceType = L3CMServiceType::MobileTerminatedShortMessage;
+		// MESSAGE is for MTSMS or USSD
+      if (  strcmp(gConfig.getStr("USSD.SIP.user"), msg->from->url->username)==0
+         && strcmp(gConfig.getStr("USSD.SIP.domain"), msg->from->url->host)==0)
+      {
+         LOG(INFO) << "received MESSAGE is USSD from: "
+                   << msg->from->url->username << "@" << msg->from->url->host;
+         requiredChannel = GSM::SDCCHType;
+			// TODO:: Understand how to behave when we need to page?
+         channelAvailable = true; //gBTS.SDCCHAvailable();
+         serviceType = L3CMServiceType::SupplementaryService;
+      }
+      else
+      {
+         LOG(INFO) << "received MESSAGE is SMS from: "
+                   << msg->from->url->username << "@" << msg->from->url->host;
+         requiredChannel = GSM::SDCCHType;
+         channelAvailable = gBTS.SDCCHAvailable();
+         serviceType = L3CMServiceType::MobileTerminatedShortMessage;
+      }
 	}
 	else {
 		// We must not handle this method.
@@ -312,7 +328,8 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 	L3MobileIdentity mobile_id(IMSI);
 
 	// Check SIP map.  Repeated entry?  Page again.
-	if (mSIPMap.map().readNoBlock(call_id_num) != NULL) { 
+	// Skip this for USSD.
+	if (  mSIPMap.map().readNoBlock(call_id_num) != NULL) {
 		TransactionEntry transaction;
 		if (!gTransactionTable.find(mobile_id,transaction)) {
 			// FIXME -- Send "call leg non-existent" response on SIP interface.
@@ -349,15 +366,33 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 		LOG(NOTICE) << "INVITE/MESSAGE with no From: username for " << mobile_id;
 	}
 	LOG(DEBUG) << "callerID " << callerID << "@" << callerHost;
-	// Build the transaction table entry.
-	// This constructor sets TI flag=0, TI=0 for an MT transaction.
-	TransactionEntry transaction(mobile_id,serviceType,callerID);
+
+	TransactionEntry transaction;
+	// In case of USSD we should check for existing transaction first, because
+	// SIP MESSAGEs are sent out of call, our internal while USSD transaction
+	// stays alive for the whole duration of a session.
+	if (  serviceType == L3CMServiceType::SupplementaryService
+		&& gTransactionTable.find(mobile_id,L3CMServiceType::SupplementaryService,transaction))
+	{
+		// It's old USSD. No need to page.
+		shouldPage = false;
+		LOG(DEBUG) << "Existing USSD transaction found: " << transaction;
+	}
+	else
+	{
+		// It's not USSD or there are no existing transaction for it.
+		// Build new transaction table entry.
+		// This constructor sets TI flag=0, TI=0 for an MT transaction.
+		transaction = TransactionEntry(mobile_id,serviceType,callerID);
+		LOG(DEBUG) << "Created new transaction";
+	}
 	LOG(DEBUG) << "call_id_num \"" << call_id_num << "\"";
 	LOG(DEBUG) << "IMSI \"" << IMSI << "\"";
 
 	transaction.SIP().User(call_id_num,IMSI,callerID,callerHost);
 	transaction.SIP().saveINVITE(msg);
-	if (serviceType == L3CMServiceType::MobileTerminatedShortMessage) {
+	if (  serviceType == L3CMServiceType::MobileTerminatedShortMessage
+		|| serviceType == L3CMServiceType::SupplementaryService) {
 		osip_body_t *body;
 		osip_message_get_body(msg,0,&body);
 		if (!body) return false;
@@ -365,15 +400,29 @@ bool SIPInterface::checkInvite( osip_message_t * msg )
 		if (text) {
 			transaction.message(text);
 		}
-		else LOG(NOTICE) << "MTSMS incoming MESSAGE method with no message body for " << mobile_id;
+		else LOG(NOTICE) << "MTSMS/USSD incoming MESSAGE method with no message body for " << mobile_id;
 	}
-	LOG(INFO) << "MTC MTSMS making transaction and add to transaction table: "<< transaction;
-	gTransactionTable.add(transaction); 
-	
-	// Add to paging list and tell the remote SIP end that we are trying.
-	LOG(DEBUG) << "MTC MTSMS new SIP invite, initial paging for mobile ID " << mobile_id;
-	gBTS.pager().addID(mobile_id,requiredChannel,transaction);	
-	// FIXME -- Send TRYING?  See MTCSendTrying for example.
+	LOG(INFO) << "MTC/MTSMS/USSD is adding/updating transaction: "<< transaction;
+	gTransactionTable.add(transaction);
+
+	if (serviceType == L3CMServiceType::SupplementaryService)
+	{
+		// TODO:: What to do in case of MT-USSD?
+		USSDData *ussdData = transaction.ussdData();
+		if (ussdData)
+		{
+			LOG(DEBUG) << "Signaling incoming USSD data";
+			ussdData->signalIncomingData();
+		}
+	}	
+
+	if (shouldPage)
+	{
+		// Add to paging list and tell the remote SIP end that we are trying.
+		LOG(DEBUG) << "MTC/MTSMS/USSD new SIP invite, initial paging for mobile ID " << mobile_id;
+		gBTS.pager().addID(mobile_id,requiredChannel,transaction);	
+		// FIXME -- Send TRYING?  See MTCSendTrying for example.
+	}
 
 	return true;
 }

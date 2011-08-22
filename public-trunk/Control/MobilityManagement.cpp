@@ -64,6 +64,9 @@ void Control::CMServiceResponder(const L3CMServiceRequest* cmsrq, LogicalChannel
 		case L3CMServiceType::EmergencyCall:
 			EmergencyCall(cmsrq,DCCH);
 			break;
+		case L3CMServiceType::SupplementaryService:
+			MOUSSDController(cmsrq,DCCH);
+			break;
 		default:
 			LOG(NOTICE) << "service not supported for " << *cmsrq;
 			// Cause 0x20 means "serivce not supported".

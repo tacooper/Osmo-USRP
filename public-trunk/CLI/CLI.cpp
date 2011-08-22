@@ -27,6 +27,7 @@
 
 #include <config.h>
 #include "CLI.h"
+#include "CLIParser.h"
 #include <Logger.h>
 #include <Globals.h>
 
@@ -63,6 +64,7 @@ void CommandLine::runCLI(ParserBase *processor)
 			   history_file_len + 1);
 			read_history(history_name);
 		}
+
 	}
 #endif // HAVE_LIBREADLINE ]
 
@@ -104,6 +106,7 @@ void CommandLine::runCLI(ParserBase *processor)
 		free(history_name);
 		history_name = 0;
 	}
+
 #endif // HAVE_LIBREADLINE ]
 }
 
