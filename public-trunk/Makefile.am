@@ -31,7 +31,6 @@ SUBDIRS = \
 	SIP \
 	GSM \
 	SMS \
-	Transceiver \
 	Transceiver52M \
 	TRXManager \
 	Control \

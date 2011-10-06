@@ -108,7 +108,6 @@ AC_CONFIG_FILES([\
     GSM/Makefile \
     SIP/Makefile \
     SMS/Makefile \
-    Transceiver/Makefile \
     Transceiver52M/Makefile \
     TRXManager/Makefile \
     CLI/Makefile \
