@@ -27,6 +27,7 @@
 #include "Logger.h"
 #include <uhd/usrp/single_usrp.hpp>
 #include <uhd/utils/thread_priority.hpp>
+#include <uhd/utils/msg.hpp>
 
 /*
     use_ext_ref       - Enable external 10MHz clock reference
@@ -233,6 +234,28 @@ void *async_event_loop(uhd_device *dev)
 	}
 }
 
+/* 
+    Catch and drop underrun 'U' and overrun 'O' messages from stdout
+    since we already report using the logging facility. Direct
+    everything else appropriately.
+ */
+void uhd_msg_handler(uhd::msg::type_t type, const std::string &msg)
+{
+	switch (type) {
+	case uhd::msg::status:
+		LOG(INFO) << msg;
+		break;
+	case uhd::msg::warning:
+		LOG(WARN) << msg;
+		break;
+	case uhd::msg::error:
+		LOG(ERROR) << msg;
+		break;
+	case uhd::msg::fastpath:
+		break;
+	}
+}
+
 uhd_device::uhd_device(double rate, bool skip_rx)
 	: desired_smpl_rt(rate), actual_smpl_rt(0),
 	  tx_gain(0.0), tx_gain_min(0.0), tx_gain_max(0.0),
@@ -342,6 +365,9 @@ double uhd_device::setRxGain(double db)
 bool uhd_device::open()
 {
 	LOG(INFO) << "creating USRP device...";
+
+	// Register msg handler
+	uhd::msg::register_handler(&uhd_msg_handler);
 
 	// Allow all UHD devices
 	uhd::device_addr_t dev_addr("");
