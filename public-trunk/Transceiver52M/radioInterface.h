@@ -100,10 +100,10 @@ public:
   ~RadioInterface();
 
   /** check for underrun, resets underrun value */
-  bool isUnderrun() { bool retVal = underrun; underrun = false; return retVal;}
+  bool isUnderrun();
   
   /** attach an existing USRP to this interface */
-  void attach(RadioDevice *wRadio, int wRadioOversampling) {if (!mOn) {mRadio = wRadio; mRadioOversampling = SAMPSPERSYM;} }
+  void attach(RadioDevice *wRadio, int wRadioOversampling);
 
   /** return the receive FIFO */
   VectorFIFO* receiveFIFO() { return &mReceiveFIFO;}
@@ -118,10 +118,10 @@ public:
   bool tuneRx(double freq);
 
   /** set receive gain */
-  double setRxGain(double dB) {if (mRadio) return mRadio->setRxGain(dB); else return -1;}
+  double setRxGain(double dB);
 
   /** get receive gain */
-  double getRxGain(void) {if (mRadio) return mRadio->getRxGain(); else return -1;}
+  double getRxGain(void);
 
   /** drive transmission of GSM bursts */
   void driveTransmitRadio(signalVector &radioBurst, bool zeroBurst);
