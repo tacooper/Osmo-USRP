@@ -25,6 +25,8 @@
 #include "radioInterface.h"
 #include <Logger.h>
 
+bool started = false;
+
 RadioInterface::RadioInterface(RadioDevice *wRadio,
                                int wReceiveOffset,
 			       int wRadioOversampling,
@@ -71,93 +73,40 @@ void RadioInterface::setPowerAttenuation(double atten)
     powerScaling = 1.0/sqrt(pow(10, (digAtten/10.0)));
 }
 
-short *RadioInterface::radioifyVector(signalVector &wVector,
-                                      short *retVector,
-                                      float scale,
-                                      bool zeroOut)
+int RadioInterface::radioifyVector(signalVector &wVector,
+				   float *retVector,
+				   float scale,
+				   bool zero)
 {
+  int i;
   signalVector::iterator itr = wVector.begin();
-  short *shortItr = retVector;
-  if (zeroOut) {
-    while (itr < wVector.end()) {
-      *shortItr++ = 0;
-      *shortItr++ = 0;
-      itr++;
-    }
-  } else if (scale != 1.0) { 
-    while (itr < wVector.end()) {
-      *shortItr++ = (short) (itr->real() * scale);
-      *shortItr++ = (short) (itr->imag() * scale);
-      itr++;
-    }
-  } else {
-    while (itr < wVector.end()) {
-      *shortItr++ = (short) (itr->real());
-      *shortItr++ = (short) (itr->imag());
-      itr++;
-    }
+
+  if (zero) {
+    memset(retVector, 0, wVector.size() * 2 * sizeof(float));
+    return wVector.size();
   }
 
-  return retVector;
+  for (i = 0; i < wVector.size(); i++) {
+    retVector[2 * i + 0] = itr->real() * scale;
+    retVector[2 * i + 1] = itr->imag() * scale;
+    itr++;
+  }
+
+  return wVector.size();
 }
 
-void RadioInterface::unRadioifyVector(short *shortVector, signalVector& newVector)
+int RadioInterface::unRadioifyVector(float *floatVector,
+				     signalVector& newVector)
 {
-  
+  int i;
   signalVector::iterator itr = newVector.begin();
-  short *shortItr = shortVector;
-  while (itr < newVector.end()) {
-    *itr++ = Complex<float>(*shortItr,*(shortItr+1));
-    shortItr += 2;
+
+  for (i = 0; i < newVector.size(); i++) {
+    *itr++ = Complex<float>(floatVector[2 * i + 0],
+			    floatVector[2 * i + 1]);
   }
 
-}
-
-
-bool started = false;
-
-void RadioInterface::pushBuffer(void) {
-
-  if (sendCursor < 2*INCHUNK) return;
-
-  // send resampleVector
-  int samplesWritten = mRadio->writeSamples(sendBuffer,
-					  INCHUNK,
-					  &underrun,
-					  writeTimestamp); 
-   
-  writeTimestamp += (TIMESTAMP) samplesWritten;
-
-  if (sendCursor > 2*samplesWritten) 
-    memcpy(sendBuffer,sendBuffer+samplesWritten*2,sizeof(short)*2*(sendCursor-2*samplesWritten));
-  sendCursor = sendCursor - 2*samplesWritten;
-}
-
-
-void RadioInterface::pullBuffer(void)
-{
-   
-  bool localUnderrun;
-
-   // receive receiveVector
-  short* shortVector = rcvBuffer+rcvCursor;  
-  int samplesRead = mRadio->readSamples(shortVector,OUTCHUNK,&overrun,readTimestamp,&localUnderrun);
-  underrun |= localUnderrun;
-  readTimestamp += (TIMESTAMP) samplesRead;
-  while (samplesRead < OUTCHUNK) {
-    int oldSamplesRead = samplesRead;
-    samplesRead += mRadio->readSamples(shortVector+2*samplesRead,
-				     OUTCHUNK-samplesRead,
-				     &overrun,
-				     readTimestamp,
-				     &localUnderrun);
-    underrun |= localUnderrun;
-    readTimestamp += (TIMESTAMP) (samplesRead - oldSamplesRead);
-  }
-  LOG(DEBUG) << "samplesRead " << samplesRead;
-
-  rcvCursor += samplesRead*2;
-
+  return newVector.size();
 }
 
 bool RadioInterface::tuneTx(double freq)
@@ -176,14 +125,17 @@ void RadioInterface::start()
   LOG(INFO) << "starting radio interface...";
   mAlignRadioServiceLoopThread.start((void * (*)(void*))AlignRadioServiceLoopAdapter,
                                      (void*)this);
-  mOn = true;
   writeTimestamp = mRadio->initialWriteTimestamp();
   readTimestamp = mRadio->initialReadTimestamp();
   mRadio->start(); 
   LOG(DEBUG) << "Radio started";
   mRadio->updateAlignment(writeTimestamp-10000); 
   mRadio->updateAlignment(writeTimestamp-10000);
-  LOG(DEBUG) << "radio interface started!";
+
+  sendBuffer = new float[2*2*INCHUNK*samplesPerSymbol];
+  rcvBuffer = new float[2*2*OUTCHUNK*samplesPerSymbol];
+ 
+  mOn = true;
 }
 
 void *AlignRadioServiceLoopAdapter(RadioInterface *radioInterface)
@@ -204,9 +156,9 @@ void RadioInterface::driveTransmitRadio(signalVector &radioBurst, bool zeroBurst
 
   if (!mOn) return;
 
-  radioifyVector(radioBurst, sendBuffer+sendCursor, powerScaling, zeroBurst);
+  radioifyVector(radioBurst, sendBuffer + 2 * sendCursor, powerScaling, zeroBurst);
 
-  sendCursor += (radioBurst.size()*2);
+  sendCursor += radioBurst.size();
 
   pushBuffer();
 }
@@ -222,7 +174,7 @@ void RadioInterface::driveReceiveRadio() {
   GSM::Time rcvClock = mClock.get();
   rcvClock.decTN(receiveOffset);
   unsigned tN = rcvClock.TN();
-  int rcvSz = rcvCursor/2;
+  int rcvSz = rcvCursor;
   int readSz = 0;
   const int symbolsPerSlot = gSlotLen + 8;
 
@@ -248,9 +200,9 @@ void RadioInterface::driveReceiveRadio() {
     tN = rcvClock.TN();
   }
 
-  if (readSz > 0) { 
-    rcvCursor -= 2*readSz;
-    memmove(rcvBuffer,rcvBuffer+2*readSz,sizeof(short)*rcvCursor);
+  if (readSz > 0) {
+    rcvCursor -= readSz;
+    memmove(rcvBuffer,rcvBuffer+2*readSz,sizeof(float) * 2 * rcvCursor);
   }
 } 
   
