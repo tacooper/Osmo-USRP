@@ -25,54 +25,6 @@
 #include "radioInterface.h"
 #include <Logger.h>
 
-
-GSM::Time VectorQueue::nextTime() const
-{
-  GSM::Time retVal;
-  mLock.lock();
-  while (mQ.size()==0) mWriteSignal.wait(mLock);
-  retVal = mQ.top()->time();
-  mLock.unlock();
-  return retVal;
-}
-
-radioVector* VectorQueue::getStaleBurst(const GSM::Time& targTime)
-{
-  mLock.lock();
-  if ((mQ.size()==0)) {
-    mLock.unlock();
-    return NULL;
-  }
-  if (mQ.top()->time() < targTime) {
-    radioVector* retVal = mQ.top();
-    mQ.pop();
-    mLock.unlock();
-    return retVal;
-  }
-  mLock.unlock();
-  return NULL;
-}
-
-
-radioVector* VectorQueue::getCurrentBurst(const GSM::Time& targTime)
-{
-  mLock.lock();
-  if ((mQ.size()==0)) {
-    mLock.unlock();
-    return NULL;
-  }
-  if (mQ.top()->time() == targTime) {
-    radioVector* retVal = mQ.top();
-    mQ.pop();
-    mLock.unlock();
-    return retVal;
-  }
-  mLock.unlock();
-  return NULL;
-}
-
-
-
 RadioInterface::RadioInterface(RadioDevice *wRadio,
                                int wReceiveOffset,
 			       int wRadioOversampling,

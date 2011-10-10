@@ -22,7 +22,8 @@
 
 */
 
-
+#ifndef SIGPROCLIB_H
+#define SIGPROCLIB_H
 
 #include "Vector.h"
 #include "Complex.h"
@@ -390,3 +391,5 @@ SoftVector *equalizeBurst(signalVector &rxBurst,
 		       int samplesPerSymbol,
 		       signalVector &w, 
 		       signalVector &b);
+
+#endif /* SIGPROCLIB_H */
