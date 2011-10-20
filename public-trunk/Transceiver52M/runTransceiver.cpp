@@ -1,5 +1,5 @@
 /*
-* Copyright 2008, 2009 Free Software Foundation, Inc.
+* Copyright 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
 *
 * This software is distributed under the terms of the GNU Affero Public License.
 * See the COPYING file in the main directory for details.
@@ -33,6 +33,12 @@
 #include <GSMCommon.h>
 #include <Logger.h>
 #include <Configuration.h>
+
+#ifdef RESAMPLE
+  #define DEVICERATE 400e3
+#else
+  #define DEVICERATE 1625e3/6 
+#endif
 
 using namespace std;
 
@@ -72,7 +78,7 @@ int main(int argc, char *argv[])
 
   srandom(time(NULL));
 
-  RadioDevice *usrp = RadioDevice::make(1625e3/6.0);
+  RadioDevice *usrp = RadioDevice::make(DEVICERATE);
   if (!usrp->open()) {
     //delete usrp;
     return EXIT_FAILURE;
