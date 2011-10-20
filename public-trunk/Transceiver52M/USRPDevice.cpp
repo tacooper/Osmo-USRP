@@ -39,6 +39,9 @@
 
 #include <Logger.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 using namespace std;
 
@@ -49,7 +52,12 @@ enum dboardConfigType {
   TXB_RXB
 };
 
+#ifdef SINGLEDB
+const dboardConfigType dboardConfig = TXA_RXA;
+#else
 const dboardConfigType dboardConfig = TXA_RXB;
+#endif
+
 const double USRPDevice::masterClockRate = 52.0e6;
 
 USRPDevice::USRPDevice (double _desiredSampleRate, bool skipRx)
