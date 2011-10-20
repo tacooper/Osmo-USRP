@@ -46,9 +46,15 @@ COMMON_SOURCES = \
 	sigProcLib.cpp \
 	Transceiver.cpp
 
+if RESAMPLE
+libtransceiver_la_SOURCES = \
+	$(COMMON_SOURCES) \
+	radioIOResamp.cpp
+else
 libtransceiver_la_SOURCES = \
 	$(COMMON_SOURCES) \
 	radioIO.cpp
+endif
 
 noinst_PROGRAMS = \
 	USRPping \

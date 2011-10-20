@@ -62,6 +62,11 @@ AC_ARG_WITH(usrp1, [
         [enable USRP1 gnuradio based transceiver])
 ])
 
+AC_ARG_WITH(resamp, [
+    AS_HELP_STRING([--with-resamp],
+        [enable resampling for non-52MHz devices])
+])
+
 AS_IF([test "x$with_usrp1" = "xyes"], [
     # Defines USRP_CFLAGS, USRP_INCLUDEDIR, and USRP_LIBS
     PKG_CHECK_MODULES(USRP, usrp > 3.1)
@@ -80,6 +85,11 @@ AS_IF([test "x$with_usrp1" = "xyes"], [
     AC_DEFINE(USE_UHD, 1, Define to 1 if using UHD)
 ])
 
+AS_IF([test "x$with_resamp" = "xyes"], [
+    AC_DEFINE(RESAMPLE, 1, Define to 1 for resampling)
+])
+
+AM_CONDITIONAL(RESAMPLE, [test "x$with_resamp" = "xyes"])
 AM_CONDITIONAL(UHD, [test "x$with_usrp1" != "xyes"])
 
 # Defines OSIP_CFLAGS, OSIP_INCLUDEDIR, and OSIP_LIBS
