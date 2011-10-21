@@ -118,9 +118,7 @@ $static TRX.Port
 
 # Path to transceiver binary
 # If this is not defined, you will need to start the transceiver by hand.
-# YOU MUST HAVE A MATCHING libusrp AS WELL!!
-TRX.Path ../Transceiver/transceiver
-#TRX.Path ../Transceiver52M/transceiver
+TRX.Path ../Transceiver52M/transceiver
 $static TRX.Path
 
 # Path to transceiver PID file.
