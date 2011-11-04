@@ -1,5 +1,5 @@
 /*
-* Copyright 2008 Free Software Foundation, Inc.
+* Copyright 2008, 2011 Free Software Foundation, Inc.
 *
 * This software is distributed under the terms of the GNU Affero Public License.
 * See the COPYING file in the main directory for details.
@@ -28,6 +28,8 @@
 
 #include "sigProcLib.h"
 #include "GSMCommon.h"
+#include "sendLPF_961.h"
+#include "rcvLPF_651.h"
 
 #include <Logger.h>
 
@@ -1136,7 +1138,7 @@ signalVector *createLPF(float cutoffFreq,
 			int filterLen,
 			float gainDC)
 {
-  
+#if 0
   signalVector *LPF = new signalVector(filterLen);
   LPF->isRealOnly(true);
   signalVector::iterator itr = LPF->begin();
@@ -1148,7 +1150,30 @@ signalVector *createLPF(float cutoffFreq,
     *itr++ = (complex) ys*yg*yw;
     sum += ys*yg*yw;
   }
-  
+#else
+  double sum = 0.0;
+  signalVector *LPF;
+  signalVector::iterator itr;
+  if (filterLen == 651) { // receive LPF
+    LPF = new signalVector(651);
+    LPF->isRealOnly(true);
+    itr = LPF->begin();
+    for (int i = 0; i < filterLen; i++) {
+       *itr++ = complex(rcvLPF_651[i],0.0);
+       sum += rcvLPF_651[i];
+    }
+  }
+  else { 
+    LPF = new signalVector(961);
+    LPF->isRealOnly(true);
+    itr = LPF->begin();
+    for (int i = 0; i < filterLen; i++) {
+       *itr++ = complex(sendLPF_961[i],0.0);
+       sum += sendLPF_961[i];
+    }
+  }
+#endif
+
   float normFactor = gainDC/sum; //sqrtf(gainDC/vectorNorm2(*LPF));
   // normalize power
   itr = LPF->begin();

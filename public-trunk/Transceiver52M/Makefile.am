@@ -69,7 +69,9 @@ noinst_HEADERS = \
 	radioDevice.h \
 	sigProcLib.h \
 	Transceiver.h \
-	USRPDevice.h
+	USRPDevice.h \
+	rcvLPF_651.h \
+	sendLPF_961.h
 
 USRPping_SOURCES = USRPping.cpp
 USRPping_LDADD = \
