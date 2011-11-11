@@ -32,6 +32,7 @@ libGSML1_la_SOURCES = \
 	GSML1FEC.cpp \
 	GSMTDMA.cpp \
 	GSMTransfer.cpp \
+	OsmoSAPMux.cpp \
 	GSMTAPDump.cpp
 
 libGSM_la_SOURCES = \
@@ -77,5 +78,6 @@ noinst_HEADERS = \
 	GSMTransfer.h \
 	PowerManager.h \
 	GSMTAPDump.h \
+	OsmoSAPMux.h \
 	gsmtap.h
 
