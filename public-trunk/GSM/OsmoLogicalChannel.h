@@ -302,33 +302,33 @@ public:
 
 /* timeslot in Combination 5 (FCCH, SCH, CCCH, BCCH and 4*SDCCH/4) */
 class OsmoComb5TS : public OsmoTS {
+protected:
+	SCHL1FEC mSCH;
+	FCCHL1FEC mFCCH;
+	RACHL1FEC mRACH;
+	OsmoCCCHLchan *mCCCH[3];
 public:
-	OsmoComb5TS(OsmoTRX &trx, unsigned int tn) :OsmoTS(trx, tn, 5) {
+	OsmoComb5TS(OsmoTRX &trx, unsigned int tn)
+		:OsmoTS(trx, tn, 5),
+		mSCH(),
+		mFCCH(),
+		mRACH(gRACHC5Mapping) {
 		ARFCNManager* radio = getARFCNmgr();
 
-		SCHL1FEC SCH;
-		SCH.downstream(radio);
-		SCH.open();
+		mSCH.downstream(radio);
+		mSCH.open();
 
-		FCCHL1FEC FCCH;
-		FCCH.downstream(radio);
-		SCH.open();
+		mFCCH.downstream(radio);
+		mFCCH.open();
 
-		RACHL1FEC RACH(gRACHC5Mapping);
-		RACH.downstream(radio);
-		RACH.open();
+		mRACH.downstream(radio);
+		mRACH.open();
 
-		OsmoCCCHLchan CCCH0(this, 0);
-		CCCH0.downstream(radio);
-		CCCH0.open();
-
-		OsmoCCCHLchan CCCH1(this, 1);
-		CCCH1.downstream(radio);
-		CCCH1.open();
-
-		OsmoCCCHLchan CCCH2(this, 2);
-		CCCH2.downstream(radio);
-		CCCH2.open();
+		for (int i = 0; i < 3; i++) {
+			mCCCH[i] = new OsmoCCCHLchan(this, i);
+			mCCCH[i]->downstream(radio);
+			mCCCH[i]->open();
+		}
 
 		for (int i = 0; i < 4; i++) {
 			/* create logical channel */
