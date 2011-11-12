@@ -102,7 +102,7 @@ void TransceiverManager::clockHandler()
 		uint32_t FN;
 		sscanf(buffer,"IND CLOCK %u", &FN);
 		LOG(DEBUG) << "CLOCK indication, clock="<<FN;
-		gBTS.clock().set(FN);
+		gBTSL1.clock().set(FN);
 		mHaveClock = true;
 		return;
 	}
@@ -171,7 +171,7 @@ void ::ARFCNManager::installDecoder(GSM::L1Decoder *wL1d)
 
 void ::ARFCNManager::writeHighSide(const GSM::TxBurst& burst)
 {
-	LOG(DEEPDEBUG) << "transmit at time " << gBTS.clock().get() << ": " << burst;
+	LOG(DEEPDEBUG) << "transmit at time " << gBTSL1.clock().get() << ": " << burst;
 	// format the transmission request message
 	static const int bufferSize = gSlotLen+1+4+1;
 	char buffer[bufferSize];
@@ -340,8 +340,8 @@ int ::ARFCNManager::sendCommand(const char*command)
 bool ::ARFCNManager::tune(int wARFCN)
 {
 	// convert ARFCN number to a frequency
-	unsigned rxFreq = uplinkFreqKHz(gBTS.band(),wARFCN);
-	unsigned txFreq = downlinkFreqKHz(gBTS.band(),wARFCN);
+	unsigned rxFreq = uplinkFreqKHz(gBTSL1.band(),wARFCN);
+	unsigned txFreq = downlinkFreqKHz(gBTSL1.band(),wARFCN);
 	// tune rx
 	int status = sendCommand("RXTUNE",rxFreq);
 	if (status!=0) {
@@ -364,7 +364,7 @@ bool ::ARFCNManager::tune(int wARFCN)
 bool ::ARFCNManager::tuneLoopback(int wARFCN)
 {
 	// convert ARFCN number to a frequency
-	unsigned txFreq = downlinkFreqKHz(gBTS.band(),wARFCN);
+	unsigned txFreq = downlinkFreqKHz(gBTSL1.band(),wARFCN);
 	// tune rx
 	int status = sendCommand("RXTUNE",txFreq);
 	if (status!=0) {

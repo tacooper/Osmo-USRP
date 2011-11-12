@@ -86,6 +86,12 @@ class GSMConfigL1 {
 
 };	// GSM
 
+/**@addtogroup Globals */
+//@{
+/** A single global GSMConfig object in the global namespace. */
+extern GSM::GSMConfigL1 &gBTSL1;
+//@}
+
 
 #endif
 

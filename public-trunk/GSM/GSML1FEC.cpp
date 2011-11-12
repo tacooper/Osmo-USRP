@@ -123,7 +123,7 @@ static const int powerCommand1900[32] =
 
 const int* pickTable()
 {
-	switch (gBTS.band()) {
+	switch (gBTSL1.band()) {
 		case GSM850:
 		case EGSM900:
 			return powerCommandLowBand;
@@ -181,11 +181,11 @@ unsigned encodePower(int power)
 L1Encoder::L1Encoder(unsigned wTN, const TDMAMapping& wMapping, L1FEC *wParent)
 	:mDownstream(NULL),
 	mMapping(wMapping),mTN(wTN),
-	mTSC(gBTS.BCC()),				// Note that TSC is hardcoded to the BCC.
+	mTSC(gBTSL1.BCC()),				// Note that TSC is hardcoded to the BCC.
 	mParent(wParent),
 	mTotalBursts(0),
-	mPrevWriteTime(gBTS.time().FN(),wTN),
-	mNextWriteTime(gBTS.time().FN(),wTN),
+	mPrevWriteTime(gBTSL1.time().FN(),wTN),
+	mNextWriteTime(gBTSL1.time().FN(),wTN),
 	mRunning(false),mActive(false)
 {
 	assert(mMapping.allowedSlot(mTN));
@@ -271,7 +271,7 @@ void L1Encoder::resync()
 {
 	// If the encoder's clock is far from the current BTS clock,
 	// get it caught up to something reasonable.
-	Time now = gBTS.time();
+	Time now = gBTSL1.time();
 	int32_t delta = mNextWriteTime-now;
 	OBJLOG(DEEPDEBUG) << "L1Encoder next=" << mNextWriteTime << " now=" << now << " delta=" << delta;
 	if ((delta<0) || (delta>(51*26))) {
@@ -287,7 +287,7 @@ void L1Encoder::waitToSend() const
 {
 	// Block until the BTS clock catches up to the
 	// mostly recently transmitted burst.
-	gBTS.clock().wait(mPrevWriteTime);
+	gBTSL1.clock().wait(mPrevWriteTime);
 }
 
 
@@ -484,7 +484,7 @@ void RACHL1Decoder::writeLowSide(const RxBurst& burst)
 	unsigned sentParity = ~mU.peekField(8,6);
 	unsigned checkParity = mD.parity(mParity);
 	unsigned encodedBSIC = (sentParity ^ checkParity) & 0x03f;
-	if (encodedBSIC != gBTS.BSIC()) {
+	if (encodedBSIC != gBTSL1.BSIC()) {
 		countBadFrame();
 		return;
 	}
@@ -938,7 +938,7 @@ void SCHL1Encoder::generate()
 	assert(mDownstream);
 	// Data, GSM 04.08 9.1.30
 	size_t wp=0;
-	mD.writeField(wp,gBTS.BSIC(),6);
+	mD.writeField(wp,gBTSL1.BSIC(),6);
 	mD.writeField(wp,mNextWriteTime.T1(),11);
 	mD.writeField(wp,mNextWriteTime.T2(),5);
 	mD.writeField(wp,mNextWriteTime.T3p(),3);
@@ -1336,7 +1336,7 @@ void TCHFACCHL1Encoder::dispatch()
 	// from above.  TCH/FACCH, however, must feed the interleaver on time.
 	if (!active()) {
 		mNextWriteTime += 26;
-		gBTS.clock().wait(mNextWriteTime);
+		gBTSL1.clock().wait(mNextWriteTime);
 		return;
 	}
 
