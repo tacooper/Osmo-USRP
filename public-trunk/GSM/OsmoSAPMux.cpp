@@ -27,6 +27,7 @@
 #include "OsmoSAPMux.h"
 #include "GSMTransfer.h"
 #include "GSML1FEC.h"
+#include "OsmoLogicalChannel.h"
 
 #include <Logger.h>
 
@@ -36,15 +37,45 @@ using namespace GSM;
 
 void OsmoSAPMux::writeHighSide(const L2Frame& frame)
 {
-	// The SAP may or may not be present, depending on the channel type.
 	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeHighSide " << frame;
+	/* put it into the top side of the L2 FIFO */
+	mL2Q.write(new L2Frame(frame));
 }
-
-
 
 void OsmoSAPMux::writeLowSide(const L2Frame& frame)
 {
 	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide SAP" << frame.SAPI() << " " << frame;
+	assert(mLchan);
+	/* simply pass it right through to the OsmoThreadMux */
+	mLchan->writeLowSide(frame);
+}
+
+void OsmoSAPMux::dispatch()
+{
+	L2Frame *frame;
+
+	assert(mDownstream);
+
+	/* blocking read from FIFO */
+	frame = mL2Q.read();
+
+	/* blocking write to L1Encoder */
+	mLock.lock();
+	mDownstream->writeHighSide(*frame);
+	mLock.unlock();
+}
+
+void GSM::OsmoSAPRoutine( OsmoSAPMux *osm )
+{
+	while (1) {
+		osm->dispatch();
+	}
+}
+
+void OsmoSAPMux::start()
+{
+	OBJLOG(DEBUG) << "OsmoSAPMux";
+	mQueueThread.start((void*(*)(void*))OsmoSAPRoutine,(void *)this);
 }
 
 // vim: ts=4 sw=4

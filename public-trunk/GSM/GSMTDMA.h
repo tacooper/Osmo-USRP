@@ -134,6 +134,9 @@ extern const TDMAMapping gCCCH_5Mapping;	///< GSM 05.02 Clause 7 Table 3 Line 5 
 extern const TDMAMapping gCCCH_6Mapping;	///< GSM 05.02 Clause 7 Table 3 Line 5 B6
 extern const TDMAMapping gCCCH_7Mapping;	///< GSM 05.02 Clause 7 Table 3 Line 5 B7
 extern const TDMAMapping gCCCH_8Mapping;	///< GSM 05.02 Clause 7 Table 3 Line 5 B8
+
+extern const TDMAMapping gCCCH[4];
+
 //@}
 /**@name SDCCH */
 //@{

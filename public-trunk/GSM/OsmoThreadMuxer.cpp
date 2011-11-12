@@ -23,63 +23,23 @@
 */
 
 
-
-#ifndef OsmoSAPMUX_H
-#define OsmoSAPMUX_H
-
-#include "GSMSAPMux.h"
 #include "GSMTransfer.h"
-#include "GSML1FEC.h"
-
+#include "OsmoLogicalChannel.h"
+#include "OsmoThreadMuxer.h"
 #include <Logger.h>
 
-namespace GSM {
-
-class OsmoLogicalChannel;
-
-/**
-	A SAPMux is a multipexer the connects a single L1 to multiple L2s.
-	A "service access point" in GSM/ISDN is analogous to port number in IP.
-	GSM allows up to 4 SAPs, although only two are presently used.
-	See GSM 04.05 5.2 for an introduction.
-*/
-class OsmoSAPMux : public SAPMux {
-
-	protected:
-	OsmoLogicalChannel *mLchan;
-	L2FrameFIFO mL2Q;
-	Thread mQueueThread;
-
-	public:
-
-	OsmoSAPMux() { 
-	}
-
-	virtual ~OsmoSAPMux() {}
-
-	virtual void writeHighSide(const L2Frame& frame);
-	virtual void writeLowSide(const L2Frame& frame);
-
-	void upstream(OsmoLogicalChannel *lchan) {
-		assert(mLchan == NULL);
-		mLchan = lchan;
-	}
-
-	void upstream( L2DL * wUpstream, unsigned wSAPI=0 )
-		{ }
-	/* use downstream() of SAPMux */
-
-	/* actual dispatch routine, called in endless loop */
-	void dispatch();
-
-	/* start the dispatch thread */
-	void start();
-};
-
-void OsmoSAPRoutine( OsmoSAPMux *osm );
-
-}	// namespace GSM
 
 
-#endif
+using namespace std;
+using namespace GSM;
+
+
+OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
+			      struct OsmoLogicalChannel *lchan)
+{
+	OBJLOG(DEEPDEBUG) << "OsmoThreadMuxer::writeLowSide" << lchan << " " << frame;
+	/* resolve SAPI, SS, TS, TRX numbers */
+	/* build primitive that we can put into the up-queue */
+}
+
 // vim: ts=4 sw=4

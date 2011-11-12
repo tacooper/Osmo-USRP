@@ -93,6 +93,11 @@ MAKE_TDMA_MAPPING(CCCH_3,TDMA_BEACON_CCCH,true,false,0x55,true,51);
 
 // TODO -- Other CCCH subchannels 4-8 for support of C-IV.
 
+const TDMAMapping GSM::gCCCH[4] = {
+	GSM::gCCCH_0Mapping, GSM::gCCCH_1Mapping,
+	GSM::gCCCH_2Mapping, GSM::gCCCH_3Mapping
+};
+
 const unsigned SDCCH_4_0DFrames[] = {22,23,24,25};
 MAKE_TDMA_MAPPING(SDCCH_4_0D,SDCCH_4_0,true,false,0x01,true,51);
 

@@ -32,7 +32,9 @@ libGSML1_la_SOURCES = \
 	GSML1FEC.cpp \
 	GSMTDMA.cpp \
 	GSMTransfer.cpp \
+	GSMSAPMux.cpp \
 	OsmoSAPMux.cpp \
+	OsmoLogicalChannel.cpp \
 	GSMTAPDump.cpp
 
 libGSM_la_SOURCES = \
@@ -51,7 +53,6 @@ libGSM_la_SOURCES = \
 	GSML3RRElements.cpp \
 	GSML3RRMessages.cpp \
 	GSMLogicalChannel.cpp \
-	GSMSAPMux.cpp \
 	PowerManager.cpp
 
 noinst_HEADERS = \

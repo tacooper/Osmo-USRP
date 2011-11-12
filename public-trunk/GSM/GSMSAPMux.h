@@ -66,7 +66,7 @@ class SAPMux  {
 	virtual void writeHighSide(const L2Frame& frame); 
 	virtual void writeLowSide(const L2Frame& frame); 
 	
-	void upstream( L2DL * wUpstream, unsigned wSAPI=0 )
+	virtual void upstream( L2DL * wUpstream, unsigned wSAPI=0 )
 		{ assert(mUpstream[wSAPI]==NULL); mUpstream[wSAPI]=wUpstream; }
 	void downstream( L1FEC * wDownstream )
 		{ assert(mDownstream==NULL); mDownstream=wDownstream; }

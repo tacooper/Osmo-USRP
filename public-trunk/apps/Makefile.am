@@ -25,7 +25,8 @@ AM_CXXFLAGS = -Wall -g -pthread
 
 noinst_PROGRAMS = \
 	OpenBTS \
-	OpenBTScli
+	OpenBTScli \
+	TrueBTS
 
 OpenBTS_SOURCES = OpenBTS.cpp
 OpenBTS_LDADD = \
@@ -46,6 +47,15 @@ OpenBTS_LDADD = \
 OpenBTScli_SOURCES = OpenBTScli.cpp
 OpenBTScli_LDADD = \
 	$(GLOBALS_LA) \
+	$(COMMON_LA) \
+	$(CLI_LA)
+
+TrueBTS_SOURCES = TrueBTS.cpp
+TrueBTS_LDADD = \
+	$(GLOBALS_LA) \
+	$(COMMON_LA) \
+	$(GSML1_LA) \
+	$(TRX_LA) \
 	$(COMMON_LA) \
 	$(CLI_LA)
 
