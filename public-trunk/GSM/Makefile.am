@@ -23,14 +23,19 @@ include $(top_srcdir)/Makefile.common
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES)
 AM_CXXFLAGS = -O2 -g
 
-noinst_LTLIBRARIES = libGSM.la
+noinst_LTLIBRARIES = libGSML1.la libGSM.la
 
-libGSM_la_SOURCES = \
+libGSML1_la_SOURCES = \
 	GSM610Tables.cpp \
 	GSMCommon.cpp \
-	GSMConfig.cpp \
 	GSMConfigL1.cpp \
 	GSML1FEC.cpp \
+	GSMTDMA.cpp \
+	GSMTransfer.cpp \
+	GSMTAPDump.cpp
+
+libGSM_la_SOURCES = \
+	GSMConfig.cpp \
 	GSML2LAPDm.cpp \
 	GSML3CCElements.cpp \
 	GSML3CCMessages.cpp \
@@ -45,9 +50,6 @@ libGSM_la_SOURCES = \
 	GSML3RRMessages.cpp \
 	GSMLogicalChannel.cpp \
 	GSMSAPMux.cpp \
-	GSMTDMA.cpp \
-	GSMTransfer.cpp \
-	GSMTAPDump.cpp \
 	PowerManager.cpp
 
 noinst_HEADERS = \

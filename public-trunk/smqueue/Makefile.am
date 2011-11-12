@@ -47,6 +47,7 @@ smqueue_LDADD = \
 	$(GLOBALS_LA) \
 	$(SMS_LA) \
 	$(GSM_LA) \
+	$(GSML1_LA) \
 	$(COMMON_LA) \
 	$(HLR_LA) \
 	$(SIP_LA) \

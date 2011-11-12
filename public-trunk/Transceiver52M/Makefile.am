@@ -82,12 +82,14 @@ transceiver_SOURCES = runTransceiver.cpp
 transceiver_LDADD = \
 	libtransceiver.la \
 	$(GSM_LA) \
+	$(GSML1_LA) \
 	$(COMMON_LA)
 
 sigProcLibTest_SOURCES = sigProcLibTest.cpp
 sigProcLibTest_LDADD = \
 	libtransceiver.la \
 	$(GSM_LA) \
+	$(GSML1_LA) \
 	$(COMMON_LA)
 
 if UHD

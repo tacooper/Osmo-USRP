@@ -43,6 +43,7 @@ STD_DEFINES_AND_INCLUDES = \
 
 COMMON_LA = $(top_builddir)/CommonLibs/libcommon.la
 GSM_LA = $(top_builddir)/GSM/libGSM.la
+GSML1_LA = $(top_builddir)/GSM/libGSML1.la
 SIP_LA = $(top_builddir)/SIP/libSIP.la
 SMS_LA = $(top_builddir)/SMS/libSMS.la
 TRX_LA = $(top_builddir)/TRXManager/libtrxmanager.la
