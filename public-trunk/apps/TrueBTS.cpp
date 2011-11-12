@@ -111,7 +111,8 @@ static Restarter sgRestarter(gConfig.defines("Server.RestartOnCrash"));
 
 /// Configure the BTS object based on the config file.
 /// So don't create this until AFTER loading the config file.
-GSMConfigL1 &gBTSL1;
+GSMConfigL1 _gBTSL1;
+GSMConfigL1 &gBTSL1 = _gBTSL1;
 
 /// Our interface to the software-defined radio.
 TransceiverManager gTRX(1, gConfig.getStr("TRX.IP"), gConfig.getNum("TRX.Port"));
@@ -657,6 +658,10 @@ int main(int argc, char *argv[])
 
 #endif
 	LOG(INFO) << "system ready";
+
+	while (1) {
+		sleep(10);
+	}
 
 #if 0
 	if (strcasecmp(gConfig.getStr("CLI.Type"),"TCP") == 0) {
