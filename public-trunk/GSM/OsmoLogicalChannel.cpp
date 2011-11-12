@@ -36,8 +36,9 @@ using namespace GSM;
 
 ARFCNManager *OsmoTS::getARFCNmgr()
 {
-	TransceiverManager *trxmgr = getTRX()->getTRXmgr();
-	return trxmgr->ARFCN(getTSnr());
+	const OsmoTRX *trx = getTRX();
+	TransceiverManager *trxmgr = trx->getTRXmgr();
+	return trxmgr->ARFCN(trx->getTN());
 }
 
 OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
@@ -49,7 +50,7 @@ OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
 	mNLchan = 0;
 
 	TransceiverManager *trxmgr = trx.getTRXmgr();
-	ARFCNManager *radio = trxmgr->ARFCN(ts_nr);
+	ARFCNManager *radio = trxmgr->ARFCN(trx.getTN());
 	radio->setSlot(ts_nr, comb);
 }
 
