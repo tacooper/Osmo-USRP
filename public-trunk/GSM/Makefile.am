@@ -36,6 +36,7 @@ libGSML1_la_SOURCES = \
 
 libGSM_la_SOURCES = \
 	GSMConfig.cpp \
+	GSML1FEC_BCCH.cpp \
 	GSML2LAPDm.cpp \
 	GSML3CCElements.cpp \
 	GSML3CCMessages.cpp \

@@ -1012,27 +1012,6 @@ void NDCCHL1Encoder::serviceLoop()
 
 
 
-void BCCHL1Encoder::generate()
-{
-	OBJLOG(DEEPDEBUG) << "BCCHL1Encoder " << mNextWriteTime;
-	// BCCH mapping, GSM 05.02 6.3.1.3
-	// Since we're not doing GPRS or VGCS, it's just SI1-4 over and over.
-	switch (mNextWriteTime.TC()) {
-		case 0: writeHighSide(gBTS.SI1Frame()); return;
-		case 1: writeHighSide(gBTS.SI2Frame()); return;
-		case 2: writeHighSide(gBTS.SI3Frame()); return;
-		case 3: writeHighSide(gBTS.SI4Frame()); return;
-		case 4: writeHighSide(gBTS.SI3Frame()); return;
-		case 5: writeHighSide(gBTS.SI2Frame()); return;
-		case 6: writeHighSide(gBTS.SI3Frame()); return;
-		case 7: writeHighSide(gBTS.SI4Frame()); return;
-		default: assert(0);
-	}
-}
-
-
-
-
 TCHFACCHL1Decoder::TCHFACCHL1Decoder(
 	unsigned wTN,
 	const TDMAMapping& wMapping,
