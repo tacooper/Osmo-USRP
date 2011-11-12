@@ -36,10 +36,8 @@ using namespace GSM;
 
 
 GSMConfig::GSMConfig()
-	:mBand((GSMBand)gConfig.getNum("GSM.Band")),
-	mSI5Frame(UNIT_DATA),mSI6Frame(UNIT_DATA),
-	mT3122(gConfig.getNum("GSM.T3122Min")),
-	mStartTime(::time(NULL))
+	:mSI5Frame(UNIT_DATA),mSI6Frame(UNIT_DATA),
+	mT3122(gConfig.getNum("GSM.T3122Min"))
 {
 	regenerateBeacon();
 }

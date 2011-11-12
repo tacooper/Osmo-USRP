@@ -32,6 +32,8 @@
 #include <ControlCommon.h>
 #include <PowerManager.h>
 
+#include "GSMConfigL1.h"
+
 #include "GSML3RRElements.h"
 #include "GSML3CommonElements.h"
 #include "GSML3RRMessages.h"
@@ -54,7 +56,7 @@ class TCHList : public std::vector<TCHFACCHLogicalChannel*> {};
 	This object carries the top-level GSM air interface configuration.
 	It serves as a central clearinghouse to get access to everything else in the GSM code.
 */
-class GSMConfig {
+class GSMConfig : public GSMConfigL1 {
 
 	private:
 
@@ -77,16 +79,6 @@ class GSMConfig {
 	TCHList mTCHPool;
 	//@}
 
-	/**@name BSIC. */
-	//@{
-	unsigned mNCC;		///< network color code
-	unsigned mBCC;		///< basestation color code
-	//@}
-
-	GSMBand mBand;		///< BTS operating band
-
-	Clock mClock;		///< local copy of BTS master clock
-
 	/**@name Encoded L2 frames to be sent on the BCCH. */
 	//@{
 	L2Frame mSI1Frame;
@@ -102,8 +94,6 @@ class GSMConfig {
 	//@}
 
 	int mT3122;
-
-	time_t mStartTime;
 
 	L3LocationAreaIdentity mLAI;
 
@@ -132,21 +122,11 @@ class GSMConfig {
 	const L3Frame& SI6Frame() const { return mSI6Frame; }
 	//@}
 
-	/** Get the current master clock value. */
-	Time time() const { return mClock.get(); }
-
 	/**@name Accessors. */
 	//@{
 	Control::Pager& pager() { return mPager; }
-	GSMBand band() const { return mBand; }
-	unsigned BCC() const { return mBCC; }
-	unsigned NCC() const { return mNCC; }
-	GSM::Clock& clock() { return mClock; }
 	const L3LocationAreaIdentity& LAI() const { return mLAI; }
 	//@}
-
-	/** Return the BSIC, NCC:BCC. */
-	unsigned BSIC() const { return (mNCC<<3) | mBCC; }
 
 	/**
 		Re-encode the L2Frames for system information messages.
@@ -247,9 +227,6 @@ class GSMConfig {
 	/** Combination VII is 8 SDCCHs. */
 	void createCombinationVII(TransceiverManager &TRX, unsigned CN, unsigned TN);
 	//@}
-
-	/** Return number of seconds since starting. */
-	time_t uptime() const { return ::time(NULL)-mStartTime; }
 
 	/** Get a handle to the power manager. */
 	PowerManager& powerManager() { return mPowerManager; }

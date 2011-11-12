@@ -29,6 +29,7 @@ libGSM_la_SOURCES = \
 	GSM610Tables.cpp \
 	GSMCommon.cpp \
 	GSMConfig.cpp \
+	GSMConfigL1.cpp \
 	GSML1FEC.cpp \
 	GSML2LAPDm.cpp \
 	GSML3CCElements.cpp \
@@ -53,6 +54,7 @@ noinst_HEADERS = \
  	GSM610Tables.h \
 	GSMCommon.h \
 	GSMConfig.h \
+	GSMConfigL1.h \
 	GSML1FEC.h \
 	GSML2LAPDm.h \
 	GSML3CCElements.h \
