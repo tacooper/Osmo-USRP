@@ -80,7 +80,8 @@ public:
 
 	/* L1 informs us about the next TDMA time for which it needs
 	 * data */
-	virtual void signalNextWtime(GSM::Time &time);
+	virtual void signalNextWtime(GSM::Time &time,
+				     OsmoLogicalChannel &lchan);
 };
 
 };		// GSM

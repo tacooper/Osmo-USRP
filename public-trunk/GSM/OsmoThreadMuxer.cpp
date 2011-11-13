@@ -42,9 +42,10 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
 	/* build primitive that we can put into the up-queue */
 }
 
-void OsmoThreadMuxer::signalNextWtime(GSM::Time &time)
+void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
+				      OsmoLogicalChannel &lchan)
 {
-	OBJLOG(DEBUG) << "NextWriteTime: " << time;
+	OBJLOG(DEBUG) << lchan << " " << time;
 }
 
 // vim: ts=4 sw=4

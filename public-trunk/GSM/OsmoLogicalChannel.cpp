@@ -95,13 +95,13 @@ ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
 	ss_nr = lchan.SSnr();
 
 	/* Just dump something like "(TRX,TS,SS)" identifying the lchan */
-	os << "(" << trx_nr << "," << ts_nr << "," << ss_nr << ")";
+	os << "(" << trx_nr << "," << ts_nr << "," << ss_nr << "," << lchan.type() << ")";
 }
 
 void OsmoLogicalChannel::signalNextWtime(GSM::Time &time)
 {
 	if (mTM)
-		mTM->signalNextWtime(time);
+		mTM->signalNextWtime(time, *this);
 }
 
 void OsmoLogicalChannel::downstream(ARFCNManager* radio)
