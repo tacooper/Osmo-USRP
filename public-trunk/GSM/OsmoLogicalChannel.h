@@ -208,7 +208,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const OsmoLogicalChannel& lchan);
 };
 
-//std::ostream& GSM::operator<<(std::ostream& os, const OsmoLogicalChannel& lchan);
+std::ostream& operator<<(std::ostream& os, const OsmoLogicalChannel& lchan);
 
 /**
 	Standalone dedicated control channel.
