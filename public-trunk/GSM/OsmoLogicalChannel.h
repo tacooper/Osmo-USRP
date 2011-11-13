@@ -333,6 +333,8 @@ public:
 		mRACH.open();
 
 		mBCCH = new OsmoBCCHLchan(this);
+		mBCCH->downstream(radio);
+		mBCCH->open();
 
 		for (int i = 0; i < 3; i++) {
 			mCCCH[i] = new OsmoCCCHLchan(this, i);
