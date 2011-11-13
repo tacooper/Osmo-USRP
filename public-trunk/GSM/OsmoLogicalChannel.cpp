@@ -71,6 +71,9 @@ void OsmoLogicalChannel::connect()
 	/* connect L1 at lower end of OsmoSAPMux */
 	mMux.downstream(mL1);
 
+	/* connect SAPmux upper end to this logical channel */
+	mMux.upstream(this);
+
 	/* Tell L1FEC that the SAPMux is its upstream */
 	if (mL1)
 		mL1->upstream(&mMux);
