@@ -119,6 +119,7 @@ OsmoSDCCHLchan::OsmoSDCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 		assert(0);
 	}
 	mL1 = new SDCCHL1FEC(ts_nr, wMapping->LCH());
+	mSACCHL1 = new SACCHL1FEC(ts_nr, wMapping->SACCH());
 	connect();
 }
 
@@ -127,6 +128,7 @@ OsmoTCHFACCHLchan::OsmoTCHFACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 {
 	unsigned int ts_nr = osmo_ts->getTSnr();
 	mL1 = new TCHFACCHL1FEC(ts_nr, gTCHF_T[ts_nr].LCH());
+	mSACCHL1 = new SACCHL1FEC(ts_nr, gTCHF_T[ts_nr].SACCH());
 	connect();
 }
 
