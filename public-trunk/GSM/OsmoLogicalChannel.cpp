@@ -122,6 +122,14 @@ OsmoCCCHLchan::OsmoCCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	connect();
 }
 
+OsmoBCCHLchan::OsmoBCCHLchan(OsmoTS *osmo_ts)
+	:OsmoNDCCHLogicalChannel(osmo_ts, 0)
+{
+	assert(osmo_ts->getComb() == 5);
+
+	mL1 = new CCCHL1FEC(gBCCHMapping);
+	connect();
+}
 
 OsmoSDCCHLchan::OsmoSDCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	:OsmoLogicalChannel(osmo_ts, ss_nr)

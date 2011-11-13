@@ -257,6 +257,13 @@ class OsmoCCCHLchan : public OsmoNDCCHLogicalChannel {
 	ChannelType type() const { return CCCHType; }
 };
 
+class OsmoBCCHLchan : public OsmoNDCCHLogicalChannel {
+	public:
+	OsmoBCCHLchan(OsmoTS *osmo_ts);
+
+	ChannelType type() const { return BCCHType; }
+};
+
 class OsmoTCHFACCHLchan : public OsmoLogicalChannel {
 
 	protected:
@@ -305,13 +312,15 @@ protected:
 	SCHL1FEC mSCH;
 	FCCHL1FEC mFCCH;
 	RACHL1FEC mRACH;
+	OsmoBCCHLchan *mBCCH;
 	OsmoCCCHLchan *mCCCH[3];
 public:
 	OsmoComb5TS(OsmoTRX &trx, unsigned int tn)
 		:OsmoTS(trx, tn, 5),
 		mSCH(),
 		mFCCH(),
-		mRACH(gRACHC5Mapping) {
+		mRACH(gRACHC5Mapping)
+	{
 		ARFCNManager* radio = getARFCNmgr();
 
 		mSCH.downstream(radio);
@@ -322,6 +331,8 @@ public:
 
 		mRACH.downstream(radio);
 		mRACH.open();
+
+		mBCCH = new OsmoBCCHLchan(this);
 
 		for (int i = 0; i < 3; i++) {
 			mCCCH[i] = new OsmoCCCHLchan(this, i);
