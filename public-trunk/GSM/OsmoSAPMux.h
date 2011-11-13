@@ -52,13 +52,15 @@ class OsmoSAPMux : public SAPMux {
 
 	public:
 
-	OsmoSAPMux() { 
+	OsmoSAPMux()
+		:mLchan(NULL){ 
 	}
 
 	virtual ~OsmoSAPMux() {}
 
 	virtual void writeHighSide(const L2Frame& frame);
 	virtual void writeLowSide(const L2Frame& frame);
+	virtual void signalNextWtime(GSM::Time &time);
 
 	void upstream(OsmoLogicalChannel *lchan) {
 		assert(mLchan == NULL);

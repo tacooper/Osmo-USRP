@@ -84,9 +84,12 @@ protected:
 	unsigned int mTN;
 	OsmoTS *mTS[8];
 public:
-	OsmoTRX(TransceiverManager &TRXmgr, unsigned int trx_nr) {
+	OsmoTRX(TransceiverManager &TRXmgr, unsigned int trx_nr,
+		OsmoThreadMuxer *thread_mux)
+	{
 		mTRXmgr = &TRXmgr;
 		mTN = trx_nr;
+		mThreadMux = thread_mux;
 	}
 
 	TransceiverManager *getTRXmgr() const { return mTRXmgr; }
@@ -151,6 +154,9 @@ public:
 	unsigned int SSnr() const { return mSS; }
 	//@}
 
+	virtual void writeLowSide(const L2Frame& frame);
+	virtual void signalNextWtime(GSM::Time &time);
+
 
 	/**@name Pass-throughs. */
 	//@{
@@ -166,14 +172,6 @@ public:
 		assert(mSACCHL1);
 		mSACCHL1->setPhy(*other.SACCH());
 	}
-
-	//@}
-
-
-	/**@name L3 interfaces */
-	//@{
-	//
-	virtual void writeLowSide(const L2Frame& frame);
 
 	//@} // passthrough
 

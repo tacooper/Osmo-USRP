@@ -180,6 +180,7 @@ unsigned encodePower(int power)
 
 L1Encoder::L1Encoder(unsigned wTN, const TDMAMapping& wMapping, L1FEC *wParent)
 	:mDownstream(NULL),
+	mUpstream(NULL),
 	mMapping(wMapping),mTN(wTN),
 	mTSC(gBTSL1.BCC()),				// Note that TSC is hardcoded to the BCC.
 	mParent(wParent),
@@ -203,8 +204,14 @@ void L1Encoder::rollForward()
 	mPrevWriteTime = mNextWriteTime;
 	mTotalBursts++;
 	mNextWriteTime.rollForward(mMapping.frameMapping(mTotalBursts),mMapping.repeatLength());
+	signalNextWtime();
 }
 
+void L1Encoder::signalNextWtime()
+{
+	if (mUpstream)
+		mUpstream->signalNextWtime(mNextWriteTime);
+}
 
 unsigned L1Encoder::ARFCN() const
 {

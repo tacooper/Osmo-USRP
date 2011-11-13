@@ -98,6 +98,11 @@ ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
 	os << "(" << trx_nr << "," << ts_nr << "," << ss_nr << ")";
 }
 
+void OsmoLogicalChannel::signalNextWtime(GSM::Time &time)
+{
+	if (mTM)
+		mTM->signalNextWtime(time);
+}
 
 void OsmoLogicalChannel::downstream(ARFCNManager* radio)
 {

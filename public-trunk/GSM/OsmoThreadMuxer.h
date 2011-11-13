@@ -30,7 +30,6 @@
 
 namespace GSM {
 
-
 /* The idea of this monster is to provide an interface between the
  * heavily multi-threaded OpenBTS architecture and the single-threaded
  * osmo-bts architecture.
@@ -54,7 +53,9 @@ protected:
 	unsigned int mNumTRX;
 
 public:
-	OsmoThreadMuxer() {
+	OsmoThreadMuxer()
+		:mNumTRX(0)
+	{
 		int rc;
 
 		rc = socketpair(AF_UNIX, SOCK_DGRAM, 0, mSockFd);
@@ -64,17 +65,22 @@ public:
 		return mSockFd[1];
 	}
 
-	int addTRX(TransceiverManager &trx_mgr, unsigned int trx_nr) {
+	OsmoTRX &addTRX(TransceiverManager &trx_mgr, unsigned int trx_nr) {
 		/* for now we only support a single TRX */
 		assert(mNumTRX == 0);
-		OsmoTRX *otrx = new OsmoTRX(trx_mgr, trx_nr);
+		OsmoTRX *otrx = new OsmoTRX(trx_mgr, trx_nr, this);
 		mTRX[mNumTRX++] = otrx;
+		return *otrx;
 	}
 
 	/* receive frame synchronously from L1Decoder->OsmoSAPMux and
 	 * euqneue it towards osmo-bts */
 	virtual void writeLowSide(const L2Frame& frame,
 				  OsmoLogicalChannel *lchan);
+
+	/* L1 informs us about the next TDMA time for which it needs
+	 * data */
+	virtual void signalNextWtime(GSM::Time &time);
 };
 
 };		// GSM

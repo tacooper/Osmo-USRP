@@ -85,6 +85,7 @@ class L1Encoder {
 	ARFCNManager *mDownstream;
 	TxBurst mBurst;					///< a preformatted burst template
 	TxBurst mFillerBurst;			///< the filler burst for this channel
+	SAPMux *mUpstream;
 
 	/**@name Config items that don't change. */
 	//@{
@@ -130,6 +131,14 @@ class L1Encoder {
 		mDownstream=wDownstream;
 	}
 
+	/** Set the SAPMux pointer.  */
+	virtual void upstream(SAPMux *wSapmux)
+	{
+		assert(mUpstream==NULL);	// Don't call this twice.
+		mUpstream=wSapmux;
+	}
+
+
 	/**@name Accessors. */
 	//@{
 	const TDMAMapping& mapping() const { return mMapping; }
@@ -164,6 +173,8 @@ class L1Encoder {
 
 	/** Start the service loop thread, if there is one.  */
 	virtual void start() { mRunning=true; }
+
+	void signalNextWtime();
 
 	protected:
 
@@ -359,7 +370,8 @@ class L1FEC {
 
 	/** Attach L1 to an upstream SAPI mux and L2. */
 	void upstream(SAPMux* mux)
-		{ if (mDecoder) mDecoder->upstream(mux); }
+		{ if (mDecoder) mDecoder->upstream(mux);
+		  if (mEncoder) mEncoder->upstream(mux); }
 
 	/**@name Ganged actions. */
 	//@{

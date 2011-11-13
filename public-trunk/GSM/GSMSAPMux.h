@@ -65,7 +65,8 @@ class SAPMux  {
 
 	virtual void writeHighSide(const L2Frame& frame); 
 	virtual void writeLowSide(const L2Frame& frame); 
-	
+	virtual void signalNextWtime(GSM::Time &time) {};
+
 	virtual void upstream( L2DL * wUpstream, unsigned wSAPI=0 )
 		{ assert(mUpstream[wSAPI]==NULL); mUpstream[wSAPI]=wUpstream; }
 	void downstream( L1FEC * wDownstream )

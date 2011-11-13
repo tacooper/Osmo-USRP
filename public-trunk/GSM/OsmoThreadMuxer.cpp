@@ -34,12 +34,17 @@ using namespace std;
 using namespace GSM;
 
 
-OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
-			      struct OsmoLogicalChannel *lchan)
+void OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
+				   struct OsmoLogicalChannel *lchan)
 {
-	OBJLOG(DEEPDEBUG) << "OsmoThreadMuxer::writeLowSide" << lchan << " " << frame;
+	OBJLOG(INFO) << "OsmoThreadMuxer::writeLowSide" << lchan << " " << frame;
 	/* resolve SAPI, SS, TS, TRX numbers */
 	/* build primitive that we can put into the up-queue */
+}
+
+void OsmoThreadMuxer::signalNextWtime(GSM::Time &time)
+{
+	OBJLOG(DEBUG) << "NextWriteTime: " << time;
 }
 
 // vim: ts=4 sw=4

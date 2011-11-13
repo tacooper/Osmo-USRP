@@ -50,6 +50,12 @@ void OsmoSAPMux::writeLowSide(const L2Frame& frame)
 	mLchan->writeLowSide(frame);
 }
 
+void OsmoSAPMux::signalNextWtime(GSM::Time &time)
+{
+	assert(mLchan);
+	mLchan->signalNextWtime(time);
+}
+
 void OsmoSAPMux::dispatch()
 {
 	L2Frame *frame;

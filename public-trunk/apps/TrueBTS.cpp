@@ -31,6 +31,7 @@
 #include <GSMSAPMux.h>
 #include <GSML3RRMessages.h>
 #include <OsmoLogicalChannel.h>
+#include <OsmoThreadMuxer.h>
 
 #include <Globals.h>
 
@@ -549,7 +550,8 @@ int main(int argc, char *argv[])
 	// Set Receiver Gain
 	radio->setRxGain(gConfig.getNum("GSM.RxGain"));
 
-	OsmoTRX TRX0(gTRX, 0);
+	OsmoThreadMuxer ThreadMux;
+	OsmoTRX &TRX0 = ThreadMux.addTRX(gTRX, 0);
 
 	OsmoComb5TS TS0(TRX0, 0);
 	OsmoComb1TS TS1(TRX0, 1);
