@@ -79,6 +79,8 @@ noinst_HEADERS = \
 	GSMTransfer.h \
 	PowerManager.h \
 	GSMTAPDump.h \
+	OsmoLogicalChannel.h \
 	OsmoSAPMux.h \
+	OsmoThreadMuxer.h \
 	gsmtap.h
 
