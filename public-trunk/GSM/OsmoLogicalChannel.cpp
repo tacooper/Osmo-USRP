@@ -49,6 +49,7 @@ OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
 	mTRX = &trx;
 	mNLchan = 0;
 
+	/* configure the radio timeslot combination */
 	TransceiverManager *trxmgr = trx.getTRXmgr();
 	ARFCNManager *radio = trxmgr->ARFCN(trx.getTN());
 	radio->setSlot(ts_nr, comb);
@@ -58,21 +59,28 @@ OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
 void OsmoLogicalChannel::open()
 {
 	LOG(INFO);
-	if (mSACCHL1) mSACCHL1->open();
-	if (mL1) mL1->open();
+	if (mSACCHL1)
+		mSACCHL1->open();
+	if (mL1)
+		mL1->open();
 }
 
 
 void OsmoLogicalChannel::connect()
 {
+	/* connect L1 at lower end of OsmoSAPMux */
 	mMux.downstream(mL1);
-	if (mL1) mL1->upstream(&mMux);
-	//mMux.upstream(mL2[s],s);
-	//if (mL2[s]) mL2[s]->downstream(&mMux);
+
+	/* Tell L1FEC that the SAPMux is its upstream */
+	if (mL1)
+		mL1->upstream(&mMux);
 }
 
+/* This is where OsmoSAPMux inputs data received from L1FEC */
 void OsmoLogicalChannel::writeLowSide(const L2Frame& frame)
 {
+	/* simply pass it through to the TreadMuxer, including
+	 * a reference to us (the logical channel) */
 	mTM->writeLowSide(frame, this);
 }
 
@@ -83,6 +91,7 @@ ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
 	ts_nr = lchan.TS()->getTSnr();
 	ss_nr = lchan.SSnr();
 
+	/* Just dump something like "(TRX,TS,SS)" identifying the lchan */
 	os << "(" << trx_nr << "," << ts_nr << "," << ss_nr << ")";
 }
 
@@ -90,8 +99,12 @@ ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
 void OsmoLogicalChannel::downstream(ARFCNManager* radio)
 {
 	assert(mL1);
+	/* tell the L1 to which ARFCNmanager to transmit */
 	mL1->downstream(radio);
-	if (mSACCHL1) mSACCHL1->downstream(radio);
+
+	/* If we have a SACCH, configure it the same way */
+	if (mSACCHL1)
+		mSACCHL1->downstream(radio);
 }
 
 OsmoCCCHLchan::OsmoCCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
@@ -108,6 +121,7 @@ OsmoSDCCHLchan::OsmoSDCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	unsigned int ts_nr = osmo_ts->getTSnr();
 	const CompleteMapping *wMapping = NULL;
 
+	/* we have to distinguish SDCCH/4 and SDCCH/8 mappings */
 	switch (osmo_ts->getComb()) {
 	case 5:
 		wMapping = &gSDCCH4[ss_nr];
