@@ -133,8 +133,8 @@ public:
 		Specific sub-class initializers allocate new components as needed.
 	*/
 	OsmoLogicalChannel(OsmoTS *osmo_ts, unsigned int ss_nr)
-		:mSACCHL1(NULL),
-		mL1(NULL)
+		:mL1(NULL),
+		mSACCHL1(NULL)
 	{
 		mTS = osmo_ts;
 		mSS = ss_nr;
