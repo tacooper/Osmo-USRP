@@ -48,4 +48,83 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	OBJLOG(DEBUG) << lchan << " " << time;
 }
 
+void OsmoThreadMuxer::createSockets()
+{
+	/* Create directory to hold socket files */
+	int rc = mkdir("/dev/msgq/", S_ISVTX);
+	// if directory exists, just continue anyways
+	if(errno != EEXIST && rc < 0)
+	{
+		LOG(ERROR) << "mkdir() returned: errno=" << strerror(errno);
+	}
+
+	/* Create path for Sys Write */
+	rc = ::mkfifo(getPath(SYS_WRITE), S_ISVTX);
+	// if file exists, just continue anyways
+	if(errno != EEXIST && rc < 0)
+	{
+		LOG(ERROR) << SYS_WRITE << " mkfifo() returned: errno=" << 
+			strerror(errno);
+	}
+	mSockFd[SYS_WRITE] = ::open(getPath(SYS_WRITE), O_WRONLY);
+	if(mSockFd[SYS_WRITE] < 0)
+	{
+		if(mSockFd[SYS_WRITE])
+		{
+			::close(mSockFd[SYS_WRITE]);
+		}
+	}
+
+	/* Create path for L1 Write */
+	rc = ::mkfifo(getPath(L1_WRITE), S_ISVTX);
+	// if file exists, just continue anyways
+	if(errno != EEXIST && rc < 0)
+	{
+		LOG(ERROR) << L1_WRITE << " mkfifo() returned: errno=" << 
+			strerror(errno);
+	}
+	mSockFd[L1_WRITE] = ::open(getPath(L1_WRITE), O_WRONLY);
+	if(mSockFd[L1_WRITE] < 0)
+	{
+		if(mSockFd[L1_WRITE])
+		{
+			::close(mSockFd[L1_WRITE]);
+		}
+	}
+
+	/* Create path for Sys Read */
+	rc = ::mkfifo(getPath(SYS_READ), S_ISVTX);
+	// if file exists, just continue anyways
+	if(errno != EEXIST && rc < 0)
+	{
+		LOG(ERROR) << SYS_READ << " mkfifo() returned: errno=" << 
+			strerror(errno);
+	}
+	mSockFd[SYS_READ] = ::open(getPath(SYS_READ), O_RDONLY);
+	if(mSockFd[SYS_READ] < 0)
+	{
+		if(mSockFd[SYS_READ])
+		{
+			::close(mSockFd[SYS_READ]);
+		}
+	}
+
+	/* Create path for L1 Read */
+	rc = ::mkfifo(getPath(SYS_READ), S_ISVTX);
+	// if file exists, just continue anyways
+	if(errno != EEXIST && rc < 0)
+	{
+		LOG(ERROR) << SYS_READ << " mkfifo() returned: errno=" << 
+			strerror(errno);
+	}
+	mSockFd[SYS_READ] = ::open(getPath(SYS_READ), O_RDONLY);
+	if(mSockFd[SYS_READ] < 0)
+	{
+		if(mSockFd[SYS_READ])
+		{
+			::close(mSockFd[SYS_READ]);
+		}
+	}
+}
+
 // vim: ts=4 sw=4
