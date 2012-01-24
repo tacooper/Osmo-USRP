@@ -27,6 +27,9 @@
 
 #include "OsmoLogicalChannel.h"
 #include <TRXManager.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 namespace GSM {
 
@@ -48,7 +51,11 @@ namespace GSM {
 class OsmoThreadMuxer {
 
 protected:
-	int mSockFd[2];
+	// mSockFd[0] == PathSysWrite
+	// mSockFd[1] == PathL1Write
+	// mSockFd[2] == PathSysRead
+	// mSockFd[3] == PathL1Read
+	int mSockFd[4];
 	OsmoTRX *mTRX[1];
 	unsigned int mNumTRX;
 
@@ -56,14 +63,92 @@ public:
 	OsmoThreadMuxer()
 		:mNumTRX(0)
 	{
-		int rc;
+		/* Create directory for socket files if it doesn't exist already */
+		int rc = mkdir("/dev/msgq/", S_ISVTX);
 
-		rc = socketpair(AF_UNIX, SOCK_DGRAM, 0, mSockFd);
+		/* Create path for Sys Write */
+		rc = ::mkfifo(getPath(0), S_ISVTX);
+		// if file exists, just continue anyways
+		if(errno != EEXIST && rc < 0)
+		{
+			LOG(ERROR) << "0 mkfifo() returned: errno=" << strerror(errno);
+		}
+		mSockFd[0] = ::open(getPath(0), O_WRONLY);
+		if(mSockFd[0] < 0)
+		{
+			if(mSockFd[0])
+			{
+				::close(mSockFd[0]);
+			}
+		}
+
+		/* Create path for L1 Write */
+		rc = ::mkfifo(getPath(1), S_ISVTX);
+		// if file exists, just continue anyways
+		if(errno != EEXIST && rc < 0)
+		{
+			LOG(ERROR) << "1 mkfifo() returned: errno=" << strerror(errno);
+		}
+		mSockFd[1] = ::open(getPath(1), O_WRONLY);
+		if(mSockFd[1] < 0)
+		{
+			if(mSockFd[1])
+			{
+				::close(mSockFd[1]);
+			}
+		}
+
+		/* Create path for Sys Read */
+		rc = ::mkfifo(getPath(2), S_ISVTX);
+		// if file exists, just continue anyways
+		if(errno != EEXIST && rc < 0)
+		{
+			LOG(ERROR) << "2 mkfifo() returned: errno=" << strerror(errno);
+		}
+		mSockFd[2] = ::open(getPath(2), O_RDONLY);
+		if(mSockFd[2] < 0)
+		{
+			if(mSockFd[2])
+			{
+				::close(mSockFd[2]);
+			}
+		}
+
+		/* Create path for L1 Read */
+		rc = ::mkfifo(getPath(3), S_ISVTX);
+		// if file exists, just continue anyways
+		if(errno != EEXIST && rc < 0)
+		{
+			LOG(ERROR) << "3 mkfifo() returned: errno=" << strerror(errno);
+		}
+		mSockFd[3] = ::open(getPath(3), O_RDONLY);
+		if(mSockFd[3] < 0)
+		{
+			if(mSockFd[3])
+			{
+				::close(mSockFd[3]);
+			}
+		}
+
+		LOG(INFO) << "All 4 socket files created.";
 	}
 
-	int getUserFd() {
-		return mSockFd[1];
-	}
+	const char* getPath(int index)
+	{
+		switch(index)
+		{
+			case 0:		
+				return "/dev/msgq/femtobts_dsp2arm"; // PathSysWrite
+			case 1:
+				return "/dev/msgq/gsml1_dsp2arm"; // PathL1Write
+			case 2:
+				return "/dev/msgq/femtobts_arm2dsp"; // PathSysRead
+			case 3:
+				return "/dev/msgq/gsml1_arm2dsp"; // PathL1Read
+			default:
+				assert(0);
+		}
+	};
 
 	OsmoTRX &addTRX(TransceiverManager &trx_mgr, unsigned int trx_nr) {
 		/* for now we only support a single TRX */
