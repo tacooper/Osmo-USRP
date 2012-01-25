@@ -27,6 +27,8 @@
 #include "OsmoLogicalChannel.h"
 #include "OsmoThreadMuxer.h"
 #include <Logger.h>
+#include "Interthread.h"
+#include "gsmL1prim.h"
 
 
 
@@ -46,6 +48,104 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 				      OsmoLogicalChannel &lchan)
 {
 	OBJLOG(DEBUG) << lchan << " " << time;
+}
+
+void OsmoThreadMuxer::startThreads()
+{
+	Thread recvSysMsgThread;
+	recvSysMsgThread.start((void*(*)(void*))RecvSysMsgLoopAdapter, this);
+}
+
+void *GSM::RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux)
+{
+	while(true)
+	{
+		TMux->recvSysMsg();
+
+		pthread_testcancel();
+	}
+	return NULL;
+}
+
+void OsmoThreadMuxer::recvSysMsg()
+{
+	const size_t SYS_PRIM_LEN = sizeof(FemtoBts_Prim_t);
+
+	int fd = mSockFd[SYS_READ];
+	char buffer[SYS_PRIM_LEN];
+
+	int len = ::read(fd, (void*)buffer, SYS_PRIM_LEN);
+
+	if(len == SYS_PRIM_LEN) // good frame
+	{
+		LOG(INFO) << "SYS_READ read() received good frame\ntype=" << 
+			getTypeOfSysMsg(buffer) << "\nlen=" << len << " buffer(hex)=";
+
+		for(int i = 0; i < len; i++)
+		{
+			printf("%x ", (unsigned char)buffer[i]);
+		}
+
+		printf("\n");
+
+		//handleSysMsg(buffer);
+	}
+	else if(len == 0) // no frame
+	{
+	}
+	else if(len < 0) // read() error
+	{
+		LOG(ERROR) << "Abort! SYS_READ read() returned: errno=" << 
+			strerror(errno);
+
+		abort();
+	}
+	else // bad frame
+	{
+		buffer[len] = '\0';
+
+		LOG(ALARM) << "Bad frame, SYS_READ read() received bad frame, len=" << 
+			len << " buffer=" << buffer;
+	}
+}
+
+const char *OsmoThreadMuxer::getTypeOfSysMsg(char *buffer)
+{
+	assert(buffer[12]);
+
+	switch(buffer[12])
+	{
+		case FemtoBts_PrimId_SystemInfoReq:
+			return "SYSTEM-INFO.req";
+		case FemtoBts_PrimId_SystemInfoCnf:
+			return "SYSTEM-INFO.conf";
+		case FemtoBts_PrimId_SystemFailureInd:
+			return "SYSTEM-FAILURE.ind";
+		case FemtoBts_PrimId_ActivateRfReq:
+			return "ACTIVATE-RF.req";
+		case FemtoBts_PrimId_ActivateRfCnf:
+			return "ACTIVATE-RF.conf";
+		case FemtoBts_PrimId_DeactivateRfReq:
+			return "DEACTIVATE-RF.req";
+		case FemtoBts_PrimId_DeactivateRfCnf:
+			return "DEACTIVATE-RF.conf";
+		case FemtoBts_PrimId_SetTraceFlagsReq:
+			return "SET-TRACE-FLAGS.req";
+		case FemtoBts_PrimId_RfClockInfoReq:
+			return "RF-CLOCK-INFO.req";
+		case FemtoBts_PrimId_RfClockInfoCnf:
+			return "RF-CLOCK-INFO.conf";
+		case FemtoBts_PrimId_RfClockSetupReq:
+			return "RF-CLOCK-SETUP.req";
+		case FemtoBts_PrimId_RfClockSetupCnf:
+			return "RF-CLOCK-SETUP.conf";
+		case FemtoBts_PrimId_Layer1ResetReq:
+			return "LAYER1-RESET.req";
+		case FemtoBts_PrimId_Layer1ResetCnf:
+			return "LAYER1-RESET.conf";
+		default:
+			return "WARNING: Invalid type!";
+	}
 }
 
 void OsmoThreadMuxer::createSockets()

@@ -83,5 +83,6 @@ noinst_HEADERS = \
 	OsmoLogicalChannel.h \
 	OsmoSAPMux.h \
 	OsmoThreadMuxer.h \
-	gsmtap.h
+	gsmtap.h \
+	gsmL1prim.h
 

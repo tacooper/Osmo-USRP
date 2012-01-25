@@ -74,6 +74,8 @@ public:
 		{
 			LOG(INFO) << "All 4 socket files created.";
 		}
+
+		startThreads();
 	}
 
 	OsmoTRX &addTRX(TransceiverManager &trx_mgr, unsigned int trx_nr) {
@@ -97,6 +99,12 @@ public:
 private:
 	void createSockets();
 
+	void startThreads();
+
+	void recvSysMsg();
+
+	const char* getTypeOfSysMsg(char* buffer);
+
 	const char* getPath(int index)
 	{
 		switch(index)
@@ -113,7 +121,11 @@ private:
 				assert(0);
 		}
 	};
+
+	friend void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
 };
+
+void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
 
 };		// GSM
 
