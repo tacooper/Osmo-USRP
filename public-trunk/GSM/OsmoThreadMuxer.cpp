@@ -69,10 +69,7 @@ void OsmoThreadMuxer::createSockets()
 	mSockFd[SYS_WRITE] = ::open(getPath(SYS_WRITE), O_WRONLY);
 	if(mSockFd[SYS_WRITE] < 0)
 	{
-		if(mSockFd[SYS_WRITE])
-		{
-			::close(mSockFd[SYS_WRITE]);
-		}
+		::close(mSockFd[SYS_WRITE]);
 	}
 
 	/* Create path for L1 Write */
@@ -86,10 +83,7 @@ void OsmoThreadMuxer::createSockets()
 	mSockFd[L1_WRITE] = ::open(getPath(L1_WRITE), O_WRONLY);
 	if(mSockFd[L1_WRITE] < 0)
 	{
-		if(mSockFd[L1_WRITE])
-		{
-			::close(mSockFd[L1_WRITE]);
-		}
+		::close(mSockFd[L1_WRITE]);
 	}
 
 	/* Create path for Sys Read */
@@ -103,27 +97,21 @@ void OsmoThreadMuxer::createSockets()
 	mSockFd[SYS_READ] = ::open(getPath(SYS_READ), O_RDONLY);
 	if(mSockFd[SYS_READ] < 0)
 	{
-		if(mSockFd[SYS_READ])
-		{
-			::close(mSockFd[SYS_READ]);
-		}
+		::close(mSockFd[SYS_READ]);
 	}
 
 	/* Create path for L1 Read */
-	rc = ::mkfifo(getPath(SYS_READ), S_ISVTX);
+	rc = ::mkfifo(getPath(L1_READ), S_ISVTX);
 	// if file exists, just continue anyways
 	if(errno != EEXIST && rc < 0)
 	{
-		LOG(ERROR) << SYS_READ << " mkfifo() returned: errno=" << 
+		LOG(ERROR) << L1_READ << " mkfifo() returned: errno=" << 
 			strerror(errno);
 	}
-	mSockFd[SYS_READ] = ::open(getPath(SYS_READ), O_RDONLY);
-	if(mSockFd[SYS_READ] < 0)
+	mSockFd[L1_READ] = ::open(getPath(L1_READ), O_RDONLY);
+	if(mSockFd[L1_READ] < 0)
 	{
-		if(mSockFd[SYS_READ])
-		{
-			::close(mSockFd[SYS_READ]);
-		}
+		::close(mSockFd[L1_READ]);
 	}
 }
 
