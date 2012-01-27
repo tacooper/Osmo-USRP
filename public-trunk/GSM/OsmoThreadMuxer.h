@@ -117,6 +117,7 @@ private:
 	/* Functions to process REQ messages from osmo-bts and 
 	 * build corresponding CNF messages to send back */
 	void processSystemInfoReq();
+	void processActivateRfReq();
 	void processDeactivateRfReq();
 	void processLayer1ResetReq();
 

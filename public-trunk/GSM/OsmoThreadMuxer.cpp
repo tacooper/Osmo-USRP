@@ -151,8 +151,14 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 		case FemtoBts_PrimId_SystemInfoReq:
 			processSystemInfoReq();
 			break;
+		case FemtoBts_PrimId_ActivateRfReq:
+			processActivateRfReq();
+			break;
 		case FemtoBts_PrimId_DeactivateRfReq:
 			processDeactivateRfReq();
+			break;
+		case FemtoBts_PrimId_SetTraceFlagsReq:
+			// no action required
 			break;
 		case FemtoBts_PrimId_Layer1ResetReq:
 			processLayer1ResetReq();
@@ -204,6 +210,20 @@ void OsmoThreadMuxer::processSystemInfoReq()
 	cnf->fpgaVersion.major = 0;
 	cnf->fpgaVersion.minor = 0;
 	cnf->fpgaVersion.build = 0;
+
+	sendSysMsg(send_msg);
+}
+
+void OsmoThreadMuxer::processActivateRfReq()
+{
+	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
+
+	FemtoBts_Prim_t *sysp = msgb_sysprim(send_msg);
+	FemtoBts_ActivateRfCnf_t *cnf = &sysp->u.activateRfCnf;
+
+	sysp->id = FemtoBts_PrimId_ActivateRfCnf;
+
+	cnf->status = GsmL1_Status_Success;
 
 	sendSysMsg(send_msg);
 }
