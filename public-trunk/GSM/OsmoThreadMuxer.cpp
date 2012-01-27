@@ -30,11 +30,38 @@
 #include "Interthread.h"
 #include "gsmL1prim.h"
 
+#define msgb_l1prim(msg) ((GsmL1_Prim_t *)(msg)->l1h)
+#define msgb_sysprim(msg) ((FemtoBts_Prim_t *)(msg)->l1h)
 
-
-using namespace std;
 using namespace GSM;
 
+/* Static helper functions for Osmo::msgb */
+namespace Osmo
+{
+	static struct msgb *l1p_msgb_alloc()
+	{
+		struct msgb *msg = msgb_alloc(sizeof(GsmL1_Prim_t), "l1_prim");
+
+		if(msg)
+		{
+			msg->l1h = msgb_put(msg, sizeof(GsmL1_Prim_t));
+		}
+
+		return msg;
+	}
+
+	static struct msgb *sysp_msgb_alloc()
+	{
+		struct msgb *msg = msgb_alloc(sizeof(FemtoBts_Prim_t), "sys_prim");
+
+		if(msg)
+		{
+			msg->l1h = msgb_put(msg, sizeof(FemtoBts_Prim_t));
+		}
+
+		return msg;
+	}
+}
 
 void OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
 				   struct OsmoLogicalChannel *lchan)
@@ -163,7 +190,7 @@ void OsmoThreadMuxer::createSockets()
 	// if file exists, just continue anyways
 	if(errno != EEXIST && rc < 0)
 	{
-		LOG(ERROR) << SYS_WRITE << " mkfifo() returned: errno=" << 
+		LOG(ERROR) << "SYS_WRITE mkfifo() returned: errno=" << 
 			strerror(errno);
 	}
 	mSockFd[SYS_WRITE] = ::open(getPath(SYS_WRITE), O_WRONLY);
@@ -177,7 +204,7 @@ void OsmoThreadMuxer::createSockets()
 	// if file exists, just continue anyways
 	if(errno != EEXIST && rc < 0)
 	{
-		LOG(ERROR) << L1_WRITE << " mkfifo() returned: errno=" << 
+		LOG(ERROR) << "L1_WRITE mkfifo() returned: errno=" << 
 			strerror(errno);
 	}
 	mSockFd[L1_WRITE] = ::open(getPath(L1_WRITE), O_WRONLY);
@@ -191,7 +218,7 @@ void OsmoThreadMuxer::createSockets()
 	// if file exists, just continue anyways
 	if(errno != EEXIST && rc < 0)
 	{
-		LOG(ERROR) << SYS_READ << " mkfifo() returned: errno=" << 
+		LOG(ERROR) << "SYS_READ mkfifo() returned: errno=" << 
 			strerror(errno);
 	}
 	mSockFd[SYS_READ] = ::open(getPath(SYS_READ), O_RDONLY);
@@ -205,7 +232,7 @@ void OsmoThreadMuxer::createSockets()
 	// if file exists, just continue anyways
 	if(errno != EEXIST && rc < 0)
 	{
-		LOG(ERROR) << L1_READ << " mkfifo() returned: errno=" << 
+		LOG(ERROR) << "L1_READ mkfifo() returned: errno=" << 
 			strerror(errno);
 	}
 	mSockFd[L1_READ] = ::open(getPath(L1_READ), O_RDONLY);
