@@ -105,31 +105,26 @@ public:
 				     OsmoLogicalChannel &lchan);
 
 private:
+	/* Initialization functions */
 	void createSockets();
-
 	void startThreads();
 
+	/* Functions for processing SYS type messages */
 	void recvSysMsg();
+	void handleSysMsg(const char *buffer);
+	void sendSysMsg(struct Osmo::msgb *msg);
 
-	const char* getTypeOfSysMsg(char* buffer);
+	/* Functions to process REQ messages from osmo-bts and 
+	 * build corresponding CNF messages to send back */
+	void processSystemInfoReq();
+	void processDeactivateRfReq();
+	void processLayer1ResetReq();
 
-	const char* getPath(int index)
-	{
-		switch(index)
-		{
-			case SYS_WRITE:		
-				return "/dev/msgq/femtobts_dsp2arm"; // PathSysWrite
-			case L1_WRITE:
-				return "/dev/msgq/gsml1_dsp2arm"; // PathL1Write
-			case SYS_READ:
-				return "/dev/msgq/femtobts_arm2dsp"; // PathSysRead
-			case L1_READ:
-				return "/dev/msgq/gsml1_arm2dsp"; // PathL1Read
-			default:
-				assert(0);
-		}
-	};
+	/* Helper value parsing functions */
+	const char* getTypeOfSysMsg(const char* buffer, const int len);
+	const char* getPath(const int index);
 
+	/* Service loop adapter for pthreads */
 	friend void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
 };
 

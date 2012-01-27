@@ -28,7 +28,7 @@
 #include "OsmoThreadMuxer.h"
 #include <Logger.h>
 #include "Interthread.h"
-#include "gsmL1prim.h"
+#include <Globals.h>
 
 #define msgb_l1prim(msg) ((GsmL1_Prim_t *)(msg)->l1h)
 #define msgb_sysprim(msg) ((FemtoBts_Prim_t *)(msg)->l1h)
@@ -106,7 +106,7 @@ void OsmoThreadMuxer::recvSysMsg()
 	if(len == SYS_PRIM_LEN) // good frame
 	{
 		LOG(INFO) << "SYS_READ read() received good frame\ntype=" << 
-			getTypeOfSysMsg(buffer) << "\nlen=" << len << " buffer(hex)=";
+			getTypeOfSysMsg(buffer, len) << "\nlen=" << len << " buffer(hex)=";
 
 		for(int i = 0; i < len; i++)
 		{
@@ -115,7 +115,7 @@ void OsmoThreadMuxer::recvSysMsg()
 
 		printf("\n");
 
-		//handleSysMsg(buffer);
+		handleSysMsg(buffer);
 	}
 	else if(len == 0) // no frame
 	{
@@ -136,43 +136,147 @@ void OsmoThreadMuxer::recvSysMsg()
 	}
 }
 
-const char *OsmoThreadMuxer::getTypeOfSysMsg(char *buffer)
+void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 {
-	assert(buffer[12]);
+	struct Osmo::msgb *msg = Osmo::msgb_alloc_headroom(2048, 128, "l1_fd");
 
-	switch(buffer[12])
+	msg->l1h = msg->data;
+	memcpy(msg->l1h, buffer, sizeof(FemtoBts_Prim_t));
+	Osmo::msgb_put(msg, sizeof(FemtoBts_Prim_t));
+
+	FemtoBts_Prim_t *prim = msgb_sysprim(msg);
+
+	switch(prim->id)
 	{
 		case FemtoBts_PrimId_SystemInfoReq:
-			return "SYSTEM-INFO.req";
-		case FemtoBts_PrimId_SystemInfoCnf:
-			return "SYSTEM-INFO.conf";
-		case FemtoBts_PrimId_SystemFailureInd:
-			return "SYSTEM-FAILURE.ind";
-		case FemtoBts_PrimId_ActivateRfReq:
-			return "ACTIVATE-RF.req";
-		case FemtoBts_PrimId_ActivateRfCnf:
-			return "ACTIVATE-RF.conf";
+			processSystemInfoReq();
+			break;
 		case FemtoBts_PrimId_DeactivateRfReq:
-			return "DEACTIVATE-RF.req";
-		case FemtoBts_PrimId_DeactivateRfCnf:
-			return "DEACTIVATE-RF.conf";
-		case FemtoBts_PrimId_SetTraceFlagsReq:
-			return "SET-TRACE-FLAGS.req";
-		case FemtoBts_PrimId_RfClockInfoReq:
-			return "RF-CLOCK-INFO.req";
-		case FemtoBts_PrimId_RfClockInfoCnf:
-			return "RF-CLOCK-INFO.conf";
-		case FemtoBts_PrimId_RfClockSetupReq:
-			return "RF-CLOCK-SETUP.req";
-		case FemtoBts_PrimId_RfClockSetupCnf:
-			return "RF-CLOCK-SETUP.conf";
+			processDeactivateRfReq();
+			break;
 		case FemtoBts_PrimId_Layer1ResetReq:
-			return "LAYER1-RESET.req";
-		case FemtoBts_PrimId_Layer1ResetCnf:
-			return "LAYER1-RESET.conf";
+			processLayer1ResetReq();
+			break;
 		default:
-			return "WARNING: Invalid type!";
+			LOG(ERROR) << "Invalid SYS prim type!";
 	}
+
+	Osmo::msgb_free(msg);
+}
+
+void OsmoThreadMuxer::processSystemInfoReq()
+{
+	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
+
+	FemtoBts_Prim_t *sysp = msgb_sysprim(send_msg);
+	FemtoBts_SystemInfoCnf_t *cnf = &sysp->u.systemInfoCnf;
+
+	sysp->id = FemtoBts_PrimId_SystemInfoCnf;
+
+	cnf->rfBand.gsm850 = 0;
+	cnf->rfBand.gsm900 = 0;
+	cnf->rfBand.dcs1800 = 0;
+	cnf->rfBand.pcs1900 = 0;
+
+	/* Determine preset band of operation */
+	const int band = gConfig.getNum("GSM.Band");
+	switch(band)
+	{
+		case 850:
+			cnf->rfBand.gsm850 = 1;
+			break;
+		case 900:
+			cnf->rfBand.gsm900 = 1;
+			break;
+		case 1800:
+			cnf->rfBand.dcs1800 = 1;
+			break;
+		case 1900:
+			cnf->rfBand.pcs1900 = 1;
+			break;
+		default:
+			assert(0);
+	}
+
+	cnf->dspVersion.major = 0;
+	cnf->dspVersion.minor = 0;
+	cnf->dspVersion.build = 0;
+	cnf->fpgaVersion.major = 0;
+	cnf->fpgaVersion.minor = 0;
+	cnf->fpgaVersion.build = 0;
+
+	sendSysMsg(send_msg);
+}
+
+void OsmoThreadMuxer::processDeactivateRfReq()
+{
+	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
+
+	FemtoBts_Prim_t *sysp = msgb_sysprim(send_msg);
+	FemtoBts_DeactivateRfCnf_t *cnf = &sysp->u.deactivateRfCnf;
+
+	sysp->id = FemtoBts_PrimId_DeactivateRfCnf;
+
+	cnf->status = GsmL1_Status_Success;
+
+	sendSysMsg(send_msg);
+}
+
+void OsmoThreadMuxer::processLayer1ResetReq()
+{
+	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
+
+	FemtoBts_Prim_t *sysp = msgb_sysprim(send_msg);
+	FemtoBts_Layer1ResetCnf_t *cnf = &sysp->u.layer1ResetCnf;
+
+	sysp->id = FemtoBts_PrimId_Layer1ResetCnf;
+
+	cnf->status = GsmL1_Status_Success;
+
+	sendSysMsg(send_msg);
+}
+
+void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
+{
+	const int PRIM_LEN = sizeof(FemtoBts_Prim_t);
+	const int MSG_LEN = Osmo::msgb_l1len(msg);
+
+	if(MSG_LEN != PRIM_LEN)
+	{
+		LOG(ERROR) << "SYS message lengths do not match! MSG_LEN=" << MSG_LEN <<
+			" PRIM_LEN=" << PRIM_LEN;
+	}
+	else
+	{
+		int rc = ::write(mSockFd[SYS_WRITE], msg->l1h, MSG_LEN);
+
+		if(rc == MSG_LEN)
+		{
+			LOG(INFO) << "SYS_WRITE write() sent good frame\ntype=" << 
+				getTypeOfSysMsg((char*)msg->l1h, MSG_LEN) << "\nlen=" << 
+				MSG_LEN << " buffer(hex)=";
+
+			for(int i = 0; i < MSG_LEN; i++)
+			{
+				printf("%x ", (unsigned char)msg->l1h[i]);
+			}
+
+			printf("\n");
+		}
+		else if(rc > 0)
+		{
+			LOG(ERROR) << 
+				"SYS_WRITE write() lengths do not match! MSG_LEN=" << 
+				MSG_LEN << " rc=" << rc;
+		}
+		else
+		{
+			LOG(ERROR) << "SYS_WRITE write() returned: errno=" << 
+				strerror(errno);
+		}
+	}
+
+	Osmo::msgb_free(msg);
 }
 
 void OsmoThreadMuxer::createSockets()
@@ -239,6 +343,62 @@ void OsmoThreadMuxer::createSockets()
 	if(mSockFd[L1_READ] < 0)
 	{
 		::close(mSockFd[L1_READ]);
+	}
+}
+
+const char *OsmoThreadMuxer::getTypeOfSysMsg(const char *buffer, const int len)
+{
+	assert(len >= 13);
+
+	switch(buffer[12])
+	{
+		case FemtoBts_PrimId_SystemInfoReq:
+			return "SYSTEM-INFO.req";
+		case FemtoBts_PrimId_SystemInfoCnf:
+			return "SYSTEM-INFO.conf";
+		case FemtoBts_PrimId_SystemFailureInd:
+			return "SYSTEM-FAILURE.ind";
+		case FemtoBts_PrimId_ActivateRfReq:
+			return "ACTIVATE-RF.req";
+		case FemtoBts_PrimId_ActivateRfCnf:
+			return "ACTIVATE-RF.conf";
+		case FemtoBts_PrimId_DeactivateRfReq:
+			return "DEACTIVATE-RF.req";
+		case FemtoBts_PrimId_DeactivateRfCnf:
+			return "DEACTIVATE-RF.conf";
+		case FemtoBts_PrimId_SetTraceFlagsReq:
+			return "SET-TRACE-FLAGS.req";
+		case FemtoBts_PrimId_RfClockInfoReq:
+			return "RF-CLOCK-INFO.req";
+		case FemtoBts_PrimId_RfClockInfoCnf:
+			return "RF-CLOCK-INFO.conf";
+		case FemtoBts_PrimId_RfClockSetupReq:
+			return "RF-CLOCK-SETUP.req";
+		case FemtoBts_PrimId_RfClockSetupCnf:
+			return "RF-CLOCK-SETUP.conf";
+		case FemtoBts_PrimId_Layer1ResetReq:
+			return "LAYER1-RESET.req";
+		case FemtoBts_PrimId_Layer1ResetCnf:
+			return "LAYER1-RESET.conf";
+		default:
+			return "WARNING: Invalid type!";
+	}
+}
+
+const char* OsmoThreadMuxer::getPath(const int index)
+{
+	switch(index)
+	{
+		case SYS_WRITE:		
+			return "/dev/msgq/femtobts_dsp2arm"; // PathSysWrite
+		case L1_WRITE:
+			return "/dev/msgq/gsml1_dsp2arm"; // PathL1Write
+		case SYS_READ:
+			return "/dev/msgq/femtobts_arm2dsp"; // PathSysRead
+		case L1_READ:
+			return "/dev/msgq/gsml1_arm2dsp"; // PathL1Read
+		default:
+			assert(0);
 	}
 }
 
