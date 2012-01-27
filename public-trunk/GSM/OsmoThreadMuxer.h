@@ -30,11 +30,19 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "gsmL1prim.h"
 
 #define SYS_WRITE 0
 #define L1_WRITE 1
 #define SYS_READ 2
 #define L1_READ 3
+
+/* Resolves multiple definition conflict between ortp and osmocom msgb's */
+namespace Osmo {
+	extern "C" {
+		#include <osmocom/core/msgb.h>
+	}
+}
 
 namespace GSM {
 
@@ -87,7 +95,7 @@ public:
 	}
 
 	/* receive frame synchronously from L1Decoder->OsmoSAPMux and
-	 * euqneue it towards osmo-bts */
+	 * enqueue it towards osmo-bts */
 	virtual void writeLowSide(const L2Frame& frame,
 				  OsmoLogicalChannel *lchan);
 

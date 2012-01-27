@@ -52,6 +52,7 @@ smqueue/smqueue
 
 # untracked config and temporary files
 apps/OpenBTS.config
+apps/TrueBTS.config
 apps/TMSITable.txt
 
 # Temporary/Backup files

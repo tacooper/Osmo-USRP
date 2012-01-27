@@ -21,7 +21,7 @@
 include $(top_srcdir)/Makefile.common
 
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES)
-AM_CXXFLAGS = -O0 -g
+AM_CXXFLAGS = -O0 -g -losmocore
 
 noinst_LTLIBRARIES = libGSML1.la libGSM.la
 
@@ -83,6 +83,5 @@ noinst_HEADERS = \
 	OsmoLogicalChannel.h \
 	OsmoSAPMux.h \
 	OsmoThreadMuxer.h \
-	gsmtap.h \
-	gsmL1prim.h
+	gsmtap.h
 
