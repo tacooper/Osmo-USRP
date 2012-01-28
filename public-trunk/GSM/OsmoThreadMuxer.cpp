@@ -81,6 +81,9 @@ void OsmoThreadMuxer::startThreads()
 {
 	Thread recvSysMsgThread;
 	recvSysMsgThread.start((void*(*)(void*))RecvSysMsgLoopAdapter, this);
+
+	Thread recvL1MsgThread;
+	recvL1MsgThread.start((void*(*)(void*))RecvL1MsgLoopAdapter, this);
 }
 
 void *GSM::RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux)
@@ -88,6 +91,17 @@ void *GSM::RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux)
 	while(true)
 	{
 		TMux->recvSysMsg();
+
+		pthread_testcancel();
+	}
+	return NULL;
+}
+
+void *GSM::RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux)
+{
+	while(true)
+	{
+		TMux->recvL1Msg();
 
 		pthread_testcancel();
 	}
@@ -136,6 +150,48 @@ void OsmoThreadMuxer::recvSysMsg()
 	}
 }
 
+void OsmoThreadMuxer::recvL1Msg()
+{
+	const size_t PRIM_LEN = sizeof(GsmL1_Prim_t);
+
+	const int fd = mSockFd[L1_READ];
+	char buffer[PRIM_LEN];
+
+	const int len = ::read(fd, (void*)buffer, PRIM_LEN);
+
+	if(len == PRIM_LEN) // good frame
+	{
+		LOG(INFO) << "L1_READ read() received good frame\nlen=" << len << 
+			" buffer(hex)=";
+
+		for(int i = 0; i < len; i++)
+		{
+			printf("%x ", (unsigned char)buffer[i]);
+		}
+
+		printf("\n");
+
+		handleL1Msg(buffer);
+	}
+	else if(len == 0) // no frame
+	{
+	}
+	else if(len < 0) // read() error
+	{
+		LOG(ERROR) << "Abort! L1_READ read() returned: errno=" << 
+			strerror(errno);
+
+		abort();
+	}
+	else // bad frame
+	{
+		buffer[len] = '\0';
+
+		LOG(ALARM) << "Bad frame, L1_READ read() received bad frame, len=" << 
+			len << " buffer=" << buffer;
+	}
+}
+
 void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 {
 	struct Osmo::msgb *msg = Osmo::msgb_alloc_headroom(2048, 128, "l1_fd");
@@ -167,6 +223,29 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 			break;
 		default:
 			LOG(ERROR) << "Invalid SYS prim type!";
+	}
+
+	Osmo::msgb_free(msg);
+}
+
+void OsmoThreadMuxer::handleL1Msg(const char *buffer)
+{
+	struct Osmo::msgb *msg = Osmo::msgb_alloc_headroom(2048, 128, "l1_fd");
+
+	msg->l1h = msg->data;
+	memcpy(msg->l1h, buffer, sizeof(GsmL1_Prim_t));
+	Osmo::msgb_put(msg, sizeof(GsmL1_Prim_t));
+
+	GsmL1_Prim_t *prim = msgb_l1prim(msg);
+
+	printf("Received L1 message type = %s\n", getTypeOfL1Msg(prim->id));
+
+	switch(prim->id)
+	{
+		case GsmL1_PrimId_MphInitReq:
+			break;
+		default:
+			LOG(ERROR) << "Invalid L1 prim type!";
 	}
 
 	Osmo::msgb_free(msg);
@@ -303,6 +382,51 @@ void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
 	Osmo::msgb_free(msg);
 }
 
+void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
+{
+	const int PRIM_LEN = sizeof(GsmL1_Prim_t);
+	const int MSG_LEN = Osmo::msgb_l1len(msg);
+
+	if(MSG_LEN != PRIM_LEN)
+	{
+		LOG(ERROR) << "L1 message lengths do not match! MSG_LEN=" << MSG_LEN <<
+			" PRIM_LEN=" << PRIM_LEN;
+	}
+	else
+	{
+		int rc = ::write(mSockFd[L1_WRITE], msg->l1h, MSG_LEN);
+
+		if(rc == MSG_LEN)
+		{
+			GsmL1_Prim_t *prim = msgb_l1prim(msg);
+
+			LOG(INFO) << "L1_WRITE write() sent good frame\ntype=" << 
+				getTypeOfL1Msg(prim->id) << "\nlen=" << MSG_LEN << 
+				" buffer(hex)=";
+
+			for(int i = 0; i < MSG_LEN; i++)
+			{
+				printf("%x ", (unsigned char)msg->l1h[i]);
+			}
+
+			printf("\n");
+		}
+		else if(rc > 0)
+		{
+			LOG(ERROR) << 
+				"L1_WRITE write() lengths do not match! MSG_LEN=" << 
+				MSG_LEN << " rc=" << rc;
+		}
+		else
+		{
+			LOG(ERROR) << "L1_WRITE write() returned: errno=" << 
+				strerror(errno);
+		}
+	}
+
+	Osmo::msgb_free(msg);
+}
+
 void OsmoThreadMuxer::createSockets()
 {
 	/* Create directory to hold socket files */
@@ -403,7 +527,64 @@ const char *OsmoThreadMuxer::getTypeOfSysMsg(const int id)
 		case FemtoBts_PrimId_Layer1ResetCnf:
 			return "LAYER1-RESET.conf";
 		default:
-			return "WARNING: Invalid type!";
+			return "WARNING: Invalid SYS type!";
+	}
+}
+
+const char *OsmoThreadMuxer::getTypeOfL1Msg(const int id)
+{
+	switch(id)
+	{
+		case GsmL1_PrimId_MphInitReq:
+			return "MPH-INIT.req";
+        case GsmL1_PrimId_MphCloseReq:
+			return "MPH-CLOSE.req";
+        case GsmL1_PrimId_MphConnectReq:
+			return "MPH-CONNECT.req";
+        case GsmL1_PrimId_MphDisconnectReq:
+			return "MPH-DISCONNECT.req";
+        case GsmL1_PrimId_MphActivateReq:
+			return "MPH-ACTIVATE.req";
+        case GsmL1_PrimId_MphDeactivateReq:
+			return "MPH-DEACTIVATE.req";
+        case GsmL1_PrimId_MphConfigReq:
+			return "MPH-CONFIG.req";
+        case GsmL1_PrimId_MphMeasureReq:
+			return "MPH-MEASURE.req";
+        case GsmL1_PrimId_MphInitCnf:
+			return "MPH-INIT.conf";
+        case GsmL1_PrimId_MphCloseCnf:
+			return "MPH-CLOSE.conf";
+        case GsmL1_PrimId_MphConnectCnf:
+			return "MPH-CONNECT.conf";
+        case GsmL1_PrimId_MphDisconnectCnf:
+			return "MPH-DISCONNECT.conf";
+        case GsmL1_PrimId_MphActivateCnf:
+			return "MPH-ACTIVATE.conf";
+        case GsmL1_PrimId_MphDeactivateCnf:
+			return "MPH-DEACTIVATE.conf";
+        case GsmL1_PrimId_MphConfigCnf:
+			return "MPH-CONFIG.conf";
+        case GsmL1_PrimId_MphMeasureCnf:
+			return "MPH-MEASURE.conf";
+        case GsmL1_PrimId_MphTimeInd:
+			return "MPH-TIME.ind";
+        case GsmL1_PrimId_MphSyncInd:
+			return "MPH-SYNC.ind";
+        case GsmL1_PrimId_PhEmptyFrameReq:
+			return "PH-EMPTY_FRAME.req";
+        case GsmL1_PrimId_PhDataReq:
+			return "PH-DATA.req";
+        case GsmL1_PrimId_PhConnectInd:
+			return "PH-CONNECT.ind";
+        case GsmL1_PrimId_PhReadyToSendInd:
+			return "PH-READY_TO_SEND.ind";
+        case GsmL1_PrimId_PhDataInd:
+			return "PH-DATA.ind";
+        case GsmL1_PrimId_PhRaInd:
+			return "PH-RA.ind";
+		default:
+			return "WARNING: Invalid L1 type!";
 	}
 }
 

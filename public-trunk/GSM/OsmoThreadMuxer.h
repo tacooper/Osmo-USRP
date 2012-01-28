@@ -114,8 +114,13 @@ private:
 	void handleSysMsg(const char *buffer);
 	void sendSysMsg(struct Osmo::msgb *msg);
 
-	/* Functions to process REQ messages from osmo-bts and 
-	 * build corresponding CNF messages to send back */
+	/* Functions for processing L1 type messages */
+	void recvL1Msg();
+	void handleL1Msg(const char *buffer);
+	void sendL1Msg(struct Osmo::msgb *msg);
+
+	/* Functions to process SYS REQ messages from osmo-bts and 
+	 * build corresponding SYS CNF messages to send back */
 	void processSystemInfoReq();
 	void processActivateRfReq();
 	void processDeactivateRfReq();
@@ -123,13 +128,16 @@ private:
 
 	/* Helper functions for value parsing */
 	const char* getTypeOfSysMsg(const int id);
+	const char* getTypeOfL1Msg(const int id);
 	const char* getPath(const int index);
 
-	/* Service loop adapter for pthreads */
+	/* Service loop adapters for pthreads */
 	friend void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
+	friend void *RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
 };
 
 void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
+void *RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
 
 };		// GSM
 
