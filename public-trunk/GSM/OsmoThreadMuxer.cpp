@@ -96,17 +96,17 @@ void *GSM::RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux)
 
 void OsmoThreadMuxer::recvSysMsg()
 {
-	const size_t SYS_PRIM_LEN = sizeof(FemtoBts_Prim_t);
+	const size_t PRIM_LEN = sizeof(FemtoBts_Prim_t);
 
-	int fd = mSockFd[SYS_READ];
-	char buffer[SYS_PRIM_LEN];
+	const int fd = mSockFd[SYS_READ];
+	char buffer[PRIM_LEN];
 
-	int len = ::read(fd, (void*)buffer, SYS_PRIM_LEN);
+	const int len = ::read(fd, (void*)buffer, PRIM_LEN);
 
-	if(len == SYS_PRIM_LEN) // good frame
+	if(len == PRIM_LEN) // good frame
 	{
-		LOG(INFO) << "SYS_READ read() received good frame\ntype=" << 
-			getTypeOfSysMsg(buffer, len) << "\nlen=" << len << " buffer(hex)=";
+		LOG(INFO) << "SYS_READ read() received good frame\nlen=" << len << 
+			" buffer(hex)=";
 
 		for(int i = 0; i < len; i++)
 		{
@@ -145,6 +145,8 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 	Osmo::msgb_put(msg, sizeof(FemtoBts_Prim_t));
 
 	FemtoBts_Prim_t *prim = msgb_sysprim(msg);
+
+	printf("Received SYS message type = %s\n", getTypeOfSysMsg(prim->id));
 
 	switch(prim->id)
 	{
@@ -272,9 +274,11 @@ void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
 
 		if(rc == MSG_LEN)
 		{
+			FemtoBts_Prim_t *prim = msgb_sysprim(msg);
+
 			LOG(INFO) << "SYS_WRITE write() sent good frame\ntype=" << 
-				getTypeOfSysMsg((char*)msg->l1h, MSG_LEN) << "\nlen=" << 
-				MSG_LEN << " buffer(hex)=";
+				getTypeOfSysMsg(prim->id) << "\nlen=" << MSG_LEN << 
+				" buffer(hex)=";
 
 			for(int i = 0; i < MSG_LEN; i++)
 			{
@@ -366,11 +370,9 @@ void OsmoThreadMuxer::createSockets()
 	}
 }
 
-const char *OsmoThreadMuxer::getTypeOfSysMsg(const char *buffer, const int len)
+const char *OsmoThreadMuxer::getTypeOfSysMsg(const int id)
 {
-	assert(len >= 13);
-
-	switch(buffer[12])
+	switch(id)
 	{
 		case FemtoBts_PrimId_SystemInfoReq:
 			return "SYSTEM-INFO.req";

@@ -121,8 +121,8 @@ private:
 	void processDeactivateRfReq();
 	void processLayer1ResetReq();
 
-	/* Helper value parsing functions */
-	const char* getTypeOfSysMsg(const char* buffer, const int len);
+	/* Helper functions for value parsing */
+	const char* getTypeOfSysMsg(const int id);
 	const char* getPath(const int index);
 
 	/* Service loop adapter for pthreads */
