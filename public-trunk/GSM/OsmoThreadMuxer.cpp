@@ -202,7 +202,8 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 
 	FemtoBts_Prim_t *prim = msgb_sysprim(msg);
 
-	printf("Received SYS message type = %s\n", getTypeOfSysMsg(prim->id));
+	printf("Received SYS message type = %s\n", 
+		Osmo::get_value_string(Osmo::femtobts_sysprim_names, prim->id));
 
 	switch(prim->id)
 	{
@@ -238,7 +239,8 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 
 	GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-	printf("Received L1 message type = %s\n", getTypeOfL1Msg(prim->id));
+	printf("Received L1 message type = %s\n", 
+		Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id));
 
 	switch(prim->id)
 	{
@@ -355,9 +357,9 @@ void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
 		{
 			FemtoBts_Prim_t *prim = msgb_sysprim(msg);
 
-			LOG(INFO) << "SYS_WRITE write() sent good frame\ntype=" << 
-				getTypeOfSysMsg(prim->id) << "\nlen=" << MSG_LEN << 
-				" buffer(hex)=";
+			LOG(INFO) << "SYS_WRITE write() sent good frame\ntype=" <<
+				Osmo::get_value_string(Osmo::femtobts_sysprim_names, prim->id)
+				<< "\nlen=" << MSG_LEN << " buffer(hex)=";
 
 			for(int i = 0; i < MSG_LEN; i++)
 			{
@@ -400,9 +402,9 @@ void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
 		{
 			GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-			LOG(INFO) << "L1_WRITE write() sent good frame\ntype=" << 
-				getTypeOfL1Msg(prim->id) << "\nlen=" << MSG_LEN << 
-				" buffer(hex)=";
+			LOG(INFO) << "L1_WRITE write() sent good frame\ntype=" <<
+				Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id)
+				<< "\nlen=" << MSG_LEN << " buffer(hex)=";
 
 			for(int i = 0; i < MSG_LEN; i++)
 			{
@@ -491,100 +493,6 @@ void OsmoThreadMuxer::createSockets()
 	if(mSockFd[L1_READ] < 0)
 	{
 		::close(mSockFd[L1_READ]);
-	}
-}
-
-const char *OsmoThreadMuxer::getTypeOfSysMsg(const int id)
-{
-	switch(id)
-	{
-		case FemtoBts_PrimId_SystemInfoReq:
-			return "SYSTEM-INFO.req";
-		case FemtoBts_PrimId_SystemInfoCnf:
-			return "SYSTEM-INFO.conf";
-		case FemtoBts_PrimId_SystemFailureInd:
-			return "SYSTEM-FAILURE.ind";
-		case FemtoBts_PrimId_ActivateRfReq:
-			return "ACTIVATE-RF.req";
-		case FemtoBts_PrimId_ActivateRfCnf:
-			return "ACTIVATE-RF.conf";
-		case FemtoBts_PrimId_DeactivateRfReq:
-			return "DEACTIVATE-RF.req";
-		case FemtoBts_PrimId_DeactivateRfCnf:
-			return "DEACTIVATE-RF.conf";
-		case FemtoBts_PrimId_SetTraceFlagsReq:
-			return "SET-TRACE-FLAGS.req";
-		case FemtoBts_PrimId_RfClockInfoReq:
-			return "RF-CLOCK-INFO.req";
-		case FemtoBts_PrimId_RfClockInfoCnf:
-			return "RF-CLOCK-INFO.conf";
-		case FemtoBts_PrimId_RfClockSetupReq:
-			return "RF-CLOCK-SETUP.req";
-		case FemtoBts_PrimId_RfClockSetupCnf:
-			return "RF-CLOCK-SETUP.conf";
-		case FemtoBts_PrimId_Layer1ResetReq:
-			return "LAYER1-RESET.req";
-		case FemtoBts_PrimId_Layer1ResetCnf:
-			return "LAYER1-RESET.conf";
-		default:
-			return "WARNING: Invalid SYS type!";
-	}
-}
-
-const char *OsmoThreadMuxer::getTypeOfL1Msg(const int id)
-{
-	switch(id)
-	{
-		case GsmL1_PrimId_MphInitReq:
-			return "MPH-INIT.req";
-        case GsmL1_PrimId_MphCloseReq:
-			return "MPH-CLOSE.req";
-        case GsmL1_PrimId_MphConnectReq:
-			return "MPH-CONNECT.req";
-        case GsmL1_PrimId_MphDisconnectReq:
-			return "MPH-DISCONNECT.req";
-        case GsmL1_PrimId_MphActivateReq:
-			return "MPH-ACTIVATE.req";
-        case GsmL1_PrimId_MphDeactivateReq:
-			return "MPH-DEACTIVATE.req";
-        case GsmL1_PrimId_MphConfigReq:
-			return "MPH-CONFIG.req";
-        case GsmL1_PrimId_MphMeasureReq:
-			return "MPH-MEASURE.req";
-        case GsmL1_PrimId_MphInitCnf:
-			return "MPH-INIT.conf";
-        case GsmL1_PrimId_MphCloseCnf:
-			return "MPH-CLOSE.conf";
-        case GsmL1_PrimId_MphConnectCnf:
-			return "MPH-CONNECT.conf";
-        case GsmL1_PrimId_MphDisconnectCnf:
-			return "MPH-DISCONNECT.conf";
-        case GsmL1_PrimId_MphActivateCnf:
-			return "MPH-ACTIVATE.conf";
-        case GsmL1_PrimId_MphDeactivateCnf:
-			return "MPH-DEACTIVATE.conf";
-        case GsmL1_PrimId_MphConfigCnf:
-			return "MPH-CONFIG.conf";
-        case GsmL1_PrimId_MphMeasureCnf:
-			return "MPH-MEASURE.conf";
-        case GsmL1_PrimId_MphTimeInd:
-			return "MPH-TIME.ind";
-        case GsmL1_PrimId_MphSyncInd:
-			return "MPH-SYNC.ind";
-        case GsmL1_PrimId_PhEmptyFrameReq:
-			return "PH-EMPTY_FRAME.req";
-        case GsmL1_PrimId_PhDataReq:
-			return "PH-DATA.req";
-        case GsmL1_PrimId_PhConnectInd:
-			return "PH-CONNECT.ind";
-        case GsmL1_PrimId_PhReadyToSendInd:
-			return "PH-READY_TO_SEND.ind";
-        case GsmL1_PrimId_PhDataInd:
-			return "PH-DATA.ind";
-        case GsmL1_PrimId_PhRaInd:
-			return "PH-RA.ind";
-		default:
-			return "WARNING: Invalid L1 type!";
 	}
 }
 

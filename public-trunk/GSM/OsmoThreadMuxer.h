@@ -41,7 +41,54 @@
 namespace Osmo {
 	extern "C" {
 		#include <osmocom/core/msgb.h>
+		#include <osmocom/core/utils.h>
 	}
+
+	const struct value_string femtobts_l1prim_names[GsmL1_PrimId_NUM+1] = {
+		{ GsmL1_PrimId_MphInitReq,	"MPH-INIT.req" },
+		{ GsmL1_PrimId_MphCloseReq,	"MPH-CLOSE.req" },
+		{ GsmL1_PrimId_MphConnectReq,	"MPH-CONNECT.req" },
+		{ GsmL1_PrimId_MphDisconnectReq,"MPH-DISCONNECT.req" },
+		{ GsmL1_PrimId_MphActivateReq,	"MPH-ACTIVATE.req" },
+		{ GsmL1_PrimId_MphDeactivateReq,"MPH-DEACTIVATE.req" },
+		{ GsmL1_PrimId_MphConfigReq,	"MPH-CONFIG.req" },
+		{ GsmL1_PrimId_MphMeasureReq,	"MPH-MEASURE.req" },
+		{ GsmL1_PrimId_MphInitCnf,	"MPH-INIT.conf" },
+		{ GsmL1_PrimId_MphCloseCnf,	"MPH-CLOSE.conf" },
+		{ GsmL1_PrimId_MphConnectCnf,	"MPH-CONNECT.conf" },
+		{ GsmL1_PrimId_MphDisconnectCnf,"MPH-DISCONNECT.conf" },
+		{ GsmL1_PrimId_MphActivateCnf,	"MPH-ACTIVATE.conf" },
+		{ GsmL1_PrimId_MphDeactivateCnf,"MPH-DEACTIVATE.conf" },
+		{ GsmL1_PrimId_MphConfigCnf,	"MPH-CONFIG.conf" },
+		{ GsmL1_PrimId_MphMeasureCnf,	"MPH-MEASURE.conf" },
+		{ GsmL1_PrimId_MphTimeInd,	"MPH-TIME.ind" },
+		{ GsmL1_PrimId_MphSyncInd,	"MPH-SYNC.ind" },
+		{ GsmL1_PrimId_PhEmptyFrameReq,	"PH-EMPTY_FRAME.req" },
+		{ GsmL1_PrimId_PhDataReq,	"PH-DATA.req" },
+		{ GsmL1_PrimId_PhConnectInd,	"PH-CONNECT.ind" },
+		{ GsmL1_PrimId_PhReadyToSendInd,"PH-READY_TO_SEND.ind" },
+		{ GsmL1_PrimId_PhDataInd,	"PH-DATA.ind" },
+		{ GsmL1_PrimId_PhRaInd,		"PH-RA.ind" },
+		{ 0, NULL }
+	};
+
+	const struct value_string femtobts_sysprim_names[FemtoBts_PrimId_NUM+1] = {
+		{ FemtoBts_PrimId_SystemInfoReq,	"SYSTEM-INFO.req" },
+		{ FemtoBts_PrimId_SystemInfoCnf,	"SYSTEM-INFO.conf" },
+		{ FemtoBts_PrimId_SystemFailureInd,	"SYSTEM-FAILURE.ind" },
+		{ FemtoBts_PrimId_ActivateRfReq,	"ACTIVATE-RF.req" },
+		{ FemtoBts_PrimId_ActivateRfCnf,	"ACTIVATE-RF.conf" },
+		{ FemtoBts_PrimId_DeactivateRfReq,	"DEACTIVATE-RF.req" },
+		{ FemtoBts_PrimId_DeactivateRfCnf,	"DEACTIVATE-RF.conf" },
+		{ FemtoBts_PrimId_SetTraceFlagsReq,	"SET-TRACE-FLAGS.req" },
+		{ FemtoBts_PrimId_RfClockInfoReq,	"RF-CLOCK-INFO.req" },
+		{ FemtoBts_PrimId_RfClockInfoCnf,	"RF-CLOCK-INFO.conf" },
+		{ FemtoBts_PrimId_RfClockSetupReq,	"RF-CLOCK-SETUP.req" },
+		{ FemtoBts_PrimId_RfClockSetupCnf,	"RF-CLOCK-SETUP.conf" },
+		{ FemtoBts_PrimId_Layer1ResetReq,	"LAYER1-RESET.req" },
+		{ FemtoBts_PrimId_Layer1ResetCnf,	"LAYER1-RESET.conf" },
+		{ 0, NULL }
+	};
 }
 
 namespace GSM {
@@ -126,9 +173,7 @@ private:
 	void processDeactivateRfReq();
 	void processLayer1ResetReq();
 
-	/* Helper functions for value parsing */
-	const char* getTypeOfSysMsg(const int id);
-	const char* getTypeOfL1Msg(const int id);
+	/* Helper function for value parsing */
 	const char* getPath(const int index);
 
 	/* Service loop adapters for pthreads */
