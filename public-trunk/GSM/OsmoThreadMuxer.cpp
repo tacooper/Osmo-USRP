@@ -245,6 +245,13 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 	switch(prim->id)
 	{
 		case GsmL1_PrimId_MphInitReq:
+			processMphInitReq();
+			break;
+		case GsmL1_PrimId_MphConnectReq:
+			processMphConnectReq();
+			break;
+		case GsmL1_PrimId_MphActivateReq:
+			processMphActivateReq();
 			break;
 		default:
 			LOG(ERROR) << "Invalid L1 prim type!";
@@ -297,6 +304,9 @@ void OsmoThreadMuxer::processSystemInfoReq()
 	sendSysMsg(send_msg);
 }
 
+/* TODO: in
+	uint16_t u12ClkVc;
+*/
 void OsmoThreadMuxer::processActivateRfReq()
 {
 	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
@@ -311,6 +321,9 @@ void OsmoThreadMuxer::processActivateRfReq()
 	sendSysMsg(send_msg);
 }
 
+/* TODO: in
+	enum GsmL1_Status_t status;
+*/
 void OsmoThreadMuxer::processDeactivateRfReq()
 {
 	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
@@ -338,6 +351,80 @@ void OsmoThreadMuxer::processLayer1ResetReq()
 
 	sendSysMsg(send_msg);
 }
+
+/* TODO: in
+	enum GsmL1_DevType_t devType;
+	int freqBand;
+	uint16_t u16Arfcn;
+	uint16_t u16BcchArfcn;
+	uint8_t u8NbTsc;
+	float fRxPowerLevel;
+	float fTxPowerLevel;
+*/
+void OsmoThreadMuxer::processMphInitReq()
+{
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_MphInitCnf_t *cnf = &l1p->u.mphInitCnf;
+	
+	l1p->id = GsmL1_PrimId_MphInitCnf;
+
+	cnf->status = GsmL1_Status_Success;
+
+	sendL1Msg(send_msg);
+}
+/* TODO: out
+	uint32_t hLayer1;
+*/
+
+/* TODO: in
+	uint32_t hLayer1;
+	uint8_t u8Tn;
+	enum GsmL1_LogChComb_t logChComb;
+*/
+void OsmoThreadMuxer::processMphConnectReq()
+{
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_MphConnectCnf_t *cnf = &l1p->u.mphConnectCnf;
+	
+	l1p->id = GsmL1_PrimId_MphConnectCnf;
+
+	cnf->status = GsmL1_Status_Success;
+
+	sendL1Msg(send_msg);
+}
+
+/* TODO: in
+	uint32_t hLayer1;
+	enum GsmL1_LogChComb_t logChPrm;
+	uint8_t u8Tn;
+	enum GsmL1_SubCh_t subCh;
+	enum GsmL1_Dir_t dir;
+	enum GsmL1_Sapi_t sapi;
+	uint32_t hLayer2;
+	float fBFILevel;
+*/
+void OsmoThreadMuxer::processMphActivateReq()
+{
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_MphActivateCnf_t *cnf = &l1p->u.mphActivateCnf;
+	
+	l1p->id = GsmL1_PrimId_MphActivateCnf;
+
+	cnf->status = GsmL1_Status_Success;
+
+	sendL1Msg(send_msg);
+}
+/* TODO: out
+	enum GsmL1_Status_t status;
+	uint8_t u8Tn;
+	int sapi;
+*/
 
 void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
 {

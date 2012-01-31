@@ -173,6 +173,12 @@ private:
 	void processDeactivateRfReq();
 	void processLayer1ResetReq();
 
+	/* Functions to process L1 REQ messages from osmo-bts and 
+	 * build corresponding L1 CNF messages to send back */
+	void processMphInitReq();
+	void processMphConnectReq();
+	void processMphActivateReq();
+
 	/* Helper function for value parsing */
 	const char* getPath(const int index);
 
