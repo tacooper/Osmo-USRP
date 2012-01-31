@@ -416,7 +416,6 @@ void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 	GsmL1_Dir_t dir (no use)
 	float fBFILevel (no use)
 	uint8_t u8Tn (no use, passed through)
-	GsmL1_Sapi_t sapi (no use, passed through)
 */
 void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 {
@@ -429,6 +428,9 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 
 	/* Store reference to L2 for this SAPI */
 	mL2id[req->sapi] = req->hLayer2;
+
+	printf("REQ message SAPI = %s\n", 
+		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi));
 
 	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();

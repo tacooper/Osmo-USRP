@@ -117,6 +117,32 @@ namespace Osmo {
 		{ GsmL1_Status_Unsupported,	"Unsupported feature" },
 		{ 0, NULL }
 	};
+
+	const struct value_string femtobts_l1sapi_names[GsmL1_Sapi_NUM+1] = {
+		{ GsmL1_Sapi_Fcch,	"FCCH" },
+		{ GsmL1_Sapi_Sch,	"SCH" },
+		{ GsmL1_Sapi_Sacch,	"SACCH" },
+		{ GsmL1_Sapi_Sdcch,	"SDCCH" },
+		{ GsmL1_Sapi_Bcch,	"BCCH" },
+		{ GsmL1_Sapi_Pch,	"PCH" },
+		{ GsmL1_Sapi_Agch,	"AGCH" },
+		{ GsmL1_Sapi_Cbch,	"CBCH" },
+		{ GsmL1_Sapi_Rach,	"RACH" },
+		{ GsmL1_Sapi_TchF,	"TCH/F" },
+		{ GsmL1_Sapi_FacchF,	"FACCH/F" },
+		{ GsmL1_Sapi_TchH,	"TCH/H" },
+		{ GsmL1_Sapi_FacchH,	"FACCH/H" },
+		{ GsmL1_Sapi_Nch,	"NCH" },
+		{ GsmL1_Sapi_Pdtch,	"PDTCH" },
+		{ GsmL1_Sapi_Pacch,	"PACCH" },
+		{ GsmL1_Sapi_Pbcch,	"PBCCH" },
+		{ GsmL1_Sapi_Pagch,	"PAGCH" },
+		{ GsmL1_Sapi_Ppch,	"PPCH" },
+		{ GsmL1_Sapi_Pnch,	"PNCH" },
+		{ GsmL1_Sapi_Ptcch,	"PTCCH" },
+		{ GsmL1_Sapi_Prach,	"PRACH" },
+		{ 0, NULL }
+	};
 }
 
 namespace GSM {
