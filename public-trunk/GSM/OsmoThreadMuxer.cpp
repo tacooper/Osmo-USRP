@@ -550,16 +550,20 @@ void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
 		{
 			GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-			LOG(INFO) << "L1_WRITE write() sent good frame\ntype=" <<
-				Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id)
-				<< "\nlen=" << MSG_LEN << " buffer(hex)=";
-
-			for(int i = 0; i < MSG_LEN; i++)
+			/* Suppress output if regular Time IND message */
+			if(prim->id != GsmL1_PrimId_MphTimeInd)
 			{
-				printf("%x ", (unsigned char)msg->l1h[i]);
-			}
+				LOG(INFO) << "L1_WRITE write() sent good frame\ntype=" <<
+					Osmo::get_value_string(Osmo::femtobts_l1prim_names, 
+					prim->id) << "\nlen=" << MSG_LEN << " buffer(hex)=";
 
-			printf("\n");
+				for(int i = 0; i < MSG_LEN; i++)
+				{
+					printf("%x ", (unsigned char)msg->l1h[i]);
+				}
+
+				printf("\n");
+			}
 		}
 		else if(rc > 0)
 		{
