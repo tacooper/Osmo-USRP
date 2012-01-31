@@ -214,7 +214,7 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 			processActivateRfReq();
 			break;
 		case FemtoBts_PrimId_DeactivateRfReq:
-			processDeactivateRfReq();
+			processDeactivateRfReq(msg);
 			break;
 		case FemtoBts_PrimId_SetTraceFlagsReq:
 			// no action required
@@ -321,17 +321,22 @@ void OsmoThreadMuxer::processActivateRfReq()
 	sendSysMsg(send_msg);
 }
 
-/* TODO: in
-	enum GsmL1_Status_t status;
-*/
-void OsmoThreadMuxer::processDeactivateRfReq()
+void OsmoThreadMuxer::processDeactivateRfReq(struct Osmo::msgb *recv_msg)
 {
+	/* Process received REQ message */
+	FemtoBts_Prim_t *sysp_req = msgb_sysprim(recv_msg);
+	FemtoBts_DeactivateRfReq_t *req = &sysp_req->u.deactivateRfReq;
+
+	printf("REQ message status = %s\n", 
+		Osmo::get_value_string(Osmo::femtobts_l1status_names, req->status));
+
+	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
 
-	FemtoBts_Prim_t *sysp = msgb_sysprim(send_msg);
-	FemtoBts_DeactivateRfCnf_t *cnf = &sysp->u.deactivateRfCnf;
+	FemtoBts_Prim_t *sysp_cnf = msgb_sysprim(send_msg);
+	FemtoBts_DeactivateRfCnf_t *cnf = &sysp_cnf->u.deactivateRfCnf;
 
-	sysp->id = FemtoBts_PrimId_DeactivateRfCnf;
+	sysp_cnf->id = FemtoBts_PrimId_DeactivateRfCnf;
 
 	cnf->status = GsmL1_Status_Success;
 

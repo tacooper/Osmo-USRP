@@ -89,6 +89,34 @@ namespace Osmo {
 		{ FemtoBts_PrimId_Layer1ResetCnf,	"LAYER1-RESET.conf" },
 		{ 0, NULL }
 	};
+
+	const struct value_string femtobts_l1status_names[GSML1_STATUS_NUM+1] = {
+		{ GsmL1_Status_Success,		"Success" },
+		{ GsmL1_Status_Generic,		"Generic error" },
+		{ GsmL1_Status_NoMemory,	"Not enough memory" },
+		{ GsmL1_Status_Timeout,		"Timeout" },
+		{ GsmL1_Status_InvalidParam,	"Invalid parameter" },
+		{ GsmL1_Status_Busy,		"Resource busy" },
+		{ GsmL1_Status_NoRessource,	"No more resources" },
+		{ GsmL1_Status_Uninitialized, "Trying to use uninitialized resource" },
+		{ GsmL1_Status_NullInterface,	"Trying to call a NULL interface" },
+		{ GsmL1_Status_NullFctnPtr,	"Trying to call a NULL function ptr" },
+		{ GsmL1_Status_BadCrc,		"Bad CRC" },
+		{ GsmL1_Status_BadUsf,		"Bad USF" },
+		{ GsmL1_Status_InvalidCPS,	"Invalid CPS field" },
+		{ GsmL1_Status_UnexpectedBurst,	"Unexpected burst" },
+		{ GsmL1_Status_UnavailCodec,	"AMR codec is unavailable" },
+		{ GsmL1_Status_CriticalError,	"Critical error" },
+		{ GsmL1_Status_OverheatError,	"Overheat error" },
+		{ GsmL1_Status_DeviceError,	"Device error" },
+		{ GsmL1_Status_FacchError,	"FACCH / TCH order error" },
+		{ GsmL1_Status_AlreadyDeactivated, "Lchan already deactivated" },
+		{ GsmL1_Status_TxBurstFifoOvrn,	"FIFO overrun" },
+		{ GsmL1_Status_TxBurstFifoUndr,	"FIFO underrun" },
+		{ GsmL1_Status_NotSynchronized,	"Not synchronized" },
+		{ GsmL1_Status_Unsupported,	"Unsupported feature" },
+		{ 0, NULL }
+	};
 }
 
 namespace GSM {
@@ -170,7 +198,7 @@ private:
 	 * build corresponding SYS CNF messages to send back */
 	void processSystemInfoReq();
 	void processActivateRfReq();
-	void processDeactivateRfReq();
+	void processDeactivateRfReq(struct Osmo::msgb *recv_msg);
 	void processLayer1ResetReq();
 
 	/* Functions to process L1 REQ messages from osmo-bts and 
