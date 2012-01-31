@@ -29,6 +29,7 @@
 #include <Logger.h>
 #include "Interthread.h"
 #include <Globals.h>
+#include "GSMConfigL1.h"
 
 #define msgb_l1prim(msg) ((GsmL1_Prim_t *)(msg)->l1h)
 #define msgb_sysprim(msg) ((FemtoBts_Prim_t *)(msg)->l1h)
@@ -84,6 +85,9 @@ void OsmoThreadMuxer::startThreads()
 
 	Thread recvL1MsgThread;
 	recvL1MsgThread.start((void*(*)(void*))RecvL1MsgLoopAdapter, this);
+
+	Thread sendTimeIndThread;
+	sendTimeIndThread.start((void*(*)(void*))SendTimeIndLoopAdapter, this);
 }
 
 void *GSM::RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux)
@@ -102,6 +106,21 @@ void *GSM::RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux)
 	while(true)
 	{
 		TMux->recvL1Msg();
+
+		pthread_testcancel();
+	}
+	return NULL;
+}
+
+void *GSM::SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux)
+{
+	while(true)
+	{
+		if(TMux->mRunningTimeInd)
+		{
+			TMux->buildMphTimeInd((uint32_t) gBTSL1.time().FN());
+			sleep(1);
+		}
 
 		pthread_testcancel();
 	}
@@ -275,19 +294,20 @@ void OsmoThreadMuxer::processSystemInfoReq()
 	cnf->rfBand.pcs1900 = 0;
 
 	/* Determine preset band of operation */
+	//TODO: determine which bands are supported, not preset
 	const int band = gConfig.getNum("GSM.Band");
 	switch(band)
 	{
-		case 850:
+		case GSM850:
 			cnf->rfBand.gsm850 = 1;
 			break;
-		case 900:
+		case EGSM900:
 			cnf->rfBand.gsm900 = 1;
 			break;
-		case 1800:
+		case DCS1800:
 			cnf->rfBand.dcs1800 = 1;
 			break;
-		case 1900:
+		case PCS1900:
 			cnf->rfBand.pcs1900 = 1;
 			break;
 		default:
@@ -429,6 +449,12 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	/* Store reference to L2 for this SAPI */
 	mL2id[req->sapi] = req->hLayer2;
 
+	/* Start sending MphTimeInd messages if SCH is activated */
+	if(req->sapi == GsmL1_Sapi_Sch)
+	{
+		mRunningTimeInd = true;
+	}
+
 	printf("REQ message SAPI = %s\n", 
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi));
 
@@ -443,6 +469,20 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	cnf->u8Tn = req->u8Tn;
 	cnf->sapi = req->sapi;
 	cnf->status = GsmL1_Status_Success;
+
+	sendL1Msg(send_msg);
+}
+
+void OsmoThreadMuxer::buildMphTimeInd(uint32_t time)
+{
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_MphTimeInd_t *ind = &l1p->u.mphTimeInd;
+	
+	l1p->id = GsmL1_PrimId_MphTimeInd;
+
+	ind->u32Fn = time;
 
 	sendL1Msg(send_msg);
 }

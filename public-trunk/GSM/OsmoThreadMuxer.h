@@ -170,10 +170,11 @@ protected:
 	unsigned int mNumTRX;
 	int mL1id; // hLayer1, initialized by OpenBTS
 	int mL2id[GsmL1_Sapi_NUM]; // hLayer2, initialized by osmo-bts
+	bool mRunningTimeInd;
 
 public:
 	OsmoThreadMuxer()
-		:mNumTRX(0), mL1id(1)
+		:mNumTRX(0), mL1id(1), mRunningTimeInd(false)
 	{
 		createSockets();
 
@@ -235,16 +236,22 @@ private:
 	void processMphConnectReq(struct Osmo::msgb *recv_msg);
 	void processMphActivateReq(struct Osmo::msgb *recv_msg);
 
+	/* Function to build and send L1 message required by osmo-bts at regular 
+	 * interval */
+	void buildMphTimeInd(uint32_t time);
+
 	/* Helper function for value parsing */
 	const char* getPath(const int index);
 
 	/* Service loop adapters for pthreads */
 	friend void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
 	friend void *RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
+	friend void *SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux);
 };
 
 void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
 void *RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
+void *SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux);
 
 };		// GSM
 
