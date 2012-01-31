@@ -142,10 +142,11 @@ protected:
 	int mSockFd[4];
 	OsmoTRX *mTRX[1];
 	unsigned int mNumTRX;
+	int mL1id; // hLayer1
 
 public:
 	OsmoThreadMuxer()
-		:mNumTRX(0)
+		:mNumTRX(0), mL1id(1)
 	{
 		createSockets();
 
@@ -204,7 +205,7 @@ private:
 	/* Functions to process L1 REQ messages from osmo-bts and 
 	 * build corresponding L1 CNF messages to send back */
 	void processMphInitReq();
-	void processMphConnectReq();
+	void processMphConnectReq(struct Osmo::msgb *recv_msg);
 	void processMphActivateReq();
 
 	/* Helper function for value parsing */

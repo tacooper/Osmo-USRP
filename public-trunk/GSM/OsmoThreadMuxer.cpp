@@ -248,7 +248,7 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 			processMphInitReq();
 			break;
 		case GsmL1_PrimId_MphConnectReq:
-			processMphConnectReq();
+			processMphConnectReq(msg);
 			break;
 		case GsmL1_PrimId_MphActivateReq:
 			processMphActivateReq();
@@ -304,8 +304,8 @@ void OsmoThreadMuxer::processSystemInfoReq()
 	sendSysMsg(send_msg);
 }
 
-/* TODO: in
-	uint16_t u12ClkVc;
+/* ignored input values:
+	uint16_t u12ClkVc (no use)
 */
 void OsmoThreadMuxer::processActivateRfReq()
 {
@@ -358,13 +358,16 @@ void OsmoThreadMuxer::processLayer1ResetReq()
 }
 
 /* TODO: in
-	enum GsmL1_DevType_t devType;
-	int freqBand;
-	uint16_t u16Arfcn;
-	uint16_t u16BcchArfcn;
-	uint8_t u8NbTsc;
-	float fRxPowerLevel;
-	float fTxPowerLevel;
+	[to tune/setTSC, radio must be off. also TSC is usually set to BCC.]
+	uint16_t u16Arfcn: radio->tune()
+	uint8_t u8NbTsc: radio->setTSC()
+*/
+/* ignored input values:
+	GsmL1_DevType_t devType (no use)
+	int freqBand (already set in .config file)
+	uint16_t u16BcchArfcn (no use)
+	float fRxPowerLevel (already set somewhere else)
+	float fTxPowerLevel (already set somewhere else)
 */
 void OsmoThreadMuxer::processMphInitReq()
 {
@@ -376,20 +379,25 @@ void OsmoThreadMuxer::processMphInitReq()
 	l1p->id = GsmL1_PrimId_MphInitCnf;
 
 	cnf->status = GsmL1_Status_Success;
+	cnf->hLayer1 = mL1id;
 
 	sendL1Msg(send_msg);
 }
-/* TODO: out
-	uint32_t hLayer1;
-*/
 
-/* TODO: in
-	uint32_t hLayer1;
-	uint8_t u8Tn;
-	enum GsmL1_LogChComb_t logChComb;
+/* ignored input values:
+	uint8_t u8Tn (no use)
+	GsmL1_LogChComb_t logChComb (already set in .config file)
 */
-void OsmoThreadMuxer::processMphConnectReq()
+void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 {
+	/* Process received REQ message */
+	GsmL1_Prim_t *l1p_req = msgb_l1prim(recv_msg);
+	GsmL1_MphConnectReq_t *req = &l1p_req->u.mphConnectReq;
+
+	/* Check if hLayer1 is correct reference */
+	assert(mL1id == req->hLayer1);
+
+	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
 
 	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
