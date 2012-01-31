@@ -251,7 +251,7 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 			processMphConnectReq(msg);
 			break;
 		case GsmL1_PrimId_MphActivateReq:
-			processMphActivateReq();
+			processMphActivateReq(msg);
 			break;
 		default:
 			LOG(ERROR) << "Invalid L1 prim type!";
@@ -394,7 +394,7 @@ void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 	GsmL1_Prim_t *l1p_req = msgb_l1prim(recv_msg);
 	GsmL1_MphConnectReq_t *req = &l1p_req->u.mphConnectReq;
 
-	/* Check if hLayer1 is correct reference */
+	/* Check if L1 reference is correct */
 	assert(mL1id == req->hLayer1);
 
 	/* Build CNF message to send */
@@ -410,18 +410,27 @@ void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 	sendL1Msg(send_msg);
 }
 
-/* TODO: in
-	uint32_t hLayer1;
-	enum GsmL1_LogChComb_t logChPrm;
-	uint8_t u8Tn;
-	enum GsmL1_SubCh_t subCh;
-	enum GsmL1_Dir_t dir;
-	enum GsmL1_Sapi_t sapi;
-	uint32_t hLayer2;
-	float fBFILevel;
+/* ignored input values:
+	GsmL1_LogChComb_t logChPrm (no use)
+	GsmL1_SubCh_t subCh (no use)
+	GsmL1_Dir_t dir (no use)
+	float fBFILevel (no use)
+	uint8_t u8Tn (no use, passed through)
+	GsmL1_Sapi_t sapi (no use, passed through)
 */
-void OsmoThreadMuxer::processMphActivateReq()
+void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 {
+	/* Process received REQ message */
+	GsmL1_Prim_t *l1p_req = msgb_l1prim(recv_msg);
+	GsmL1_MphActivateReq_t *req = &l1p_req->u.mphActivateReq;
+
+	/* Check if L1 reference is correct */
+	assert(mL1id == req->hLayer1);
+
+	/* Store reference to L2 for this SAPI */
+	mL2id[req->sapi] = req->hLayer2;
+
+	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
 
 	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
@@ -429,15 +438,12 @@ void OsmoThreadMuxer::processMphActivateReq()
 	
 	l1p->id = GsmL1_PrimId_MphActivateCnf;
 
+	cnf->u8Tn = req->u8Tn;
+	cnf->sapi = req->sapi;
 	cnf->status = GsmL1_Status_Success;
 
 	sendL1Msg(send_msg);
 }
-/* TODO: out
-	enum GsmL1_Status_t status;
-	uint8_t u8Tn;
-	int sapi;
-*/
 
 void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
 {

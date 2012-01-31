@@ -142,7 +142,8 @@ protected:
 	int mSockFd[4];
 	OsmoTRX *mTRX[1];
 	unsigned int mNumTRX;
-	int mL1id; // hLayer1
+	int mL1id; // hLayer1, initialized by OpenBTS
+	int mL2id[GsmL1_Sapi_NUM]; // hLayer2, initialized by osmo-bts
 
 public:
 	OsmoThreadMuxer()
@@ -206,7 +207,7 @@ private:
 	 * build corresponding L1 CNF messages to send back */
 	void processMphInitReq();
 	void processMphConnectReq(struct Osmo::msgb *recv_msg);
-	void processMphActivateReq();
+	void processMphActivateReq(struct Osmo::msgb *recv_msg);
 
 	/* Helper function for value parsing */
 	const char* getPath(const int index);
