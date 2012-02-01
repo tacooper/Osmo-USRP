@@ -169,7 +169,7 @@ protected:
 	OsmoTRX *mTRX[1];
 	unsigned int mNumTRX;
 	int mL1id; // hLayer1, initialized by OpenBTS
-	int mL2id[GsmL1_Sapi_NUM]; // hLayer2, initialized by osmo-bts
+	std::map<GsmL1_Sapi_t, int> mHL2; // hLayer2s, initialized by osmo-bts
 	bool mRunningTimeInd;
 
 public:
@@ -212,6 +212,9 @@ private:
 	/* Initialization functions */
 	void createSockets();
 	void startThreads();
+
+	/* Functions for HL2 map */
+	void addHL2(const GsmL1_Sapi_t sapi, const int hLayer2);
 
 	/* Functions for processing SYS type messages */
 	void recvSysMsg();

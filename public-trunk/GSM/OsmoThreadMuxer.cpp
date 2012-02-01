@@ -446,8 +446,8 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	/* Check if L1 reference is correct */
 	assert(mL1id == req->hLayer1);
 
-	/* Store reference to L2 for this SAPI */
-	mL2id[req->sapi] = req->hLayer2;
+	/* Store reference to L2 for this SAPI in map */
+	addHL2(req->sapi, req->hLayer2);
 
 	/* Start sending MphTimeInd messages if SCH is activated */
 	if(req->sapi == GsmL1_Sapi_Sch)
@@ -579,6 +579,27 @@ void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
 	}
 
 	Osmo::msgb_free(msg);
+}
+
+void OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
+{	
+	std::pair<std::map<GsmL1_Sapi_t, int>::iterator, bool> rc = 
+		mHL2.insert(std::pair<GsmL1_Sapi_t, int>(sapi, hLayer2));
+
+	if(!rc.second)
+	{
+		LOG(ERROR) << Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi) 
+			<< " already exists with hLayer2=" << rc.first->second;
+	}
+
+	std::cout << "\nmHL2 contains:\n";
+	for(std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.begin(); 
+		it != mHL2.end(); it++)
+	{
+		std::cout << "[ " << 
+			Osmo::get_value_string(Osmo::femtobts_l1sapi_names, (*it).first) << 
+			" , " << (*it).second << " ]\n";
+	}
 }
 
 void OsmoThreadMuxer::createSockets()
