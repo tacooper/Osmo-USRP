@@ -36,6 +36,7 @@ libGSML1_la_SOURCES = \
 	OsmoSAPMux.cpp \
 	OsmoLogicalChannel.cpp \
 	OsmoThreadMuxer.cpp \
+	Osmo_GSML1FEC_BCCH.cpp \
 	GSMTAPDump.cpp
 
 libGSM_la_SOURCES = \
