@@ -365,6 +365,7 @@ void OsmoThreadMuxer::processDeactivateRfReq(struct Osmo::msgb *recv_msg)
 
 void OsmoThreadMuxer::processLayer1ResetReq()
 {
+	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
 
 	FemtoBts_Prim_t *sysp = msgb_sysprim(send_msg);
@@ -391,6 +392,7 @@ void OsmoThreadMuxer::processLayer1ResetReq()
 */
 void OsmoThreadMuxer::processMphInitReq()
 {
+	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
 
 	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
@@ -592,6 +594,7 @@ void OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
 			<< " already exists with hLayer2=" << rc.first->second;
 	}
 
+	/* Output current list of map keys and values */
 	std::cout << "\nmHL2 contains:\n";
 	for(std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.begin(); 
 		it != mHL2.end(); it++)
@@ -600,6 +603,33 @@ void OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
 			Osmo::get_value_string(Osmo::femtobts_l1sapi_names, (*it).first) << 
 			" , " << (*it).second << " ]\n";
 	}
+}
+
+int OsmoThreadMuxer::getHL2(const GsmL1_Sapi_t sapi)
+{
+	std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.find(sapi);
+
+	assert(it != mHL2.end());
+
+	return it->second;
+}
+
+bool OsmoThreadMuxer::hasHL2(const GsmL1_Sapi_t sapi)
+{
+	std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.find(sapi);
+
+	bool rc;
+
+	if(it != mHL2.end())
+	{
+		rc = true;
+	}
+	else
+	{
+		rc = false;
+	}
+
+	return rc;
 }
 
 void OsmoThreadMuxer::createSockets()

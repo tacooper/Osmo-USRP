@@ -215,6 +215,8 @@ private:
 
 	/* Functions for HL2 map */
 	void addHL2(const GsmL1_Sapi_t sapi, const int hLayer2);
+	int getHL2(const GsmL1_Sapi_t sapi);
+	bool hasHL2(const GsmL1_Sapi_t sapi);
 
 	/* Functions for processing SYS type messages */
 	void recvSysMsg();
