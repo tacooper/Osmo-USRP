@@ -241,9 +241,17 @@ private:
 	void processMphConnectReq(struct Osmo::msgb *recv_msg);
 	void processMphActivateReq(struct Osmo::msgb *recv_msg);
 
-	/* Function to build and send L1 message required by osmo-bts at regular 
-	 * interval */
-	void buildMphTimeInd(uint32_t time);
+	/* Functions to process L1 REQ messages from osmo-bts (no CNF returned) */
+	void processPhDataReq(struct Osmo::msgb *recv_msg);
+
+	/* Functions for processing buffers from writeLowSide() into L1 IND 
+	 * messages */
+	void handleBufferMsg(const char *buffer, const int size, const int id);
+	void buildPhRaInd(const char* buffer, const int size);
+
+	/* Functions to build and send L1 IND messages required by osmo-bts */
+	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi);
+	void buildMphTimeInd(); //interval < 5 sec
 
 	/* Helper function for value parsing */
 	const char* getPath(const int index);

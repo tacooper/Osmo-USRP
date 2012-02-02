@@ -76,6 +76,36 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 				      OsmoLogicalChannel &lchan)
 {
 	OBJLOG(DEBUG) << lchan << " " << time;
+
+	/* Translate lchan into sapi */
+	GsmL1_Sapi_t sapi;
+
+	switch(lchan.type())
+	{
+		case SCHType:
+		case FCCHType:
+			return;
+		case BCCHType:
+			sapi = GsmL1_Sapi_Bcch;
+			break;
+		case CCCHType:
+		case RACHType:
+		case SACCHType:
+		case SDCCHType:
+		case FACCHType:
+		case TCHFType:
+		case TCHHType:
+		case AnyTCHType:
+			return;
+		default:
+			assert(0);
+	}
+
+	/* Make sure sapi has been connected to osmo-bts via MphActivateReq */
+	if(hasHL2(sapi))
+	{
+		buildPhReadyToSendInd(sapi);
+	}
 }
 
 void OsmoThreadMuxer::startThreads()
@@ -118,7 +148,7 @@ void *GSM::SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux)
 	{
 		if(TMux->mRunningTimeInd)
 		{
-			TMux->buildMphTimeInd((uint32_t) gBTSL1.time().FN());
+			TMux->buildMphTimeInd();
 			sleep(1);
 		}
 
@@ -211,6 +241,22 @@ void OsmoThreadMuxer::recvL1Msg()
 	}
 }
 
+void OsmoThreadMuxer::handleBufferMsg(const char *buffer, const int size, 
+	const int id)
+{
+	printf("Received buffer message type = %s\n", 
+		Osmo::get_value_string(Osmo::femtobts_l1prim_names, id));
+
+	switch(id)
+	{
+		case GsmL1_PrimId_PhRaInd:
+			buildPhRaInd(buffer, size);
+			break;
+		default:
+			LOG(ERROR) << "Invalid buffer prim type!";
+	}
+}
+
 void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 {
 	struct Osmo::msgb *msg = Osmo::msgb_alloc_headroom(2048, 128, "l1_fd");
@@ -271,6 +317,9 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 			break;
 		case GsmL1_PrimId_MphActivateReq:
 			processMphActivateReq(msg);
+			break;
+		case GsmL1_PrimId_PhDataReq:
+			processPhDataReq(msg);
 			break;
 		default:
 			LOG(ERROR) << "Invalid L1 prim type!";
@@ -475,8 +524,75 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	sendL1Msg(send_msg);
 }
 
-void OsmoThreadMuxer::buildMphTimeInd(uint32_t time)
+void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size)
 {
+	/* Build IND message to send */
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_PhRaInd_t *ind = &l1p->u.phRaInd;
+	
+	l1p->id = GsmL1_PrimId_PhRaInd;
+
+	//FIXME: take params from buffer, instead of arbitrary values
+	ind->measParam.fRssi = 0;
+	ind->measParam.fLinkQuality = 10;
+	ind->measParam.fBer = 0;
+	ind->measParam.i16BurstTiming = 0;
+	ind->u32Fn = (uint32_t) gBTSL1.time().FN();
+	ind->hLayer2 = getHL2(GsmL1_Sapi_Rach);
+	ind->msgUnitParam.u8Size = size;
+	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
+
+	sendL1Msg(send_msg);
+}
+
+void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi)
+{
+	/* Build IND message to send */
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_PhReadyToSendInd_t *ind = &l1p->u.phReadyToSendInd;
+	
+	l1p->id = GsmL1_PrimId_PhReadyToSendInd;
+
+	ind->hLayer1 = mL1id;
+	ind->u8Tn = (uint8_t) gBTSL1.time().TN();
+	ind->u32Fn = (uint32_t) gBTSL1.time().FN();
+	ind->sapi = sapi;
+	ind->hLayer2 = getHL2(sapi);
+
+	sendL1Msg(send_msg);
+}
+/* ignored output values:
+	GsmL1_SubCh_t subCh (no use)
+	uint8_t u8BlockNbr (no use)
+*/
+
+/* ignored input values:
+	uint8_t u8Tn;
+	uint32_t u32Fn;
+	GsmL1_Sapi_t sapi;
+	GsmL1_SubCh_t subCh;
+	uint8_t u8BlockNbr;
+	GsmL1_MsgUnitParam_t msgUnitParam;
+*/
+void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
+{
+	/* Process received REQ message */
+	GsmL1_Prim_t *l1p = msgb_l1prim(recv_msg);
+	GsmL1_PhDataReq_t *req = &l1p->u.phDataReq;
+
+	/* Check if L1 reference is correct */
+	assert(mL1id == req->hLayer1);
+
+	
+}
+
+void OsmoThreadMuxer::buildMphTimeInd()
+{
+	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
 
 	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
@@ -484,7 +600,7 @@ void OsmoThreadMuxer::buildMphTimeInd(uint32_t time)
 	
 	l1p->id = GsmL1_PrimId_MphTimeInd;
 
-	ind->u32Fn = time;
+	ind->u32Fn = (uint32_t) gBTSL1.time().FN();
 
 	sendL1Msg(send_msg);
 }
