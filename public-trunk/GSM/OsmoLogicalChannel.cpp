@@ -79,6 +79,13 @@ void OsmoLogicalChannel::connect()
 		mL1->upstream(&mMux);
 }
 
+/* This is where OsmoThreadMuxer inputs data received from osmo-bts */
+void OsmoLogicalChannel::writeHighSide(const L2Frame& frame)
+{
+	/* simply pass it through to the OsmoSAPMux */
+	mMux.writeHighSide(frame);
+}
+
 /* This is where OsmoSAPMux inputs data received from L1FEC */
 void OsmoLogicalChannel::writeLowSide(const L2Frame& frame)
 {
@@ -127,7 +134,7 @@ OsmoBCCHLchan::OsmoBCCHLchan(OsmoTS *osmo_ts)
 {
 	assert(osmo_ts->getComb() == 5);
 
-	mL1 = new CCCHL1FEC(gBCCHMapping);
+	mL1 = new BCCHL1FEC();
 	connect();
 }
 

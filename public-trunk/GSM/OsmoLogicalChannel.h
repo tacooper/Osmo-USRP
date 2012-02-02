@@ -154,6 +154,7 @@ public:
 	unsigned int SSnr() const { return mSS; }
 	//@}
 
+	virtual void writeHighSide(const L2Frame& frame);
 	virtual void writeLowSide(const L2Frame& frame);
 	virtual void signalNextWtime(GSM::Time &time);
 
