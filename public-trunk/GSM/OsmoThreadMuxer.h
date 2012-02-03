@@ -203,6 +203,9 @@ public:
 	virtual void writeLowSide(const L2Frame& frame,
 				  OsmoLogicalChannel *lchan);
 
+	void writeHighSide(const L2Frame& frame, const unsigned int ts_nr, 
+		const unsigned int lchan_nr);
+
 	/* L1 informs us about the next TDMA time for which it needs
 	 * data */
 	virtual void signalNextWtime(GSM::Time &time,

@@ -72,8 +72,16 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
 	/* build primitive that we can put into the up-queue */
 }
 
+void OsmoThreadMuxer::writeHighSide(const L2Frame& frame, 
+	const unsigned int ts_nr, const unsigned int lchan_nr)
+{
+	OsmoLogicalChannel *lchan = mTRX[0]->getLchan(ts_nr, lchan_nr);
+
+	lchan->writeHighSide(frame);
+}
+
 void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
-				      OsmoLogicalChannel &lchan)
+	OsmoLogicalChannel &lchan)
 {
 	OBJLOG(DEBUG) << lchan << " " << time;
 
@@ -570,13 +578,15 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi)
 	uint8_t u8BlockNbr (no use)
 */
 
-/* ignored input values:
+/* TODO:
 	uint8_t u8Tn;
-	uint32_t u32Fn;
 	GsmL1_Sapi_t sapi;
-	GsmL1_SubCh_t subCh;
-	uint8_t u8BlockNbr;
 	GsmL1_MsgUnitParam_t msgUnitParam;
+*/
+/* ignored input values:
+	uint32_t u32Fn (no use)
+	GsmL1_SubCh_t subCh (no use)
+	uint8_t u8BlockNbr (no use)
 */
 void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 {
