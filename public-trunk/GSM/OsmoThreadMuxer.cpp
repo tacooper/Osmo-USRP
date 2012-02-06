@@ -72,12 +72,38 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
 	/* build primitive that we can put into the up-queue */
 }
 
-void OsmoThreadMuxer::writeHighSide(const L2Frame& frame, 
-	const unsigned int ts_nr, const unsigned int lchan_nr)
+OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi, 
+	const unsigned int ts_nr)
 {
-	OsmoLogicalChannel *lchan = mTRX[0]->getLchan(ts_nr, lchan_nr);
+	unsigned int lchan_nr = 8;
 
-	lchan->writeHighSide(frame);
+	switch(sapi)
+	{
+		case GsmL1_Sapi_Bcch:
+			return mTRX[0]->getTS(ts_nr)->getBCCHLchan();
+/* Only BCCH allowed at the moment */
+/*		case GsmL1_Sapi_Rach:
+			lchan_nr = ;
+			break;
+		case GsmL1_Sapi_Agch:
+			lchan_nr = ;
+			break;
+		case GsmL1_Sapi_Pch:
+			lchan_nr = ;
+			break;
+		case GsmL1_Sapi_Sdcch:
+			lchan_nr = ;
+			break;
+		/* Only support full-rate traffic */
+/*		case GsmL1_Sapi_TchF:
+		case GsmL1_Sapi_FacchF:
+			lchan_nr = 0;
+			break;
+		default:
+			assert(0); */
+	}
+
+	return NULL;
 }
 
 void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,

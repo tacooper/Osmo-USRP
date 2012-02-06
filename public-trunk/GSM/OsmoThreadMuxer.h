@@ -168,7 +168,7 @@ protected:
 	int mSockFd[4];
 	OsmoTRX *mTRX[1];
 	unsigned int mNumTRX;
-	int mL1id; // hLayer1, initialized by OpenBTS
+	int mL1id; // hLayer1, initialized by OpenBTS (=TRX)
 	std::map<GsmL1_Sapi_t, int> mHL2; // hLayer2s, initialized by osmo-bts
 	bool mRunningTimeInd;
 
@@ -203,8 +203,9 @@ public:
 	virtual void writeLowSide(const L2Frame& frame,
 				  OsmoLogicalChannel *lchan);
 
-	void writeHighSide(const L2Frame& frame, const unsigned int ts_nr, 
-		const unsigned int lchan_nr);
+	/* Determine Lchan from [sapi, u8Tn] of osmo-bts */
+	OsmoLogicalChannel* getLchanFromSapi(const GsmL1_Sapi_t sapi, 
+		const unsigned int ts_nr);
 
 	/* L1 informs us about the next TDMA time for which it needs
 	 * data */
