@@ -43,6 +43,8 @@ ARFCNManager *OsmoTS::getARFCNmgr()
 
 OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
 {
+	mBCCH = NULL;
+
 	assert(ts_nr < 8);
 	mComb = comb;
 	mTSnr = ts_nr;

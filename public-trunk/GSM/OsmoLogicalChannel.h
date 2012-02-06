@@ -52,12 +52,15 @@ namespace GSM {
 class OsmoTRX;
 class OsmoThreadMuxer;
 class OsmoLogicalChannel;
+class OsmoBCCHLchan;
 
 /* virtual class from which we derive timeslots */
 class OsmoTS {
 protected:
 	OsmoTRX *mTRX;
 	unsigned int mTSnr;
+	OsmoBCCHLchan *mBCCH;
+	/* Only used for SDCCH/TCH */
 	OsmoLogicalChannel *mLchan[8];
 	unsigned int mNLchan;
 	unsigned int mComb;
@@ -73,6 +76,11 @@ public:
 			return mLchan[nr];
 		else
 			return NULL;
+	}
+
+	OsmoBCCHLchan *getBCCHLchan()
+	{
+		return mBCCH;
 	}
 };
 
@@ -90,11 +98,22 @@ public:
 		mTRXmgr = &TRXmgr;
 		mTN = trx_nr;
 		mThreadMux = thread_mux;
+
+		for(int i = 0; i < 8; i++)
+		{
+			mTS[i] = NULL;
+		}
 	}
 
 	TransceiverManager *getTRXmgr() const { return mTRXmgr; }
 	OsmoThreadMuxer *getThreadMux() const { return mThreadMux; }
 	unsigned int getTN() const { return mTN; }
+
+	void addTS(OsmoTS &ts)
+	{
+		unsigned int ts_nr = ts.getTSnr();
+		mTS[ts_nr] = &ts;
+	}
 
 	OsmoTS *getTS(unsigned int nr) {
 		assert(nr < 8);
@@ -148,6 +167,7 @@ public:
 
 	/**@name Accessors. */
 	//@{
+	L1FEC* getL1() { return mL1; }
 	SACCHL1FEC* SACCH() { return mSACCHL1; }
 	const SACCHL1FEC* SACCH() const { return mSACCHL1; }
 	const OsmoTS* TS() const { return mTS; }
@@ -304,6 +324,9 @@ public:
 		chan->open();
 		mLchan[0] = chan;
 		mNLchan = 1;
+
+		/* Add TS to TRX */
+		trx.addTS(*this);
 	}
 };
 
@@ -313,7 +336,6 @@ protected:
 	SCHL1FEC mSCH;
 	FCCHL1FEC mFCCH;
 	RACHL1FEC mRACH;
-	OsmoBCCHLchan *mBCCH;
 	OsmoCCCHLchan *mCCCH[3];
 public:
 	OsmoComb5TS(OsmoTRX &trx, unsigned int tn)
@@ -350,8 +372,10 @@ public:
 			chan->open();
 			mLchan[i] = chan;
 			mNLchan++;
-
 		}
+
+		/* Add TS to TRX */
+		trx.addTS(*this);
 	}
 };
 
@@ -369,6 +393,9 @@ public:
 			mLchan[i] = chan;
 			mNLchan++;
 		}
+
+		/* Add TS to TRX */
+		trx.addTS(*this);
 	}
 };
 
