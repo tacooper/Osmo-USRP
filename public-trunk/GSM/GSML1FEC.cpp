@@ -33,7 +33,6 @@
 #include "GSMTDMA.h"
 #include "GSMTAPDump.h"
 #include <TRXManager.h>
-#include <Logger.h>
 #include <assert.h>
 #include <math.h>
 

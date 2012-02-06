@@ -30,6 +30,7 @@
 #include "Threads.h"
 #include <assert.h>
 #include "BitVector.h"
+#include <Logger.h>
 
 #include "GSMCommon.h"
 #include "GSMTransfer.h"
@@ -956,17 +957,13 @@ void *NDCCHL1EncoderServiceLoopAdapter(NDCCHL1Encoder*);
 /**
 	L1 encoder for the BCCH has generator filling behavior but xCCH-like FEC.
 */
-class BCCHL1Encoder : public NDCCHL1Encoder {
+class BCCHL1Encoder : public XCCHL1Encoder {
 
 	public:
 
 	BCCHL1Encoder(L1FEC *wParent)
-		:NDCCHL1Encoder(0,gBCCHMapping,wParent)
+		:XCCHL1Encoder(0,gBCCHMapping,wParent)
 	{}
-
-	private:
-
-	void generate();
 };
 
 
