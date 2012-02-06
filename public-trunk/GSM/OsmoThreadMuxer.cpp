@@ -516,11 +516,10 @@ void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 }
 
 /* ignored input values:
-	GsmL1_LogChComb_t logChPrm (no use)
+	GsmL1_LogChComb_t logChPrm (already set in .config file)
 	GsmL1_SubCh_t subCh (no use)
 	GsmL1_Dir_t dir (no use)
 	float fBFILevel (no use)
-	uint8_t u8Tn (no use, passed through)
 */
 void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 {
@@ -533,6 +532,13 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 
 	/* Store reference to L2 for this SAPI in map */
 	addHL2(req->sapi, req->hLayer2);
+
+	/* Start sending PhReadyToSendInd messages for BCCH when activated */
+	if(req->sapi == GsmL1_Sapi_Bcch)
+	{
+		unsigned int ts_nr = (unsigned int)req->u8Tn;
+		mTRX[0]->getTS(ts_nr)->getBCCHLchan()->getL1()->encoder()->signalNextWtime();
+	}
 
 	/* Start sending MphTimeInd messages if SCH is activated */
 	if(req->sapi == GsmL1_Sapi_Sch)
@@ -604,11 +610,6 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi)
 	uint8_t u8BlockNbr (no use)
 */
 
-/* TODO:
-	uint8_t u8Tn;
-	GsmL1_Sapi_t sapi;
-	GsmL1_MsgUnitParam_t msgUnitParam;
-*/
 /* ignored input values:
 	uint32_t u32Fn (no use)
 	GsmL1_SubCh_t subCh (no use)
@@ -623,7 +624,26 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 	/* Check if L1 reference is correct */
 	assert(mL1id == req->hLayer1);
 
-	
+	/* Determine OsmoLchan based on SAPI and timeslot */
+	OsmoLogicalChannel *lchan = 
+		getLchanFromSapi(req->sapi, (unsigned int)req->u8Tn);
+
+	if(lchan == NULL)
+	{
+		LOG(INFO) << "Received PhDataReq for invalid Lchan...";
+		return;
+	}
+
+	/* Pack msgUnitParam into L2Frame */
+	unsigned char* data = (unsigned char*)req->msgUnitParam.u8Buffer;
+	uint8_t size = req->msgUnitParam.u8Size;
+
+	BitVector vector(size*8);
+	vector.unpack(data);
+	L2Frame frame(vector, DATA);
+
+	/* Send L2Frame to OsmoLchan */
+	lchan->writeHighSide(frame);
 }
 
 void OsmoThreadMuxer::buildMphTimeInd()
@@ -851,7 +871,7 @@ void OsmoThreadMuxer::createSockets()
 	}
 }
 
-const char* OsmoThreadMuxer::getPath(const int index)
+const char *OsmoThreadMuxer::getPath(const int index)
 {
 	switch(index)
 	{
