@@ -60,10 +60,10 @@ void OsmoSAPMux::dispatch()
 {
 	L2Frame *frame;
 
-	assert(mDownstream);
-
 	/* blocking read from FIFO */
 	frame = mL2Q.read();
+
+	assert(mDownstream);
 
 	/* blocking write to L1Encoder */
 	mLock.lock();

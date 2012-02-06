@@ -53,7 +53,8 @@ class OsmoSAPMux : public SAPMux {
 	public:
 
 	OsmoSAPMux()
-		:mLchan(NULL){ 
+		:mLchan(NULL){
+		start();
 	}
 
 	virtual ~OsmoSAPMux() {}
