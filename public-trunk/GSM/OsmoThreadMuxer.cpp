@@ -75,13 +75,13 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
 OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi, 
 	const unsigned int ts_nr)
 {
-	unsigned int lchan_nr = 8;
-
 	switch(sapi)
 	{
 		case GsmL1_Sapi_Bcch:
 			return mTRX[0]->getTS(ts_nr)->getBCCHLchan();
-/* Only BCCH allowed at the moment */
+		case GsmL1_Sapi_Sch:
+			return mTRX[0]->getTS(ts_nr)->getSCHLchan();
+/* Only BCCH, SCH allowed at the moment */
 /*		case GsmL1_Sapi_Rach:
 			lchan_nr = ;
 			break;
@@ -116,12 +116,13 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 
 	switch(lchan.type())
 	{
-		case SCHType:
-		case FCCHType:
-			return;
 		case BCCHType:
 			sapi = GsmL1_Sapi_Bcch;
 			break;
+		case SCHType:
+			sapi = GsmL1_Sapi_Sch;
+			break;
+		case FCCHType:
 		case CCCHType:
 		case RACHType:
 		case SACCHType:
@@ -525,11 +526,12 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	/* Store reference to L2 for this SAPI in map */
 	addHL2(req->sapi, req->hLayer2);
 
-	/* Start sending PhReadyToSendInd messages for BCCH when activated */
-	if(req->sapi == GsmL1_Sapi_Bcch)
+	/* Start cycle of PhReadyToSendInd messages for activated Lchan */
+	unsigned int ts_nr = (unsigned int)req->u8Tn;
+	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr);
+	if(lchan)
 	{
-		unsigned int ts_nr = (unsigned int)req->u8Tn;
-		mTRX[0]->getTS(ts_nr)->getBCCHLchan()->getL1()->encoder()->signalNextWtime();
+		lchan->getL1()->encoder()->signalNextWtime();	
 	}
 
 	/* Start sending MphTimeInd messages if SCH is activated */

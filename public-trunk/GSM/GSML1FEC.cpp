@@ -772,6 +772,8 @@ XCCHL1Encoder::XCCHL1Encoder(
 
 void XCCHL1Encoder::writeHighSide(const L2Frame& frame)
 {
+	LOG(DEBUG) << "XCCHL1Encoder::writeHighSide " << frame;
+
 	switch (frame.primitive()) {
 		case DATA:
 			// Encode and send data.
@@ -917,56 +919,6 @@ void GeneratorL1Encoder::serviceLoop()
 		generate();
 	}
 }
-
-
-
-
-SCHL1Encoder::SCHL1Encoder(L1FEC* wParent)
-	:GeneratorL1Encoder(0,gSCHMapping,wParent),
-	mBlockCoder(0x0575,10,25),
-	mU(25+10+4), mE(78),
-	mD(mU.head(25)),mP(mU.segment(25,10)),
-	mE1(mE.segment(0,39)),mE2(mE.segment(39,39))
-{
-	// The SCH extended training sequence.
-	// GSM 05.02 5.2.5.
-	static const BitVector xts("1011100101100010000001000000111100101101010001010111011000011011");
-	xts.copyToSegment(mBurst,42);
-	// Set the tail bits in u[] now, just once.
-	mU.fillField(35,0,4);
-}
-
-
-
-void SCHL1Encoder::generate()
-{
-	OBJLOG(DEEPDEBUG) << "SCHL1Encoder " << mNextWriteTime;
-	assert(mDownstream);
-	// Data, GSM 04.08 9.1.30
-	size_t wp=0;
-	mD.writeField(wp,gBTSL1.BSIC(),6);
-	mD.writeField(wp,mNextWriteTime.T1(),11);
-	mD.writeField(wp,mNextWriteTime.T2(),5);
-	mD.writeField(wp,mNextWriteTime.T3p(),3);
-	mD.LSB8MSB();
-	// Encoding, GSM 05.03 4.7
-	// Parity
-	mBlockCoder.writeParityWord(mD,mP);
-	// Convolutional encoding
-	mU.encode(mVCoder,mE);
-	// Mapping onto a burst, GSM 05.02 5.2.5.
-	mBurst.time(mNextWriteTime);
-	mE1.copyToSegment(mBurst,3);
-	mE2.copyToSegment(mBurst,106);
-	// Send it already!
-	mDownstream->writeHighSide(mBurst);
-	rollForward();
-}
-
-
-
-
-
 
 FCCHL1Encoder::FCCHL1Encoder(L1FEC *wParent)
 	:GeneratorL1Encoder(0,gFCCHMapping,wParent)

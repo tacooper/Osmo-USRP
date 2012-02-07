@@ -874,26 +874,13 @@ void *GeneratorL1EncoderServiceLoopAdapter(GeneratorL1Encoder*);
 	The SCH sends out an encoding of the current BTS clock.
 	GSM 05.03 4.7.
 */
-class SCHL1Encoder : public GeneratorL1Encoder {
-
-	private:
-
-	Parity mBlockCoder;			///< block parity coder
-	BitVector mU;				///< u[], as per GSM 05.03 2.2
-	BitVector mE;				///< e[], as per GSM 05.03 2.2
-	BitVector mD;				///< d[], as per GSM 05.03 2.2 
-	BitVector mP;				///< p[], as per GSM 05.03 2.2
-	BitVector mE1;				///< first half of e[]
-	BitVector mE2;				///< second half of e[]
+class SCHL1Encoder : public XCCHL1Encoder {
 
 	public:
 
-	SCHL1Encoder(L1FEC* wParent);
-
-	protected:
-
-	void generate();
-
+	SCHL1Encoder(L1FEC *wParent)
+		:XCCHL1Encoder(0,gSCHMapping,wParent)
+	{}
 };
 
 

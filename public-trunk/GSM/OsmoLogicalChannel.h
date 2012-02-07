@@ -53,6 +53,7 @@ class OsmoTRX;
 class OsmoThreadMuxer;
 class OsmoLogicalChannel;
 class OsmoBCCHLchan;
+class OsmoSCHLchan;
 
 /* virtual class from which we derive timeslots */
 class OsmoTS {
@@ -60,6 +61,7 @@ protected:
 	OsmoTRX *mTRX;
 	unsigned int mTSnr;
 	OsmoBCCHLchan *mBCCH;
+	OsmoSCHLchan *mSCH;
 	/* Only used for SDCCH/TCH */
 	OsmoLogicalChannel *mLchan[8];
 	unsigned int mNLchan;
@@ -81,6 +83,11 @@ public:
 	OsmoBCCHLchan *getBCCHLchan()
 	{
 		return mBCCH;
+	}
+
+	OsmoSCHLchan *getSCHLchan()
+	{
+		return mSCH;
 	}
 };
 
@@ -285,6 +292,13 @@ class OsmoBCCHLchan : public OsmoNDCCHLogicalChannel {
 	ChannelType type() const { return BCCHType; }
 };
 
+class OsmoSCHLchan : public OsmoNDCCHLogicalChannel {
+	public:
+	OsmoSCHLchan(OsmoTS *osmo_ts);
+
+	ChannelType type() const { return SCHType; }
+};
+
 class OsmoTCHFACCHLchan : public OsmoLogicalChannel {
 
 	protected:
@@ -333,31 +347,30 @@ public:
 /* timeslot in Combination 5 (FCCH, SCH, CCCH, BCCH and 4*SDCCH/4) */
 class OsmoComb5TS : public OsmoTS {
 protected:
-	SCHL1FEC mSCH;
 	FCCHL1FEC mFCCH;
 	RACHL1FEC mRACH;
 	OsmoCCCHLchan *mCCCH[3];
 public:
 	OsmoComb5TS(OsmoTRX &trx, unsigned int tn)
 		:OsmoTS(trx, tn, 5),
-		mSCH(),
 		mFCCH(),
 		mRACH(gRACHC5Mapping)
 	{
 		ARFCNManager* radio = getARFCNmgr();
 
-		mSCH.downstream(radio);
-		mSCH.open();
+		mBCCH = new OsmoBCCHLchan(this);
+		mBCCH->downstream(radio);
+		mBCCH->open();
+
+		mSCH = new OsmoSCHLchan(this);
+		mSCH->downstream(radio);
+		mSCH->open();
 
 		mFCCH.downstream(radio);
 		mFCCH.open();
 
 		mRACH.downstream(radio);
 		mRACH.open();
-
-		mBCCH = new OsmoBCCHLchan(this);
-		mBCCH->downstream(radio);
-		mBCCH->open();
 
 		for (int i = 0; i < 3; i++) {
 			mCCCH[i] = new OsmoCCCHLchan(this, i);
