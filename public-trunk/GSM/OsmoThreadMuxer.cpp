@@ -109,7 +109,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	OsmoLogicalChannel &lchan)
 {
-	OBJLOG(DEBUG) << lchan << " " << time;
+//	LOG(DEEPDEBUG) << lchan << " " << time;
 
 	/* Translate lchan into sapi */
 	GsmL1_Sapi_t sapi;
@@ -202,15 +202,11 @@ void OsmoThreadMuxer::recvSysMsg()
 
 	if(len == PRIM_LEN) // good frame
 	{
-		LOG(INFO) << "SYS_READ read() received good frame\nlen=" << len << 
-			" buffer(hex)=";
-
-		for(int i = 0; i < len; i++)
-		{
-			printf("%x ", (unsigned char)buffer[i]);
-		}
-
-		printf("\n");
+		/* Print hex to output */
+		BitVector vector(len*8);
+		vector.unpack((unsigned char*)buffer);
+		LOG(DEEPDEBUG) << "SYS_READ read() received good frame\nlen=" << len << 
+			" buffer(hex)=" << vector;
 
 		handleSysMsg(buffer);
 	}
@@ -244,15 +240,11 @@ void OsmoThreadMuxer::recvL1Msg()
 
 	if(len == PRIM_LEN) // good frame
 	{
-		LOG(INFO) << "L1_READ read() received good frame\nlen=" << len << 
-			" buffer(hex)=";
-
-		for(int i = 0; i < len; i++)
-		{
-			printf("%x ", (unsigned char)buffer[i]);
-		}
-
-		printf("\n");
+		/* Print hex to output */
+		BitVector vector(len*8);
+		vector.unpack((unsigned char*)buffer);
+		LOG(DEEPDEBUG) << "L1_READ read() received good frame\nlen=" << len << 
+			" buffer(hex)=" << vector;
 
 		handleL1Msg(buffer);
 	}
@@ -278,8 +270,8 @@ void OsmoThreadMuxer::recvL1Msg()
 void OsmoThreadMuxer::handleBufferMsg(const char *buffer, const int size, 
 	const int id)
 {
-	printf("Received buffer message type = %s\n", 
-		Osmo::get_value_string(Osmo::femtobts_l1prim_names, id));
+	LOG(INFO) << "recv buffer message type=" <<
+		Osmo::get_value_string(Osmo::femtobts_l1prim_names, id);
 
 	switch(id)
 	{
@@ -301,8 +293,8 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 
 	FemtoBts_Prim_t *prim = msgb_sysprim(msg);
 
-	printf("Received SYS message type = %s\n", 
-		Osmo::get_value_string(Osmo::femtobts_sysprim_names, prim->id));
+	LOG(INFO) << "recv SYS frame type=" <<
+		Osmo::get_value_string(Osmo::femtobts_sysprim_names, prim->id);
 
 	switch(prim->id)
 	{
@@ -338,8 +330,8 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 
 	GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-	printf("Received L1 message type = %s\n", 
-		Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id));
+	LOG(INFO) << "recv L1 frame type=" <<
+		Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id);
 
 	switch(prim->id)
 	{
@@ -430,8 +422,8 @@ void OsmoThreadMuxer::processDeactivateRfReq(struct Osmo::msgb *recv_msg)
 	FemtoBts_Prim_t *sysp_req = msgb_sysprim(recv_msg);
 	FemtoBts_DeactivateRfReq_t *req = &sysp_req->u.deactivateRfReq;
 
-	printf("REQ message status = %s\n", 
-		Osmo::get_value_string(Osmo::femtobts_l1status_names, req->status));
+	LOG(DEBUG) << "REQ message status = " <<
+		Osmo::get_value_string(Osmo::femtobts_l1status_names, req->status);
 
 	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::sysp_msgb_alloc();
@@ -546,8 +538,8 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 		mRunningTimeInd = true;
 	}
 
-	printf("REQ message SAPI = %s\n", 
-		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi));
+	LOG(DEBUG) << "REQ message SAPI = " <<
+		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
 	/* Build CNF message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -673,28 +665,26 @@ void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
 	}
 	else
 	{
-		int rc = ::write(mSockFd[SYS_WRITE], msg->l1h, MSG_LEN);
+		int len = ::write(mSockFd[SYS_WRITE], msg->l1h, MSG_LEN);
 
-		if(rc == MSG_LEN)
+		if(len == MSG_LEN)
 		{
 			FemtoBts_Prim_t *prim = msgb_sysprim(msg);
 
-			LOG(INFO) << "SYS_WRITE write() sent good frame\ntype=" <<
+			LOG(INFO) << "sent SYS frame type=" <<
 				Osmo::get_value_string(Osmo::femtobts_sysprim_names, prim->id)
-				<< "\nlen=" << MSG_LEN << " buffer(hex)=";
+				<< " len=" << len;
 
-			for(int i = 0; i < MSG_LEN; i++)
-			{
-				printf("%x ", (unsigned char)msg->l1h[i]);
-			}
-
-			printf("\n");
+			/* Print hex to output */
+			BitVector vector(len*8);
+			vector.unpack((unsigned char*)msg->l1h);
+			LOG(DEEPDEBUG) << "buffer(hex)=" << vector;
 		}
-		else if(rc > 0)
+		else if(len > 0)
 		{
 			LOG(ERROR) << 
 				"SYS_WRITE write() lengths do not match! MSG_LEN=" << 
-				MSG_LEN << " rc=" << rc;
+				MSG_LEN << " len=" << len;
 		}
 		else
 		{
@@ -718,32 +708,30 @@ void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
 	}
 	else
 	{
-		int rc = ::write(mSockFd[L1_WRITE], msg->l1h, MSG_LEN);
+		int len = ::write(mSockFd[L1_WRITE], msg->l1h, MSG_LEN);
 
-		if(rc == MSG_LEN)
+		if(len == MSG_LEN)
 		{
 			GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
 			/* Suppress output if regular Time IND message */
 			if(prim->id != GsmL1_PrimId_MphTimeInd)
 			{
-				LOG(INFO) << "L1_WRITE write() sent good frame\ntype=" <<
+				LOG(INFO) << "sent L1 frame type=" <<
 					Osmo::get_value_string(Osmo::femtobts_l1prim_names, 
-					prim->id) << "\nlen=" << MSG_LEN << " buffer(hex)=";
+					prim->id) << " len=" << len;
 
-				for(int i = 0; i < MSG_LEN; i++)
-				{
-					printf("%x ", (unsigned char)msg->l1h[i]);
-				}
-
-				printf("\n");
+				/* Print hex to output */
+				BitVector vector(len*8);
+				vector.unpack((unsigned char*)msg->l1h);
+				LOG(DEEPDEBUG) << "buffer(hex)=" << vector;
 			}
 		}
-		else if(rc > 0)
+		else if(len > 0)
 		{
 			LOG(ERROR) << 
 				"L1_WRITE write() lengths do not match! MSG_LEN=" << 
-				MSG_LEN << " rc=" << rc;
+				MSG_LEN << " len=" << len;
 		}
 		else
 		{
@@ -767,11 +755,11 @@ void OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
 	}
 
 	/* Output current list of map keys and values */
-	std::cout << "\nmHL2 contains:\n";
+	LOG(DEBUG) << "mHL2 contains:";
 	for(std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.begin(); 
 		it != mHL2.end(); it++)
 	{
-		std::cout << "[ " << 
+		LOG(DEBUG) << "[ " << 
 			Osmo::get_value_string(Osmo::femtobts_l1sapi_names, (*it).first) << 
 			" , " << (*it).second << " ]\n";
 	}

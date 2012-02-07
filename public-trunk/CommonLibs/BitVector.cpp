@@ -273,9 +273,14 @@ void BitVector::unmap(const unsigned *map, size_t mapSize, BitVector& dest) cons
 
 
 
+ostream& operator<<(ostream& os, const BitVector& hv)
+{
+	hv.hex(os);
+	return os;
+}
 
 
-
+#if 0
 ostream& operator<<(ostream& os, const BitVector& hv)
 {
 	for (size_t i=0; i<hv.size(); i++) {
@@ -284,7 +289,7 @@ ostream& operator<<(ostream& os, const BitVector& hv)
 	}
 	return os;
 }
-
+#endif
 
 
 
@@ -573,6 +578,12 @@ void BitVector::hex(ostream& os) const
 	size_t wp=0;
 	for (unsigned i=0; i<digits; i++) {
 		os << readField(wp,4);
+
+		/* Spacing for easy reading */
+		if(i%2 != 0)
+		{
+			 os << " ";
+		}
 	}
 	os << std::dec;
 }
