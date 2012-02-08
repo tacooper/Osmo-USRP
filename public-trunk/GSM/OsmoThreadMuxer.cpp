@@ -630,7 +630,7 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 
 	if(lchan == NULL)
 	{
-		LOG(INFO) << "Received PhDataReq for invalid Lchan...";
+		LOG(INFO) << "Received PhDataReq for invalid Lchan... dropping it";
 		return;
 	}
 

@@ -49,13 +49,17 @@ Transceiver52M/transceiver
 apps/OpenBTS
 apps/OpenBTScli
 smqueue/smqueue
+apps/TrueBTS
 
 # untracked config and temporary files
 apps/OpenBTS.config
-apps/TrueBTS.config
 apps/TMSITable.txt
+apps/test.TRX.out
+apps/test.out
 
 # Temporary/Backup files
+.*
+*~
 *.*~
 .*.swp
 
