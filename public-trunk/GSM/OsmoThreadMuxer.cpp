@@ -81,7 +81,8 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			return mTRX[0]->getTS(ts_nr)->getBCCHLchan();
 		case GsmL1_Sapi_Sch:
 			return mTRX[0]->getTS(ts_nr)->getSCHLchan();
-/* Only BCCH, SCH allowed at the moment */
+		case GsmL1_Sapi_Fcch:
+			return mTRX[0]->getTS(ts_nr)->getFCCHLchan();
 /*		case GsmL1_Sapi_Rach:
 			lchan_nr = ;
 			break;
@@ -123,6 +124,8 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 			sapi = GsmL1_Sapi_Sch;
 			break;
 		case FCCHType:
+			sapi = GsmL1_Sapi_Fcch;
+			break;
 		case CCCHType:
 		case RACHType:
 		case SACCHType:
@@ -531,7 +534,7 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr);
 	if(lchan)
 	{
-		lchan->getL1()->encoder()->signalNextWtime();	
+		lchan->getL1()->encoder()->signalNextWtime();
 	}
 
 	/* Start sending MphTimeInd messages if SCH is activated */
@@ -540,7 +543,7 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 		mRunningTimeInd = true;
 	}
 
-	LOG(DEBUG) << "REQ message SAPI = " <<
+	LOG(DEBUG) << "MphActivateReq message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
 	/* Build CNF message to send */
@@ -617,6 +620,9 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 
 	/* Check if L1 reference is correct */
 	assert(mL1id == req->hLayer1);
+
+	LOG(DEBUG) << "PhDataReq message SAPI = " <<
+		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
 	/* Determine OsmoLchan based on SAPI and timeslot */
 	OsmoLogicalChannel *lchan = 

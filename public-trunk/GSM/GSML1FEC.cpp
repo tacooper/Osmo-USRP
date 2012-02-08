@@ -920,30 +920,6 @@ void GeneratorL1Encoder::serviceLoop()
 	}
 }
 
-FCCHL1Encoder::FCCHL1Encoder(L1FEC *wParent)
-	:GeneratorL1Encoder(0,gFCCHMapping,wParent)
-{
-	mBurst.zero();
-	mFillerBurst.zero();
-}
-
-
-void FCCHL1Encoder::generate()
-{
-	OBJLOG(DEEPDEBUG) << "FCCHL1Encoder " << mNextWriteTime;
-	assert(mDownstream);
-	resync();
-	for (int i=0; i<5; i++) {
-		mBurst.time(mNextWriteTime);
-		mDownstream->writeHighSide(mBurst);
-		rollForward();
-	}
-	sleep(1);
-}
-
-
-
-
 void NDCCHL1Encoder::start()
 {
 	L1Encoder::start();
