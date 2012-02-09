@@ -508,6 +508,14 @@ void RACHL1Decoder::writeLowSide(const RxBurst& burst)
 	OBJLOG(INFO) <<"RACHL1Decoder received RA=" << RA << " at time " << burst.time()
 		<< " with RSSI=" << burst.RSSI() << " timingError=" << burst.timingError();
 	Control::AccessGrantResponder(RA,burst.time(),burst.RSSI(),burst.timingError());
+
+	/* Build L2Frame and send burst up to OsmoSAPMux */
+	assert(mUpstream);
+
+	const BitVector vector(mD.tail(headerOffset()));
+	L2Frame frame(vector, DATA);
+
+	mUpstream->writeLowSide(frame);
 }
 
 

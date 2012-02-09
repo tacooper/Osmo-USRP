@@ -200,17 +200,14 @@ public:
 
 	/* receive frame synchronously from L1Decoder->OsmoSAPMux and
 	 * enqueue it towards osmo-bts */
-	virtual void writeLowSide(const L2Frame& frame,
-				  OsmoLogicalChannel *lchan);
+	virtual void writeLowSide(const L2Frame &frame, OsmoLogicalChannel *lchan);
 
 	/* Determine Lchan from [sapi, u8Tn] of osmo-bts */
 	OsmoLogicalChannel* getLchanFromSapi(const GsmL1_Sapi_t sapi, 
 		const unsigned int ts_nr);
 
-	/* L1 informs us about the next TDMA time for which it needs
-	 * data */
-	virtual void signalNextWtime(GSM::Time &time,
-				     OsmoLogicalChannel &lchan);
+	/* L1 informs us about the next TDMA time for which it needs data */
+	virtual void signalNextWtime(GSM::Time &time, OsmoLogicalChannel &lchan);
 
 private:
 	/* Initialization functions */
@@ -250,7 +247,7 @@ private:
 
 	/* Functions for processing buffers from writeLowSide() into L1 IND 
 	 * messages */
-	void handleBufferMsg(const char *buffer, const int size, const int id);
+	void handleFrameFromL1(const L2Frame &frame, const int id);
 	void buildPhRaInd(const char* buffer, const int size);
 
 	/* Functions to build and send L1 IND messages required by osmo-bts */

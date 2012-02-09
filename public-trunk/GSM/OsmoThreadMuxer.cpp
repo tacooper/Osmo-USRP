@@ -64,12 +64,18 @@ namespace Osmo
 	}
 }
 
-void OsmoThreadMuxer::writeLowSide(const L2Frame& frame,
-				   struct OsmoLogicalChannel *lchan)
+void OsmoThreadMuxer::writeLowSide(const L2Frame &frame,
+	OsmoLogicalChannel *lchan)
 {
-	OBJLOG(INFO) << "OsmoThreadMuxer::writeLowSide" << lchan << " " << frame;
 	/* resolve SAPI, SS, TS, TRX numbers */
 	/* build primitive that we can put into the up-queue */
+
+	switch(lchan->type())
+	{
+		case RACHType:
+			handleFrameFromL1(frame, GsmL1_PrimId_PhRaInd);
+			break;
+	}
 }
 
 OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi, 
@@ -271,19 +277,22 @@ void OsmoThreadMuxer::recvL1Msg()
 	}
 }
 
-void OsmoThreadMuxer::handleBufferMsg(const char *buffer, const int size, 
-	const int id)
+void OsmoThreadMuxer::handleFrameFromL1(const L2Frame &frame, const int id)
 {
-	LOG(INFO) << "recv buffer message type=" <<
+	LOG(INFO) << "recv frame from L1, prim type=" <<
 		Osmo::get_value_string(Osmo::femtobts_l1prim_names, id);
+
+	const unsigned int size = frame.size()/8;
+	unsigned char buffer[size];
+	frame.pack(buffer);
 
 	switch(id)
 	{
 		case GsmL1_PrimId_PhRaInd:
-			buildPhRaInd(buffer, size);
+			buildPhRaInd((char*)buffer, size);
 			break;
 		default:
-			LOG(ERROR) << "Invalid buffer prim type!";
+			LOG(ERROR) << "Error: Invalid prim type!";
 	}
 }
 
@@ -600,6 +609,11 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi)
 	ind->sapi = sapi;
 	ind->hLayer2 = getHL2(sapi);
 
+	LOG(DEBUG) << "PhReadyToSendInd message TN = " << (int)ind->u8Tn << " FN = "
+		<< ind->u32Fn;
+	LOG(DEBUG) << "PhReadyToSendInd message SAPI = " <<
+		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi);
+
 	sendL1Msg(send_msg);
 }
 /* ignored output values:
@@ -621,6 +635,7 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 	/* Check if L1 reference is correct */
 	assert(mL1id == req->hLayer1);
 
+	LOG(DEBUG) << "PhDataReq message FN = " << req->u32Fn;
 	LOG(DEBUG) << "PhDataReq message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
