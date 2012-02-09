@@ -58,7 +58,7 @@ const dboardConfigType dboardConfig = TXA_RXA;
 const dboardConfigType dboardConfig = TXA_RXB;
 #endif
 
-const double USRPDevice::masterClockRate = 52.0e6;
+const double USRPDevice::masterClockRate = 64.0e6;
 
 USRPDevice::USRPDevice (double _desiredSampleRate, bool skipRx)
   : skipRx(skipRx)
