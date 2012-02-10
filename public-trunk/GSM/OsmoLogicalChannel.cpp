@@ -45,7 +45,6 @@ OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
 {
 	mBCCH = NULL;
 	mSCH = NULL;
-	mFCCH = NULL;
 	mRACH = NULL;
 
 	assert(ts_nr < 8);
@@ -149,15 +148,6 @@ OsmoSCHLchan::OsmoSCHLchan(OsmoTS *osmo_ts)
 	assert(osmo_ts->getComb() == 5);
 
 	mL1 = new SCHL1FEC();
-	connect();
-}
-
-OsmoFCCHLchan::OsmoFCCHLchan(OsmoTS *osmo_ts)
-	:OsmoNDCCHLogicalChannel(osmo_ts, 2)
-{
-	assert(osmo_ts->getComb() == 5);
-
-	mL1 = new FCCHL1FEC();
 	connect();
 }
 

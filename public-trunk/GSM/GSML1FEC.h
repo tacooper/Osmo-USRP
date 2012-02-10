@@ -895,13 +895,15 @@ class SCHL1Encoder : public XCCHL1Encoder {
 	The FCCH just sends bursts of zeroes at set points in the TDMA pattern.
 	See GSM 05.02 5.2.4.
 */
-class FCCHL1Encoder : public XCCHL1Encoder {
+class FCCHL1Encoder : public GeneratorL1Encoder {
 
 	public:
 
-	FCCHL1Encoder(L1FEC *wParent)
-		:XCCHL1Encoder(0,gFCCHMapping,wParent)
-	{}
+	FCCHL1Encoder(L1FEC *wParent);
+
+	protected:
+
+	void generate();
 };
 
 

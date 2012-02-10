@@ -87,8 +87,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			return mTRX[0]->getTS(ts_nr)->getBCCHLchan();
 		case GsmL1_Sapi_Sch:
 			return mTRX[0]->getTS(ts_nr)->getSCHLchan();
-		case GsmL1_Sapi_Fcch:
-			return mTRX[0]->getTS(ts_nr)->getFCCHLchan();
+/* Only BCCH, SCH allowed at the moment */
 /*		case GsmL1_Sapi_Rach:
 			lchan_nr = ;
 			break;
@@ -130,8 +129,6 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 			sapi = GsmL1_Sapi_Sch;
 			break;
 		case FCCHType:
-			sapi = GsmL1_Sapi_Fcch;
-			break;
 		case CCCHType:
 		case RACHType:
 		case SACCHType:
