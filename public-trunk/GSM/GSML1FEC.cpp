@@ -777,7 +777,6 @@ XCCHL1Encoder::XCCHL1Encoder(
 	mU.zero();
 }
 
-
 void XCCHL1Encoder::writeHighSide(const L2Frame& frame)
 {
 	LOG(DEBUG) << "XCCHL1Encoder::writeHighSide " << frame;
@@ -901,6 +900,36 @@ void XCCHL1Encoder::transmit()
 	}
 }
 
+void SCHL1Encoder::writeHighSide(const L2Frame& frame)
+{
+	assert(mDownStream);
+
+	resync();
+	waitToSend();
+
+	/* Only write 4 bytes (3 bytes + 1 bit), not the L2Frame filler! */
+	frame.copyToSegment(mD, 0, 25);
+	mD.LSB8MSB();
+
+	// Generate the parity bits.
+	mBlockCoder.writeParityWord(mD, mP);
+	// Apply the convolutional encoder.
+	mU.encode(mVCoder, mE);
+
+	mE1.copyToSegment(mBurst, 3);
+	mE2.copyToSegment(mBurst, 106);
+
+	mBurst.time(mNextWriteTime);
+
+	// Send to GSMTAP
+	gWriteGSMTAP(ARFCN(), TN(), mNextWriteTime.FN(), typeAndOffset(), 
+		false, false, mU);
+
+	mDownstream->writeHighSide(mBurst);
+
+	rollForward();
+}
+
 
 
 
@@ -941,12 +970,15 @@ void FCCHL1Encoder::generate()
 	OBJLOG(DEEPDEBUG) << "FCCHL1Encoder " << mNextWriteTime;
 	assert(mDownstream);
 	resync();
-	for (int i=0; i<5; i++) {
-		mBurst.time(mNextWriteTime);
-		mDownstream->writeHighSide(mBurst);
-		rollForward();
-	}
-	sleep(1);
+
+	mBurst.time(mNextWriteTime);
+
+	// Send to GSMTAP
+	gWriteGSMTAP(ARFCN(), TN(), mNextWriteTime.FN(), typeAndOffset(), false,
+		false, mBurst);
+
+	mDownstream->writeHighSide(mBurst);
+	rollForward();
 }
 
 

@@ -880,11 +880,30 @@ void *GeneratorL1EncoderServiceLoopAdapter(GeneratorL1Encoder*);
 */
 class SCHL1Encoder : public XCCHL1Encoder {
 
+	private:
+
+	Parity mBlockCoder;
+	BitVector mU;
+	BitVector mE;
+	BitVector mD;
+	BitVector mP;
+	BitVector mE1;
+	BitVector mE2;
+
 	public:
 
 	SCHL1Encoder(L1FEC *wParent)
-		:XCCHL1Encoder(0,gSCHMapping,wParent)
-	{}
+		:XCCHL1Encoder(0,gSCHMapping,wParent), mBlockCoder(0x0575, 10, 25),
+		mU(25+10+4), mE(78), mD(mU.head(25)), mP(mU.segment(25, 10)),
+		mE1(mE.segment(0, 39)), mE2(mE.segment(39, 39))
+	{
+		static const BitVector xts("1011100101100010000001000000111100101101010001010111011000011011");
+		xts.copyToSegment(mBurst,42);
+		mU.fillField(35, 0, 4);
+	}
+
+	/** Process pending incoming messages. */
+	virtual void writeHighSide(const L2Frame&);
 };
 
 
