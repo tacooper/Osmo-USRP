@@ -147,6 +147,8 @@ namespace Osmo {
 
 namespace GSM {
 
+typedef InterthreadQueueWithWait<Osmo::msgb> L1MsgFIFO;
+
 /* The idea of this monster is to provide an interface between the
  * heavily multi-threaded OpenBTS architecture and the single-threaded
  * osmo-bts architecture.
@@ -171,6 +173,7 @@ protected:
 	int mL1id; // hLayer1, initialized by OpenBTS (=TRX)
 	std::map<GsmL1_Sapi_t, int> mHL2; // hLayer2s, initialized by osmo-bts
 	bool mRunningTimeInd;
+	L1MsgFIFO mL1MsgQ;
 
 public:
 	OsmoThreadMuxer()
@@ -261,11 +264,13 @@ private:
 	friend void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
 	friend void *RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
 	friend void *SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux);
+	friend void *SendL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
 };
 
 void *RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux);
 void *RecvL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
 void *SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux);
+void *SendL1MsgLoopAdapter(OsmoThreadMuxer *TMux);
 
 };		// GSM
 

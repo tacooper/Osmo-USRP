@@ -115,7 +115,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	OsmoLogicalChannel &lchan)
 {
-//	LOG(DEEPDEBUG) << lchan << " " << time;
+	LOG(INFO) << lchan << " " << time;
 
 	/* Translate lchan into sapi */
 	GsmL1_Sapi_t sapi;
@@ -159,6 +159,9 @@ void OsmoThreadMuxer::startThreads()
 
 	Thread sendTimeIndThread;
 	sendTimeIndThread.start((void*(*)(void*))SendTimeIndLoopAdapter, this);
+
+	Thread sendL1MsgThread;
+	sendL1MsgThread.start((void*(*)(void*))SendL1MsgLoopAdapter, this);
 }
 
 void *GSM::RecvSysMsgLoopAdapter(OsmoThreadMuxer *TMux)
@@ -192,6 +195,20 @@ void *GSM::SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux)
 			TMux->buildMphTimeInd();
 			sleep(1);
 		}
+
+		pthread_testcancel();
+	}
+	return NULL;
+}
+
+void *GSM::SendL1MsgLoopAdapter(OsmoThreadMuxer *TMux)
+{
+	while(true)
+	{
+		/* blocking read from FIFO */
+		Osmo::msgb *msg = TMux->mL1MsgQ.read();
+
+		TMux->sendL1Msg(msg);
 
 		pthread_testcancel();
 	}
@@ -488,7 +505,8 @@ void OsmoThreadMuxer::processMphInitReq()
 	cnf->status = GsmL1_Status_Success;
 	cnf->hLayer1 = mL1id;
 
-	sendL1Msg(send_msg);
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
 }
 
 /* ignored input values:
@@ -514,7 +532,8 @@ void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 
 	cnf->status = GsmL1_Status_Success;
 
-	sendL1Msg(send_msg);
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
 }
 
 /* ignored input values:
@@ -564,7 +583,8 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	cnf->sapi = req->sapi;
 	cnf->status = GsmL1_Status_Success;
 
-	sendL1Msg(send_msg);
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
 }
 
 void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size)
@@ -587,7 +607,10 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size)
 	ind->msgUnitParam.u8Size = size;
 	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
 
-	sendL1Msg(send_msg);
+	LOG(DEBUG) << "PhRaInd message FN = " << ind->u32Fn;
+
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
 }
 
 void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time)
@@ -611,7 +634,8 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time)
 	LOG(DEBUG) << "PhReadyToSendInd message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi);
 
-	sendL1Msg(send_msg);
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
 }
 /* ignored output values:
 	GsmL1_SubCh_t subCh (no use)
@@ -670,7 +694,8 @@ void OsmoThreadMuxer::buildMphTimeInd()
 
 	ind->u32Fn = (uint32_t) gBTSL1.time().FN();
 
-	sendL1Msg(send_msg);
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
 }
 
 void OsmoThreadMuxer::sendSysMsg(struct Osmo::msgb *msg)
