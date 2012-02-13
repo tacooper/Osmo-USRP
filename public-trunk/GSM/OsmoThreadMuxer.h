@@ -251,7 +251,7 @@ private:
 	void buildPhRaInd(const char* buffer, const int size);
 
 	/* Functions to build and send L1 IND messages required by osmo-bts */
-	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi);
+	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time);
 	void buildMphTimeInd(); //interval < 5 sec
 
 	/* Helper function for value parsing */

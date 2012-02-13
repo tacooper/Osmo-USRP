@@ -145,7 +145,7 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	/* Make sure sapi has been connected to osmo-bts via MphActivateReq */
 	if(hasHL2(sapi))
 	{
-		buildPhReadyToSendInd(sapi);
+		buildPhReadyToSendInd(sapi, time);
 	}
 }
 
@@ -590,7 +590,7 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size)
 	sendL1Msg(send_msg);
 }
 
-void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi)
+void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time)
 {
 	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -601,8 +601,8 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi)
 	l1p->id = GsmL1_PrimId_PhReadyToSendInd;
 
 	ind->hLayer1 = mL1id;
-	ind->u8Tn = (uint8_t) gBTSL1.time().TN();
-	ind->u32Fn = (uint32_t) gBTSL1.time().FN();
+	ind->u8Tn = (uint8_t)time.TN();
+	ind->u32Fn = (uint32_t)time.FN();
 	ind->sapi = sapi;
 	ind->hLayer2 = getHL2(sapi);
 
