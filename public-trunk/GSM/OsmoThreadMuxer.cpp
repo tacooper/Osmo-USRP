@@ -670,16 +670,18 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 		return;
 	}
 
-	/* Pack msgUnitParam into L2Frame */
+	/* Pack msgUnitParam into BitVector */
 	unsigned char* data = (unsigned char*)req->msgUnitParam.u8Buffer;
 	uint8_t size = req->msgUnitParam.u8Size;
 
 	BitVector vector(size*8);
 	vector.unpack(data);
-	L2Frame frame(vector, DATA);
 
-	/* Send L2Frame to OsmoLchan */
-	lchan->writeHighSide(frame);
+	OBJLOG(INFO) << "OsmoThreadMuxer::writeHighSide " << vector
+		<< " bytes size=" << (int)size;
+
+	/* Send BitVector to OsmoLchan */
+	lchan->writeHighSide(vector);
 }
 
 void OsmoThreadMuxer::buildMphTimeInd()
