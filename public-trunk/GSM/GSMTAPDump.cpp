@@ -31,8 +31,8 @@
 UDPSocket GSMTAPSocket;
 
 void gWriteGSMTAP(unsigned ARFCN, unsigned TS, unsigned FN,
-                  GSM::TypeAndOffset to, bool is_saach, bool ul_dln,
-                  const BitVector& frame)
+	GSM::TypeAndOffset to, bool is_saach, bool ul_dln, const BitVector& frame, 
+	const uint8_t burstType)
 {
 	char buffer[MAX_UDP_LENGTH];
 	int ofs = 0;
@@ -52,6 +52,11 @@ void gWriteGSMTAP(unsigned ARFCN, unsigned TS, unsigned FN,
 	uint8_t stype, scn;
 
 	switch (to) {
+		case GSM::TDMA_BEACON:
+			stype = burstType;
+			scn = 0;
+			break;
+
 		case GSM::TDMA_BEACON_BCCH:
 			stype = GSMTAP_CHANNEL_BCCH;
 			scn = 0;
@@ -112,7 +117,16 @@ void gWriteGSMTAP(unsigned ARFCN, unsigned TS, unsigned FN,
 	struct gsmtap_hdr *header = (struct gsmtap_hdr *)buffer;
 	header->version			= GSMTAP_VERSION;
 	header->hdr_len			= sizeof(struct gsmtap_hdr) >> 2;
-	header->type			= GSMTAP_TYPE_UM;
+
+	if(to == GSM::TDMA_BEACON)
+	{
+		header->type		= GSMTAP_TYPE_UM_BURST;
+	}
+	else
+	{
+		header->type		= GSMTAP_TYPE_UM;
+	}
+
 	header->timeslot		= TS;
 	header->arfcn			= htons(ARFCN);
 	header->signal_dbm		= 0; /* FIXME */
