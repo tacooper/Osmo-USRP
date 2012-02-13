@@ -56,6 +56,7 @@ apps/OpenBTS.config
 apps/TMSITable.txt
 apps/test.TRX.out
 apps/test.out
+apps/log.txt
 
 # Temporary/Backup files
 .*

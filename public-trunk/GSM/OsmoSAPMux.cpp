@@ -53,15 +53,27 @@ void OsmoSAPMux::writeLowSide(const L2Frame& frame)
 void OsmoSAPMux::signalNextWtime(GSM::Time &time)
 {
 	assert(mLchan);
-	mLchan->signalNextWtime(time);
+
+	/*  osmo-bts sends a full SI message for each RTS IND,
+	 *  which is signalled for each of 4 bursts. 
+	 *	we ensure only one RTS is sent (for frame 2 of each multiframe). */
+	if(mLchan->type() == BCCHType)
+	{
+		if(time.T3() == 2)
+		{
+			mLchan->signalNextWtime(time);
+		}
+	}
+	else
+	{
+		mLchan->signalNextWtime(time);
+	}
 }
 
 void OsmoSAPMux::dispatch()
 {
-	L2Frame *frame;
-
 	/* blocking read from FIFO */
-	frame = mL2Q.read();
+	L2Frame *frame = mL2Q.read();
 
 	assert(mDownstream);
 
@@ -80,7 +92,6 @@ void GSM::OsmoSAPRoutine( OsmoSAPMux *osm )
 
 void OsmoSAPMux::start()
 {
-	OBJLOG(DEBUG) << "OsmoSAPMux";
 	mQueueThread.start((void*(*)(void*))OsmoSAPRoutine,(void *)this);
 }
 
