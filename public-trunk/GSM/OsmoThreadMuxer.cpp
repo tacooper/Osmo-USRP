@@ -484,6 +484,7 @@ void OsmoThreadMuxer::processLayer1ResetReq()
 	[to tune/setTSC, radio must be off. also TSC is usually set to BCC.]
 	uint16_t u16Arfcn: radio->tune()
 	uint8_t u8NbTsc: radio->setTSC()
+	[TSC also used in XCCHL1Encoder for training sequence]
 */
 /* ignored input values:
 	GsmL1_DevType_t devType (no use)
