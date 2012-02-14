@@ -898,7 +898,7 @@ class SCHL1Encoder : public XCCHL1Encoder {
 		mE1(mE.segment(0, 39)), mE2(mE.segment(39, 39))
 	{
 		static const BitVector xts("1011100101100010000001000000111100101101010001010111011000011011");
-		xts.copyToSegment(mBurst,42);
+		xts.copyToSegment(mBurst, 42);
 		mU.fillField(35, 0, 4);
 	}
 

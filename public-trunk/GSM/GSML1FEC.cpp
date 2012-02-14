@@ -907,9 +907,10 @@ void SCHL1Encoder::writeHighSide(const L2Frame& frame)
 	resync();
 	waitToSend();
 
-	/* Only write 4 bytes (3 bytes + 1 bit), not the L2Frame filler! */
-	frame.copyToSegment(mD, 0, 25);
-	mD.LSB8MSB();
+	/* Only write 4 bytes, not the L2Frame garbage filler too! */
+	BitVector vector(frame);
+	vector.LSB8MSB();
+	vector.copyToSegment(mD, 0, 32);
 
 	// Generate the parity bits.
 	mBlockCoder.writeParityWord(mD, mP);
