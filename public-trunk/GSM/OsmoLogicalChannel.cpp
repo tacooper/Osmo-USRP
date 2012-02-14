@@ -92,11 +92,12 @@ void OsmoLogicalChannel::writeHighSide(const BitVector& vector)
 }
 
 /* This is where OsmoSAPMux inputs data received from L1FEC */
-void OsmoLogicalChannel::writeLowSide(const L2Frame& frame)
+void OsmoLogicalChannel::writeLowSide(const L2Frame& frame, 
+	const GSM::Time time, const float RSSI, const int TA)
 {
-	/* simply pass it through to the TreadMuxer, including
+	/* simply pass it through to the OsmoThreadMuxer, including
 	 * a reference to us (the logical channel) */
-	mTM->writeLowSide(frame, this);
+	mTM->writeLowSide(frame, time, RSSI, TA, this);
 }
 
 ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)

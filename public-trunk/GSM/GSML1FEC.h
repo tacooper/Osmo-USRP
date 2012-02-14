@@ -466,10 +466,6 @@ class RACHL1Decoder : public L1Decoder {
 		mParity(0x06f,6,8),mU(18),mD(mU.head(8))
 	{ }
 
-	/** Offset from the start of mU to the start of the L2 frame. 
-	 *  NOTE: Taken from XCCH, unverified! */
-	virtual unsigned headerOffset() const { return 0; }
-
 	/** Start the service thread. */
 	void start();
 

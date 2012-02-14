@@ -43,13 +43,14 @@ void OsmoSAPMux::writeHighSide(const BitVector& vector)
 	mL2Q.write(new L2Frame(vector, DATA));
 }
 
-void OsmoSAPMux::writeLowSide(const L2Frame& frame)
+void OsmoSAPMux::writeLowSide(const L2Frame& frame, const GSM::Time time, 
+	const float RSSI, const int TA)
 {
 	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide SAP" << frame.SAPI() << " " 
 		<< frame;
 	assert(mLchan);
 	/* simply pass it right through to the OsmoThreadMux */
-	mLchan->writeLowSide(frame);
+	mLchan->writeLowSide(frame, time, RSSI, TA);
 }
 
 void OsmoSAPMux::signalNextWtime(GSM::Time &time)

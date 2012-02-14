@@ -505,17 +505,25 @@ void RACHL1Decoder::writeLowSide(const RxBurst& burst)
 	countGoodFrame();
 	mD.LSB8MSB();
 	unsigned RA = mD.peekField(0,8);
-	OBJLOG(INFO) <<"RACHL1Decoder received RA=" << RA << " at time " << burst.time()
-		<< " with RSSI=" << burst.RSSI() << " timingError=" << burst.timingError();
-	Control::AccessGrantResponder(RA,burst.time(),burst.RSSI(),burst.timingError());
+
+	int initialTA = (int)(burst.timingError() + 0.5F);
+	if (initialTA<0) initialTA=0;
+	if (initialTA>63) initialTA=63;
+
+	OBJLOG(INFO) <<"RACHL1Decoder rx: RA=" << RA << " time=" << burst.time() <<
+		" RSSI=" << burst.RSSI() << " timingError=" << burst.timingError() <<
+		" TA=" << initialTA;
+
+	// Send to GSMTAP
+	gWriteGSMTAP(0 /* no ARFCN()! */, burst.time().TN(), burst.time().FN(), 
+		typeAndOffset(), false, true, mD, GSMTAP_BURST_ACCESS);
 
 	/* Build L2Frame and send burst up to OsmoSAPMux */
 	assert(mUpstream);
 
-	const BitVector vector(mD.tail(headerOffset()));
-	L2Frame frame(vector, DATA);
+	L2Frame frame(mD, DATA);
 
-	mUpstream->writeLowSide(frame);
+	mUpstream->writeLowSide(frame, burst.time(), burst.RSSI(), initialTA);
 }
 
 

@@ -64,18 +64,16 @@ namespace Osmo
 	}
 }
 
-void OsmoThreadMuxer::writeLowSide(const L2Frame &frame,
-	OsmoLogicalChannel *lchan)
+void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time, 
+	const float RSSI, const int TA, const OsmoLogicalChannel *lchan)
 {
-	/* resolve SAPI, SS, TS, TRX numbers */
-	/* build primitive that we can put into the up-queue */
+	/* Only reach here from RACH decoder/Lchan */
+	assert(lchan->type() == RACHType);
 
-	switch(lchan->type())
-	{
-		case RACHType:
-			handleFrameFromL1(frame, GsmL1_PrimId_PhRaInd);
-			break;
-	}
+	const unsigned int size = frame.size()/8;
+	unsigned char buffer[size];
+	frame.pack(buffer);
+	buildPhRaInd((char*)buffer, size, time, RSSI, TA);
 }
 
 OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi, 
@@ -115,7 +113,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	OsmoLogicalChannel &lchan)
 {
-	LOG(INFO) << lchan << " " << time;
+	LOG(DEBUG) << lchan << " " << time;
 
 	/* Translate lchan into sapi */
 	GsmL1_Sapi_t sapi;
@@ -291,25 +289,6 @@ void OsmoThreadMuxer::recvL1Msg()
 	}
 }
 
-void OsmoThreadMuxer::handleFrameFromL1(const L2Frame &frame, const int id)
-{
-	LOG(INFO) << "recv frame from L1, prim type=" <<
-		Osmo::get_value_string(Osmo::femtobts_l1prim_names, id);
-
-	const unsigned int size = frame.size()/8;
-	unsigned char buffer[size];
-	frame.pack(buffer);
-
-	switch(id)
-	{
-		case GsmL1_PrimId_PhRaInd:
-			buildPhRaInd((char*)buffer, size);
-			break;
-		default:
-			LOG(ERROR) << "Error: Invalid prim type!";
-	}
-}
-
 void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 {
 	struct Osmo::msgb *msg = Osmo::msgb_alloc_headroom(2048, 128, "l1_fd");
@@ -320,7 +299,7 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 
 	FemtoBts_Prim_t *prim = msgb_sysprim(msg);
 
-	LOG(INFO) << "recv SYS frame type=" <<
+	LOG(DEBUG) << "recv SYS frame type=" <<
 		Osmo::get_value_string(Osmo::femtobts_sysprim_names, prim->id);
 
 	switch(prim->id)
@@ -357,7 +336,7 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 
 	GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-	LOG(INFO) << "recv L1 frame type=" <<
+	LOG(DEBUG) << "recv L1 frame type=" <<
 		Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id);
 
 	switch(prim->id)
@@ -588,7 +567,8 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	mL1MsgQ.write(send_msg);
 }
 
-void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size)
+void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size, 
+	const GSM::Time time, const float RSSI, const int TA)
 {
 	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -598,12 +578,11 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size)
 	
 	l1p->id = GsmL1_PrimId_PhRaInd;
 
-	//FIXME: take params from buffer, instead of arbitrary values
-	ind->measParam.fRssi = 0;
-	ind->measParam.fLinkQuality = 10;
-	ind->measParam.fBer = 0;
-	ind->measParam.i16BurstTiming = 0;
-	ind->u32Fn = (uint32_t) gBTSL1.time().FN();
+	ind->measParam.fRssi = RSSI;
+	ind->measParam.fLinkQuality = 10; //must be >MIN_QUAL_RACH of osmo-bts
+	ind->measParam.fBer = 0; //only used for logging in osmo-bts
+	ind->measParam.i16BurstTiming = (int16_t)TA;
+	ind->u32Fn = (uint32_t)time.FN();
 	ind->hLayer2 = getHL2(GsmL1_Sapi_Rach);
 	ind->msgUnitParam.u8Size = size;
 	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
@@ -678,7 +657,7 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 	BitVector vector(size*8);
 	vector.unpack(data);
 
-	OBJLOG(INFO) << "OsmoThreadMuxer::writeHighSide " << vector
+	OBJLOG(DEBUG) << "OsmoThreadMuxer::writeHighSide " << vector
 		<< " bytes size=" << (int)size;
 
 	/* Send BitVector to OsmoLchan */
