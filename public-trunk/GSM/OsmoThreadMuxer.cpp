@@ -81,7 +81,7 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time,
 }
 
 OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi, 
-	const unsigned int ts_nr)
+	const unsigned int ts_nr, const unsigned int ss_nr)
 {
 	switch(sapi)
 	{
@@ -91,17 +91,14 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			return mTRX[0]->getTS(ts_nr)->getSCHLchan();
 		case GsmL1_Sapi_Rach:
 			return mTRX[0]->getTS(ts_nr)->getRACHLchan();
-/* Only BCCH, SCH, RACH allowed at the moment */
-/*		case GsmL1_Sapi_Agch:
-			lchan_nr = ;
-			break;
+		case GsmL1_Sapi_Agch:
+			return mTRX[0]->getTS(ts_nr)->getAGCHLchan();
 		case GsmL1_Sapi_Pch:
-			lchan_nr = ;
-			break;
+			return mTRX[0]->getTS(ts_nr)->getPCHLchan();
+		case GsmL1_Sapi_Sacch:
 		case GsmL1_Sapi_Sdcch:
-			lchan_nr = ;
-			break;
-		/* Only support full-rate traffic */
+			return mTRX[0]->getTS(ts_nr)->getLchan(ss_nr);
+		/* Only support full-rate traffic? */
 /*		case GsmL1_Sapi_TchF:
 		case GsmL1_Sapi_FacchF:
 			lchan_nr = 0;
@@ -303,7 +300,7 @@ void OsmoThreadMuxer::handleSysMsg(const char *buffer)
 
 	FemtoBts_Prim_t *prim = msgb_sysprim(msg);
 
-	LOG(DEBUG) << "recv SYS frame type=" <<
+	LOG(INFO) << "recv SYS frame type=" <<
 		Osmo::get_value_string(Osmo::femtobts_sysprim_names, prim->id);
 
 	switch(prim->id)
@@ -340,8 +337,11 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 
 	GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-	LOG(DEBUG) << "recv L1 frame type=" <<
-		Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id);
+	if(prim->id != GsmL1_PrimId_PhDataReq)
+	{
+		LOG(INFO) << "recv L1 frame type=" <<
+			Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id);
+	}
 
 	switch(prim->id)
 	{
@@ -522,7 +522,6 @@ void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 
 /* ignored input values:
 	GsmL1_LogChComb_t logChPrm (already set in .config file)
-	GsmL1_SubCh_t subCh (no use)
 	GsmL1_Dir_t dir (no use)
 	float fBFILevel (no use)
 */
@@ -538,9 +537,9 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	GsmL1_Status_t status = GsmL1_Status_Uninitialized;
 
 	unsigned int ts_nr = (unsigned int)req->u8Tn;
-	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr);
+	unsigned int ss_nr = (unsigned int)req->subCh;
+	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr, ss_nr);
 
-	/* FIXME: temp check until all lchans are coded properly */
 	if(lchan)
 	{
 		/* Store reference to L2 in this Lchan */
@@ -559,6 +558,11 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 		}
 
 		status = GsmL1_Status_Success;
+	}
+	else
+	{
+		LOG(ERROR) << "No Lchan found for this SAPI on TS=" << ts_nr << ", SS=" 
+			<< ss_nr;
 	}
 
 	LOG(DEBUG) << "MphActivateReq message SAPI = " <<
@@ -633,13 +637,12 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,
 	mL1MsgQ.write(send_msg);
 }
 /* ignored output values:
-	GsmL1_SubCh_t subCh (no use)
+	GsmL1_SubCh_t subCh (no use) //FIXME: get lchan.SSnr()
 	uint8_t u8BlockNbr (no use)
 */
 
 /* ignored input values:
 	uint32_t u32Fn (no use)
-	GsmL1_SubCh_t subCh (no use)
 	uint8_t u8BlockNbr (no use)
 */
 void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
@@ -656,12 +659,15 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
 	/* Determine OsmoLchan based on SAPI and timeslot */
-	OsmoLogicalChannel *lchan = 
-		getLchanFromSapi(req->sapi, (unsigned int)req->u8Tn);
+	unsigned int ts_nr = (unsigned int)req->u8Tn;
+	unsigned int ss_nr = (unsigned int)req->subCh;
+	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr, ss_nr);
 
-	if(lchan == NULL)
+	if(!lchan)
 	{
-		LOG(INFO) << "Received PhDataReq for invalid Lchan... dropping it";
+		LOG(ERROR) << "No Lchan found for this SAPI on TS=" << ts_nr << ", SS=" 
+			<< ss_nr;
+		LOG(ERROR) << "Received PhDataReq for invalid Lchan... dropping it!";
 		return;
 	}
 
@@ -756,8 +762,9 @@ void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
 		{
 			GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-			/* Suppress output if regular Time IND message */
-			if(prim->id != GsmL1_PrimId_MphTimeInd)
+			/* Suppress output if regular Time or RTS IND message */
+			if(prim->id != GsmL1_PrimId_MphTimeInd &&
+				prim->id != GsmL1_PrimId_PhReadyToSendInd)
 			{
 				LOG(INFO) << "sent L1 frame type=" <<
 					Osmo::get_value_string(Osmo::femtobts_l1prim_names, 

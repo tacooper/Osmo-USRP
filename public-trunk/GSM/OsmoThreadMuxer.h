@@ -205,9 +205,9 @@ public:
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
 		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
 
-	/* Determine Lchan from [sapi, u8Tn] of osmo-bts */
+	/* Determine Lchan from [sapi, u8Tn, SubCh] of osmo-bts */
 	OsmoLogicalChannel* getLchanFromSapi(const GsmL1_Sapi_t sapi, 
-		const unsigned int ts_nr);
+		const unsigned int ts_nr, const unsigned int ss_nr);
 
 	/* L1 informs us about the next TDMA time for which it needs data */
 	virtual void signalNextWtime(GSM::Time &time, OsmoLogicalChannel &lchan);

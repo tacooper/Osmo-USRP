@@ -55,6 +55,7 @@ class OsmoLogicalChannel;
 class OsmoBCCHLchan;
 class OsmoSCHLchan;
 class OsmoRACHLchan;
+class OsmoCCCHLchan;
 
 /* virtual class from which we derive timeslots */
 class OsmoTS {
@@ -64,6 +65,9 @@ protected:
 	OsmoBCCHLchan *mBCCH;
 	OsmoSCHLchan *mSCH;
 	OsmoRACHLchan *mRACH;
+	OsmoCCCHLchan *mCCCH[3];
+	OsmoCCCHLchan *mAGCH;
+	OsmoCCCHLchan *mPCH;
 	/* Only used for SDCCH/TCH */
 	OsmoLogicalChannel *mLchan[8];
 	unsigned int mNLchan;
@@ -95,6 +99,16 @@ public:
 	OsmoRACHLchan *getRACHLchan()
 	{
 		return mRACH;
+	}
+
+	OsmoCCCHLchan *getAGCHLchan()
+	{
+		return mAGCH;
+	}
+
+	OsmoCCCHLchan *getPCHLchan()
+	{
+		return mPCH;
 	}
 };
 
@@ -382,7 +396,6 @@ public:
 class OsmoComb5TS : public OsmoTS {
 protected:
 	FCCHL1FEC mFCCH;
-	OsmoCCCHLchan *mCCCH[3];
 public:
 	OsmoComb5TS(OsmoTRX &trx, unsigned int tn)
 		:OsmoTS(trx, tn, 5),
@@ -413,6 +426,10 @@ public:
 			mCCCH[i]->downstream(radio);
 			mCCCH[i]->open();
 		}
+
+		/* Setup 1 AGCH and PCH each from the CCCH pool */
+		mAGCH = mCCCH[0];
+		mPCH = mCCCH[2];
 
 		for (int i = 0; i < 4; i++) {
 			/* create logical channel */
