@@ -126,6 +126,9 @@ public:
 	void addTS(OsmoTS &ts)
 	{
 		unsigned int ts_nr = ts.getTSnr();
+		assert(ts_nr < 8);
+		/* Do not overwrite previously configured TS */
+		assert(mTS[ts_nr] == NULL);
 		mTS[ts_nr] = &ts;
 	}
 
@@ -346,6 +349,9 @@ class OsmoComb1TS : public OsmoTS {
 protected:
 public:
 	OsmoComb1TS(OsmoTRX &trx, unsigned int ts_nr) :OsmoTS(trx, ts_nr, 1) {
+		/* Add TS to TRX */
+		trx.addTS(*this);
+
 		ARFCNManager* radio = getARFCNmgr();
 		/* create logical channel */
 		OsmoTCHFACCHLchan * chan = new OsmoTCHFACCHLchan(this, 0);
@@ -353,9 +359,6 @@ public:
 		chan->open();
 		mLchan[0] = chan;
 		mNLchan = 1;
-
-		/* Add TS to TRX */
-		trx.addTS(*this);
 	}
 };
 
@@ -369,6 +372,9 @@ public:
 		:OsmoTS(trx, tn, 5),
 		mFCCH()
 	{
+		/* Add TS to TRX */
+		trx.addTS(*this);
+
 		ARFCNManager* radio = getARFCNmgr();
 
 		mBCCH = new OsmoBCCHLchan(this);
@@ -400,9 +406,6 @@ public:
 			mLchan[i] = chan;
 			mNLchan++;
 		}
-
-		/* Add TS to TRX */
-		trx.addTS(*this);
 	}
 };
 
@@ -411,6 +414,9 @@ class OsmoComb7TS : public OsmoTS {
 protected:
 public:
 	OsmoComb7TS(OsmoTRX &trx, unsigned int tn) :OsmoTS(trx, tn, 7) {
+		/* Add TS to TRX */
+		trx.addTS(*this);
+
 		for (unsigned int i = 0; i < 8; i++) {
 			ARFCNManager* radio = getARFCNmgr();
 			/* create logical channel */
@@ -420,9 +426,6 @@ public:
 			mLchan[i] = chan;
 			mNLchan++;
 		}
-
-		/* Add TS to TRX */
-		trx.addTS(*this);
 	}
 };
 
