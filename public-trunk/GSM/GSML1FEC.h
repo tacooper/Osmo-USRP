@@ -30,6 +30,7 @@
 #include "Threads.h"
 #include <assert.h>
 #include "BitVector.h"
+#include <Logger.h>
 
 #include "GSMCommon.h"
 #include "GSMTransfer.h"
@@ -873,26 +874,32 @@ void *GeneratorL1EncoderServiceLoopAdapter(GeneratorL1Encoder*);
 	The SCH sends out an encoding of the current BTS clock.
 	GSM 05.03 4.7.
 */
-class SCHL1Encoder : public GeneratorL1Encoder {
+class SCHL1Encoder : public XCCHL1Encoder {
 
 	private:
 
-	Parity mBlockCoder;			///< block parity coder
-	BitVector mU;				///< u[], as per GSM 05.03 2.2
-	BitVector mE;				///< e[], as per GSM 05.03 2.2
-	BitVector mD;				///< d[], as per GSM 05.03 2.2 
-	BitVector mP;				///< p[], as per GSM 05.03 2.2
-	BitVector mE1;				///< first half of e[]
-	BitVector mE2;				///< second half of e[]
+	Parity mBlockCoder;
+	BitVector mU;
+	BitVector mE;
+	BitVector mD;
+	BitVector mP;
+	BitVector mE1;
+	BitVector mE2;
 
 	public:
 
-	SCHL1Encoder(L1FEC* wParent);
+	SCHL1Encoder(L1FEC *wParent)
+		:XCCHL1Encoder(0,gSCHMapping,wParent), mBlockCoder(0x0575, 10, 25),
+		mU(25+10+4), mE(78), mD(mU.head(25)), mP(mU.segment(25, 10)),
+		mE1(mE.segment(0, 39)), mE2(mE.segment(39, 39))
+	{
+		static const BitVector xts("1011100101100010000001000000111100101101010001010111011000011011");
+		xts.copyToSegment(mBurst, 42);
+		mU.fillField(35, 0, 4);
+	}
 
-	protected:
-
-	void generate();
-
+	/** Process pending incoming messages. */
+	virtual void writeHighSide(const L2Frame&);
 };
 
 
@@ -956,17 +963,13 @@ void *NDCCHL1EncoderServiceLoopAdapter(NDCCHL1Encoder*);
 /**
 	L1 encoder for the BCCH has generator filling behavior but xCCH-like FEC.
 */
-class BCCHL1Encoder : public NDCCHL1Encoder {
+class BCCHL1Encoder : public XCCHL1Encoder {
 
 	public:
 
 	BCCHL1Encoder(L1FEC *wParent)
-		:NDCCHL1Encoder(0,gBCCHMapping,wParent)
+		:XCCHL1Encoder(0,gBCCHMapping,wParent)
 	{}
-
-	private:
-
-	void generate();
 };
 
 

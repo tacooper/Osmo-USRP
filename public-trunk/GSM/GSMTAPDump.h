@@ -31,11 +31,9 @@
 #include "GSMCommon.h"
 #include "GSMTransfer.h"
 
-
 void gWriteGSMTAP(unsigned ARFCN, unsigned TS, unsigned FN,
-                  GSM::TypeAndOffset to, bool is_sacch, bool ul_dln,
-                  const BitVector& frame);
-
+	GSM::TypeAndOffset to, bool is_sacch, bool ul_dln, const BitVector& frame, 
+	const uint8_t burstType);
 
 #endif
 

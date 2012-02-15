@@ -43,6 +43,10 @@ ARFCNManager *OsmoTS::getARFCNmgr()
 
 OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
 {
+	mBCCH = NULL;
+	mSCH = NULL;
+	mRACH = NULL;
+
 	assert(ts_nr < 8);
 	mComb = comb;
 	mTSnr = ts_nr;
@@ -79,12 +83,21 @@ void OsmoLogicalChannel::connect()
 		mL1->upstream(&mMux);
 }
 
-/* This is where OsmoSAPMux inputs data received from L1FEC */
-void OsmoLogicalChannel::writeLowSide(const L2Frame& frame)
+/* This is where OsmoThreadMuxer inputs data received from osmo-bts */
+void OsmoLogicalChannel::writeHighSide(const BitVector& vector)
 {
-	/* simply pass it through to the TreadMuxer, including
+	OBJLOG(DEEPDEBUG) << "OsmoLogicalChannel::writeHighSide " << vector;
+	/* simply pass it through to the OsmoSAPMux */
+	mMux.writeHighSide(vector);
+}
+
+/* This is where OsmoSAPMux inputs data received from L1FEC */
+void OsmoLogicalChannel::writeLowSide(const L2Frame& frame, 
+	const GSM::Time time, const float RSSI, const int TA)
+{
+	/* simply pass it through to the OsmoThreadMuxer, including
 	 * a reference to us (the logical channel) */
-	mTM->writeLowSide(frame, this);
+	mTM->writeLowSide(frame, time, RSSI, TA, this);
 }
 
 ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
@@ -127,7 +140,25 @@ OsmoBCCHLchan::OsmoBCCHLchan(OsmoTS *osmo_ts)
 {
 	assert(osmo_ts->getComb() == 5);
 
-	mL1 = new CCCHL1FEC(gBCCHMapping);
+	mL1 = new BCCHL1FEC();
+	connect();
+}
+
+OsmoSCHLchan::OsmoSCHLchan(OsmoTS *osmo_ts)
+	:OsmoNDCCHLogicalChannel(osmo_ts, 1)
+{
+	assert(osmo_ts->getComb() == 5);
+
+	mL1 = new SCHL1FEC();
+	connect();
+}
+
+OsmoRACHLchan::OsmoRACHLchan(OsmoTS *osmo_ts)
+	:OsmoNDCCHLogicalChannel(osmo_ts, 3)
+{
+	assert(osmo_ts->getComb() == 5);
+
+	mL1 = new RACHL1FEC(gRACHC5Mapping);
 	connect();
 }
 

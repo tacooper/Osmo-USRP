@@ -21,7 +21,7 @@
 include $(top_srcdir)/Makefile.common
 
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES)
-AM_CXXFLAGS = -O0 -g
+AM_CXXFLAGS = -O0 -g -losmocore
 
 noinst_LTLIBRARIES = libGSML1.la libGSM.la
 
@@ -40,7 +40,6 @@ libGSML1_la_SOURCES = \
 
 libGSM_la_SOURCES = \
 	GSMConfig.cpp \
-	GSML1FEC_BCCH.cpp \
 	GSML2LAPDm.cpp \
 	GSML3CCElements.cpp \
 	GSML3CCMessages.cpp \

@@ -25,6 +25,7 @@
 
 
 #include <Globals.h>
+#include <Logger.h>
 
 #include "GSMConfigL1.h"
 
@@ -35,4 +36,9 @@ GSMConfigL1::GSMConfigL1()
 	:mBand((GSMBand)gConfig.getNum("GSM.Band")),
 	mStartTime(::time(NULL))
 {
+	// BSIC components
+	mNCC = gConfig.getNum("GSM.NCC");
+	LOG_ASSERT(mNCC<8);
+	mBCC = gConfig.getNum("GSM.BCC");
+	LOG_ASSERT(mBCC<8);
 }

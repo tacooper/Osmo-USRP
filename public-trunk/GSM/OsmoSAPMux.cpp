@@ -35,35 +35,50 @@
 using namespace GSM;
 
 
-void OsmoSAPMux::writeHighSide(const L2Frame& frame)
+void OsmoSAPMux::writeHighSide(const BitVector& vector)
 {
-	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeHighSide " << frame;
+	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeHighSide " << vector;
 	/* put it into the top side of the L2 FIFO */
-	mL2Q.write(new L2Frame(frame));
+	/* NOTE: packs vector bits into 23-byte L2Frame, adding filler if needed */
+	mL2Q.write(new L2Frame(vector, DATA));
 }
 
-void OsmoSAPMux::writeLowSide(const L2Frame& frame)
+void OsmoSAPMux::writeLowSide(const L2Frame& frame, const GSM::Time time, 
+	const float RSSI, const int TA)
 {
-	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide SAP" << frame.SAPI() << " " << frame;
+	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide SAP" << frame.SAPI() << " " 
+		<< frame;
 	assert(mLchan);
 	/* simply pass it right through to the OsmoThreadMux */
-	mLchan->writeLowSide(frame);
+	mLchan->writeLowSide(frame, time, RSSI, TA);
 }
 
 void OsmoSAPMux::signalNextWtime(GSM::Time &time)
 {
 	assert(mLchan);
-	mLchan->signalNextWtime(time);
+
+	/*  osmo-bts sends a full SI message for each RTS IND,
+	 *  which is signalled for each of 4 bursts. 
+	 *	we ensure only one RTS is sent (for frame 2 of each multiframe). */
+	if(mLchan->type() == BCCHType)
+	{
+		if(time.T3() == 2)
+		{
+			mLchan->signalNextWtime(time);
+		}
+	}
+	else
+	{
+		mLchan->signalNextWtime(time);
+	}
 }
 
 void OsmoSAPMux::dispatch()
 {
-	L2Frame *frame;
+	/* blocking read from FIFO */
+	L2Frame *frame = mL2Q.read();
 
 	assert(mDownstream);
-
-	/* blocking read from FIFO */
-	frame = mL2Q.read();
 
 	/* blocking write to L1Encoder */
 	mLock.lock();
@@ -80,7 +95,6 @@ void GSM::OsmoSAPRoutine( OsmoSAPMux *osm )
 
 void OsmoSAPMux::start()
 {
-	OBJLOG(DEBUG) << "OsmoSAPMux";
 	mQueueThread.start((void*(*)(void*))OsmoSAPRoutine,(void *)this);
 }
 

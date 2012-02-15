@@ -554,7 +554,13 @@ int main(int argc, char *argv[])
 	OsmoTRX &TRX0 = ThreadMux.addTRX(gTRX, 0);
 
 	OsmoComb5TS TS0(TRX0, 0);
-	OsmoComb1TS TS1(TRX0, 1);
+	OsmoComb7TS TS1(TRX0, 1);
+	OsmoComb1TS TS2(TRX0, 2);
+	OsmoComb1TS TS3(TRX0, 3);
+	OsmoComb1TS TS4(TRX0, 4);
+	OsmoComb1TS TS5(TRX0, 5);
+	OsmoComb1TS TS6(TRX0, 6);
+	OsmoComb1TS TS7(TRX0, 7);
 
 #if 0
 	// C-V on C0T0

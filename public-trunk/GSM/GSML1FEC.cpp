@@ -33,7 +33,6 @@
 #include "GSMTDMA.h"
 #include "GSMTAPDump.h"
 #include <TRXManager.h>
-#include <Logger.h>
 #include <assert.h>
 #include <math.h>
 
@@ -506,9 +505,25 @@ void RACHL1Decoder::writeLowSide(const RxBurst& burst)
 	countGoodFrame();
 	mD.LSB8MSB();
 	unsigned RA = mD.peekField(0,8);
-	OBJLOG(INFO) <<"RACHL1Decoder received RA=" << RA << " at time " << burst.time()
-		<< " with RSSI=" << burst.RSSI() << " timingError=" << burst.timingError();
-	Control::AccessGrantResponder(RA,burst.time(),burst.RSSI(),burst.timingError());
+
+	int initialTA = (int)(burst.timingError() + 0.5F);
+	if (initialTA<0) initialTA=0;
+	if (initialTA>63) initialTA=63;
+
+	OBJLOG(INFO) <<"RACHL1Decoder rx: RA=" << RA << " time=" << burst.time() <<
+		" RSSI=" << burst.RSSI() << " timingError=" << burst.timingError() <<
+		" TA=" << initialTA;
+
+	// Send to GSMTAP
+	gWriteGSMTAP(0 /* no ARFCN()! */, burst.time().TN(), burst.time().FN(), 
+		typeAndOffset(), false, true, mD, GSMTAP_BURST_ACCESS);
+
+	/* Build L2Frame and send burst up to OsmoSAPMux */
+	assert(mUpstream);
+
+	L2Frame frame(mD, DATA);
+
+	mUpstream->writeLowSide(frame, burst.time(), burst.RSSI(), initialTA);
 }
 
 
@@ -669,7 +684,7 @@ void XCCHL1Decoder::handleGoodFrame()
 		// Send all bits to GSMTAP
 		gWriteGSMTAP(ARFCN(),TN(),mReadTime.FN(),
 		             typeAndOffset(),mMapping.repeatLength()>51,true,
-					 mD);
+					 mD, 0);
 		// Build an L2 frame and pass it up.
 		const BitVector L2Part(mD.tail(headerOffset()));
 		OBJLOG(DEEPDEBUG) <<"XCCHL1Decoder L2=" << L2Part;
@@ -770,9 +785,10 @@ XCCHL1Encoder::XCCHL1Encoder(
 	mU.zero();
 }
 
-
 void XCCHL1Encoder::writeHighSide(const L2Frame& frame)
 {
+	LOG(DEBUG) << "XCCHL1Encoder::writeHighSide " << frame;
+
 	switch (frame.primitive()) {
 		case DATA:
 			// Encode and send data.
@@ -824,7 +840,7 @@ void XCCHL1Encoder::sendFrame(const L2Frame& frame)
 
 	// Send to GSMTAP (must send mU = real bits !)
 	gWriteGSMTAP(ARFCN(),TN(),mNextWriteTime.FN(),
-	             typeAndOffset(),mMapping.repeatLength()>51,false,mU);
+	             typeAndOffset(),mMapping.repeatLength()>51,false,mU, 0);
 
 	// Encode data into bursts
 	OBJLOG(DEEPDEBUG) << "XCCHL1Encoder d[]=" << mD;
@@ -892,6 +908,37 @@ void XCCHL1Encoder::transmit()
 	}
 }
 
+void SCHL1Encoder::writeHighSide(const L2Frame& frame)
+{
+	assert(mDownStream);
+
+	resync();
+	waitToSend();
+
+	/* Only write 4 bytes, not the L2Frame garbage filler too! */
+	BitVector vector(frame);
+	vector.LSB8MSB();
+	vector.copyToSegment(mD, 0, 32);
+
+	// Generate the parity bits.
+	mBlockCoder.writeParityWord(mD, mP);
+	// Apply the convolutional encoder.
+	mU.encode(mVCoder, mE);
+
+	mE1.copyToSegment(mBurst, 3);
+	mE2.copyToSegment(mBurst, 106);
+
+	mBurst.time(mNextWriteTime);
+
+	// Send to GSMTAP
+	gWriteGSMTAP(ARFCN(), TN(), mNextWriteTime.FN(), typeAndOffset(), 
+		false, false, mU, GSMTAP_BURST_SCH);
+
+	mDownstream->writeHighSide(mBurst);
+
+	rollForward();
+}
+
 
 
 
@@ -919,56 +966,6 @@ void GeneratorL1Encoder::serviceLoop()
 	}
 }
 
-
-
-
-SCHL1Encoder::SCHL1Encoder(L1FEC* wParent)
-	:GeneratorL1Encoder(0,gSCHMapping,wParent),
-	mBlockCoder(0x0575,10,25),
-	mU(25+10+4), mE(78),
-	mD(mU.head(25)),mP(mU.segment(25,10)),
-	mE1(mE.segment(0,39)),mE2(mE.segment(39,39))
-{
-	// The SCH extended training sequence.
-	// GSM 05.02 5.2.5.
-	static const BitVector xts("1011100101100010000001000000111100101101010001010111011000011011");
-	xts.copyToSegment(mBurst,42);
-	// Set the tail bits in u[] now, just once.
-	mU.fillField(35,0,4);
-}
-
-
-
-void SCHL1Encoder::generate()
-{
-	OBJLOG(DEEPDEBUG) << "SCHL1Encoder " << mNextWriteTime;
-	assert(mDownstream);
-	// Data, GSM 04.08 9.1.30
-	size_t wp=0;
-	mD.writeField(wp,gBTSL1.BSIC(),6);
-	mD.writeField(wp,mNextWriteTime.T1(),11);
-	mD.writeField(wp,mNextWriteTime.T2(),5);
-	mD.writeField(wp,mNextWriteTime.T3p(),3);
-	mD.LSB8MSB();
-	// Encoding, GSM 05.03 4.7
-	// Parity
-	mBlockCoder.writeParityWord(mD,mP);
-	// Convolutional encoding
-	mU.encode(mVCoder,mE);
-	// Mapping onto a burst, GSM 05.02 5.2.5.
-	mBurst.time(mNextWriteTime);
-	mE1.copyToSegment(mBurst,3);
-	mE2.copyToSegment(mBurst,106);
-	// Send it already!
-	mDownstream->writeHighSide(mBurst);
-	rollForward();
-}
-
-
-
-
-
-
 FCCHL1Encoder::FCCHL1Encoder(L1FEC *wParent)
 	:GeneratorL1Encoder(0,gFCCHMapping,wParent)
 {
@@ -982,12 +979,15 @@ void FCCHL1Encoder::generate()
 	OBJLOG(DEEPDEBUG) << "FCCHL1Encoder " << mNextWriteTime;
 	assert(mDownstream);
 	resync();
-	for (int i=0; i<5; i++) {
-		mBurst.time(mNextWriteTime);
-		mDownstream->writeHighSide(mBurst);
-		rollForward();
-	}
-	sleep(1);
+
+	mBurst.time(mNextWriteTime);
+
+	// Send to GSMTAP
+	gWriteGSMTAP(ARFCN(), TN(), mNextWriteTime.FN(), typeAndOffset(), false,
+		false, mBurst, GSMTAP_BURST_FCCH);
+
+	mDownstream->writeHighSide(mBurst);
+	rollForward();
 }
 
 
