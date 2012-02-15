@@ -219,7 +219,7 @@ private:
 	void startThreads();
 
 	/* Functions for HL2 map */
-	void addHL2(const GsmL1_Sapi_t sapi, const int hLayer2);
+	bool addHL2(const GsmL1_Sapi_t sapi, const int hLayer2);
 	int getHL2(const GsmL1_Sapi_t sapi);
 	bool hasHL2(const GsmL1_Sapi_t sapi);
 

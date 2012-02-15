@@ -531,21 +531,26 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	/* Check if L1 reference is correct */
 	assert(mL1id == req->hLayer1);
 
+	GsmL1_Status_t status = GsmL1_Status_Uninitialized;
+
 	/* Store reference to L2 for this SAPI in map */
-	addHL2(req->sapi, req->hLayer2);
-
-	/* Start cycle of PhReadyToSendInd messages for activated Lchan */
-	unsigned int ts_nr = (unsigned int)req->u8Tn;
-	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr);
-	if(lchan)
+	if(addHL2(req->sapi, req->hLayer2))
 	{
-		lchan->getL1()->encoder()->signalNextWtime();
-	}
+		/* Start cycle of PhReadyToSendInd messages for activated Lchan */
+		unsigned int ts_nr = (unsigned int)req->u8Tn;
+		OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr);
+		if(lchan)
+		{
+			lchan->getL1()->encoder()->signalNextWtime();
+		}
 
-	/* Start sending MphTimeInd messages if SCH is activated */
-	if(req->sapi == GsmL1_Sapi_Sch)
-	{
-		mRunningTimeInd = true;
+		/* Start sending MphTimeInd messages if SCH is activated */
+		if(req->sapi == GsmL1_Sapi_Sch)
+		{
+			mRunningTimeInd = true;
+		}
+
+		status = GsmL1_Status_Success;
 	}
 
 	LOG(DEBUG) << "MphActivateReq message SAPI = " <<
@@ -561,7 +566,7 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 
 	cnf->u8Tn = req->u8Tn;
 	cnf->sapi = req->sapi;
-	cnf->status = GsmL1_Status_Success;
+	cnf->status = status;
 
 	/* Put it into the L1Msg FIFO */
 	mL1MsgQ.write(send_msg);
@@ -770,7 +775,7 @@ void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
 	Osmo::msgb_free(msg);
 }
 
-void OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
+bool OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
 {	
 	std::pair<std::map<GsmL1_Sapi_t, int>::iterator, bool> rc = 
 		mHL2.insert(std::pair<GsmL1_Sapi_t, int>(sapi, hLayer2));
@@ -779,6 +784,7 @@ void OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
 	{
 		LOG(ERROR) << Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi) 
 			<< " already exists with hLayer2=" << rc.first->second;
+		return false;
 	}
 
 	/* Output current list of map keys and values */
@@ -790,6 +796,8 @@ void OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
 			Osmo::get_value_string(Osmo::femtobts_l1sapi_names, (*it).first) << 
 			" , " << (*it).second << " ]\n";
 	}
+
+	return true;
 }
 
 int OsmoThreadMuxer::getHL2(const GsmL1_Sapi_t sapi)
