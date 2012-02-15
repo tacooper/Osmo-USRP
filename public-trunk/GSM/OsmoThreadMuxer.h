@@ -170,8 +170,7 @@ protected:
 	int mSockFd[4];
 	OsmoTRX *mTRX[1];
 	unsigned int mNumTRX;
-	int mL1id; // hLayer1, initialized by OpenBTS (=TRX)
-	std::map<GsmL1_Sapi_t, int> mHL2; // hLayer2s, initialized by osmo-bts
+	int mL1id; // hLayer1, initialized by OpenBTS (=TRX?)
 	bool mRunningTimeInd;
 	L1MsgFIFO mL1MsgQ;
 
@@ -218,11 +217,6 @@ private:
 	void createSockets();
 	void startThreads();
 
-	/* Functions for HL2 map */
-	bool addHL2(const GsmL1_Sapi_t sapi, const int hLayer2);
-	int getHL2(const GsmL1_Sapi_t sapi);
-	bool hasHL2(const GsmL1_Sapi_t sapi);
-
 	/* Functions for processing SYS type messages */
 	void recvSysMsg();
 	void handleSysMsg(const char *buffer);
@@ -252,10 +246,11 @@ private:
 	/* Functions for processing buffers from writeLowSide() into L1 IND 
 	 * messages */
 	void buildPhRaInd(const char* buffer, const int size, const GSM::Time time,
-		const float RSSI, const int TA);
+		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
 
 	/* Functions to build and send L1 IND messages required by osmo-bts */
-	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time);
+	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,
+		const OsmoLogicalChannel &lchan);
 	void buildMphTimeInd(); //interval < 5 sec
 
 	/* Helper function for value parsing */

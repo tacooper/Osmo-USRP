@@ -161,6 +161,7 @@ protected:
 	unsigned int mSS;	// sub-slot (logical channel within TS)
 	OsmoTS *mTS;
 	SACCHL1FEC *mSACCHL1;	///< The associated SACCH, if any.
+	int mHL2; //hLayer2 reference, initialized by osmo-bts
 
 public:
 
@@ -177,6 +178,8 @@ public:
 		/* resolve the thread muxer */
 		const OsmoTRX *otrx = osmo_ts->getTRX();
 		mTM = otrx->getThreadMux();
+
+		mHL2 = -1; //uninitialized value
 	}
 
 	/** Connect an ARFCN manager to link L1FEC to the radio. */
@@ -189,7 +192,20 @@ public:
 	const SACCHL1FEC* SACCH() const { return mSACCHL1; }
 	const OsmoTS* TS() const { return mTS; }
 	unsigned int SSnr() const { return mSS; }
+	int getHL2() const { return mHL2; }
 	//@}
+
+	void setHL2(const int hLayer2) { mHL2 = hLayer2; }
+	bool hasHL2() const
+	{
+		if(mHL2 == -1)
+		{
+			LOG(ERROR) << "Lchan " << *this << " has no hLayer2 initialized!";
+			return false;
+		}
+
+		return true;
+	}
 
 	virtual void writeHighSide(const BitVector& vector);
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 

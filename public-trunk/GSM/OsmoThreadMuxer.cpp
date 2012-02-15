@@ -70,10 +70,14 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time,
 	/* Only reach here from RACH decoder/Lchan */
 	assert(lchan->type() == RACHType);
 
-	const unsigned int size = frame.size()/8;
-	unsigned char buffer[size];
-	frame.pack(buffer);
-	buildPhRaInd((char*)buffer, size, time, RSSI, TA);
+	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
+	if(lchan->hasHL2())
+	{
+		const unsigned int size = frame.size()/8;
+		unsigned char buffer[size];
+		frame.pack(buffer);
+		buildPhRaInd((char*)buffer, size, time, RSSI, TA, lchan);
+	}
 }
 
 OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi, 
@@ -85,11 +89,10 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			return mTRX[0]->getTS(ts_nr)->getBCCHLchan();
 		case GsmL1_Sapi_Sch:
 			return mTRX[0]->getTS(ts_nr)->getSCHLchan();
-/* Only BCCH, SCH allowed at the moment */
-/*		case GsmL1_Sapi_Rach:
-			lchan_nr = ;
-			break;
-		case GsmL1_Sapi_Agch:
+		case GsmL1_Sapi_Rach:
+			return mTRX[0]->getTS(ts_nr)->getRACHLchan();
+/* Only BCCH, SCH, RACH allowed at the moment */
+/*		case GsmL1_Sapi_Agch:
 			lchan_nr = ;
 			break;
 		case GsmL1_Sapi_Pch:
@@ -107,6 +110,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			assert(0); */
 	}
 
+	/* FIXME: temp fix to return NULL if sapi/lchan has not been coded yet */
 	return NULL;
 }
 
@@ -140,10 +144,10 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 			assert(0);
 	}
 
-	/* Make sure sapi has been connected to osmo-bts via MphActivateReq */
-	if(hasHL2(sapi))
+	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
+	if(lchan.hasHL2())
 	{
-		buildPhReadyToSendInd(sapi, time);
+		buildPhReadyToSendInd(sapi, time, lchan);
 	}
 }
 
@@ -533,13 +537,17 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 
 	GsmL1_Status_t status = GsmL1_Status_Uninitialized;
 
-	/* Store reference to L2 for this SAPI in map */
-	if(addHL2(req->sapi, req->hLayer2))
+	unsigned int ts_nr = (unsigned int)req->u8Tn;
+	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr);
+
+	/* FIXME: temp check until all lchans are coded properly */
+	if(lchan)
 	{
+		/* Store reference to L2 in this Lchan */
+		lchan->setHL2(req->hLayer2);
+
 		/* Start cycle of PhReadyToSendInd messages for activated Lchan */
-		unsigned int ts_nr = (unsigned int)req->u8Tn;
-		OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr);
-		if(lchan)
+		if(req->sapi != GsmL1_Sapi_Rach)
 		{
 			lchan->getL1()->encoder()->signalNextWtime();
 		}
@@ -573,7 +581,8 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 }
 
 void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size, 
-	const GSM::Time time, const float RSSI, const int TA)
+	const GSM::Time time, const float RSSI, const int TA,
+	const OsmoLogicalChannel *lchan)
 {
 	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -588,7 +597,7 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size,
 	ind->measParam.fBer = 0; //only used for logging in osmo-bts
 	ind->measParam.i16BurstTiming = (int16_t)TA;
 	ind->u32Fn = (uint32_t)time.FN();
-	ind->hLayer2 = getHL2(GsmL1_Sapi_Rach);
+	ind->hLayer2 = lchan->getHL2();
 	ind->msgUnitParam.u8Size = size;
 	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
 
@@ -598,7 +607,8 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size,
 	mL1MsgQ.write(send_msg);
 }
 
-void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time)
+void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,
+	const OsmoLogicalChannel &lchan)
 {
 	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -612,7 +622,7 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time)
 	ind->u8Tn = (uint8_t)time.TN();
 	ind->u32Fn = (uint32_t)time.FN();
 	ind->sapi = sapi;
-	ind->hLayer2 = getHL2(sapi);
+	ind->hLayer2 = lchan.getHL2();
 
 	LOG(DEBUG) << "PhReadyToSendInd message TN = " << (int)ind->u8Tn << " FN = "
 		<< ind->u32Fn;
@@ -773,58 +783,6 @@ void OsmoThreadMuxer::sendL1Msg(struct Osmo::msgb *msg)
 	}
 
 	Osmo::msgb_free(msg);
-}
-
-bool OsmoThreadMuxer::addHL2(const GsmL1_Sapi_t sapi, const int hLayer2)
-{	
-	std::pair<std::map<GsmL1_Sapi_t, int>::iterator, bool> rc = 
-		mHL2.insert(std::pair<GsmL1_Sapi_t, int>(sapi, hLayer2));
-
-	if(!rc.second)
-	{
-		LOG(ERROR) << Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi) 
-			<< " already exists with hLayer2=" << rc.first->second;
-		return false;
-	}
-
-	/* Output current list of map keys and values */
-	LOG(DEBUG) << "mHL2 contains:";
-	for(std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.begin(); 
-		it != mHL2.end(); it++)
-	{
-		LOG(DEBUG) << "[ " << 
-			Osmo::get_value_string(Osmo::femtobts_l1sapi_names, (*it).first) << 
-			" , " << (*it).second << " ]\n";
-	}
-
-	return true;
-}
-
-int OsmoThreadMuxer::getHL2(const GsmL1_Sapi_t sapi)
-{
-	std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.find(sapi);
-
-	assert(it != mHL2.end());
-
-	return it->second;
-}
-
-bool OsmoThreadMuxer::hasHL2(const GsmL1_Sapi_t sapi)
-{
-	std::map<GsmL1_Sapi_t, int>::iterator it = mHL2.find(sapi);
-
-	bool rc;
-
-	if(it != mHL2.end())
-	{
-		rc = true;
-	}
-	else
-	{
-		rc = false;
-	}
-
-	return rc;
 }
 
 void OsmoThreadMuxer::createSockets()
