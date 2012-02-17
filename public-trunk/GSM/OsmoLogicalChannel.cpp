@@ -131,6 +131,7 @@ void OsmoLogicalChannel::downstream(ARFCNManager* radio)
 OsmoCCCHLchan::OsmoCCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	:OsmoNDCCHLogicalChannel(osmo_ts, ss_nr)
 {
+	mType = CCCHType;
 	mL1 = new CCCHL1FEC(gCCCH[ss_nr]);
 	connect();
 }

@@ -85,6 +85,9 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 {
 	switch(sapi)
 	{
+		/* No lchan needed for FCCH, all in GSML1FEC */
+		case GsmL1_Sapi_Fcch:
+			break;
 		case GsmL1_Sapi_Bcch:
 			return mTRX[0]->getTS(ts_nr)->getBCCHLchan();
 		case GsmL1_Sapi_Sch:
@@ -95,26 +98,29 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			return mTRX[0]->getTS(ts_nr)->getAGCHLchan();
 		case GsmL1_Sapi_Pch:
 			return mTRX[0]->getTS(ts_nr)->getPCHLchan();
+		/* Only support full-rate traffic? */
+		case GsmL1_Sapi_TchF:
+		case GsmL1_Sapi_FacchF:
+		case GsmL1_Sapi_TchH:
+		case GsmL1_Sapi_FacchH:
 		case GsmL1_Sapi_Sacch:
+			return mTRX[0]->getTS(ts_nr)->getLchan(ss_nr);
 		case GsmL1_Sapi_Sdcch:
 			return mTRX[0]->getTS(ts_nr)->getLchan(ss_nr);
-		/* Only support full-rate traffic? */
-/*		case GsmL1_Sapi_TchF:
-		case GsmL1_Sapi_FacchF:
-			lchan_nr = 0;
-			break;
 		default:
-			assert(0); */
+			assert(0);
 	}
 
 	/* FIXME: temp fix to return NULL if sapi/lchan has not been coded yet */
+	LOG(ERROR) << "No Lchan found for this SAPI on TS=" << ts_nr << ", SS=" 
+		<< ss_nr;
 	return NULL;
 }
 
 void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	OsmoLogicalChannel &lchan)
 {
-	LOG(DEBUG) << lchan << " " << time;
+	LOG(INFO) << lchan << " " << time;
 
 	/* Translate lchan into sapi */
 	GsmL1_Sapi_t sapi;
@@ -127,16 +133,23 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 		case SCHType:
 			sapi = GsmL1_Sapi_Sch;
 			break;
-		case FCCHType:
-		case CCCHType:
-		case RACHType:
+		case AGCHType:
+			sapi = GsmL1_Sapi_Agch;
+			break;
+		case PCHType:
+			sapi = GsmL1_Sapi_Pch;
+			break;
 		case SACCHType:
 		case SDCCHType:
 		case FACCHType:
 		case TCHFType:
 		case TCHHType:
-		case AnyTCHType:
+		/* Plain CCCH should be assigned as AGCH or PCH */
+		case CCCHType:
 			return;
+		/* These channel types should not be signalled */
+		case FCCHType:
+		case RACHType:
 		default:
 			assert(0);
 	}
@@ -559,11 +572,6 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 
 		status = GsmL1_Status_Success;
 	}
-	else
-	{
-		LOG(ERROR) << "No Lchan found for this SAPI on TS=" << ts_nr << ", SS=" 
-			<< ss_nr;
-	}
 
 	LOG(DEBUG) << "MphActivateReq message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
@@ -665,8 +673,6 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 
 	if(!lchan)
 	{
-		LOG(ERROR) << "No Lchan found for this SAPI on TS=" << ts_nr << ", SS=" 
-			<< ss_nr;
 		LOG(ERROR) << "Received PhDataReq for invalid Lchan... dropping it!";
 		return;
 	}

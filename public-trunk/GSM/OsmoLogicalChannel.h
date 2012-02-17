@@ -75,7 +75,7 @@ protected:
 public:
 	OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb);
 	unsigned int getTSnr() const { return mTSnr; }
-	unsigned int getComb() { return mComb; }
+	unsigned int getComb() const { return mComb; }
 	const OsmoTRX *getTRX() const { return mTRX; }
 	ARFCNManager *getARFCNmgr();
 	OsmoLogicalChannel *getLchan(unsigned int nr) {
@@ -320,10 +320,18 @@ class OsmoNDCCHLogicalChannel : public OsmoLogicalChannel {
 	channel (PCCCH), and the Compact packet common control channel (CPCCCH)."
 */
 class OsmoCCCHLchan : public OsmoNDCCHLogicalChannel {
+	private:
+	ChannelType mType;
+
 	public:
 	OsmoCCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr);
 
-	ChannelType type() const { return CCCHType; }
+	ChannelType type() const { return mType; }
+	void setType(const ChannelType type)
+	{
+		assert(type == CCCHType || type == AGCHType || type == PCHType);
+		mType = type;
+	}
 };
 
 class OsmoBCCHLchan : public OsmoNDCCHLogicalChannel {
@@ -429,7 +437,9 @@ public:
 
 		/* Setup 1 AGCH and PCH each from the CCCH pool */
 		mAGCH = mCCCH[0];
+		mAGCH->setType(AGCHType);
 		mPCH = mCCCH[2];
+		mPCH->setType(PCHType);
 
 		for (int i = 0; i < 4; i++) {
 			/* create logical channel */

@@ -305,6 +305,8 @@ ostream& GSM::operator<<(ostream& os, ChannelType val)
 		case SDCCHType: os << "SDCCH"; break;
 		case FACCHType: os << "FACCH"; break;
 		case CCCHType: os << "CCCH"; break;
+		case AGCHType: os << "AGCH"; break;
+		case PCHType: os << "PCH"; break;
 		case SACCHType: os << "SACCH"; break;
 		case TCHFType: os << "TCH/F"; break;
 		case TCHHType: os << "TCH/H"; break;

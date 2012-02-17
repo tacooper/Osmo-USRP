@@ -190,6 +190,8 @@ enum ChannelType {
 	FCCHType,		///< frequency correction
 	BCCHType,		///< broadcast control
 	CCCHType,		///< common control, a combination of several sub-types
+	AGCHType,		///< sub-type of CCCH
+	PCHType,		///< sub-type of CCCH
 	RACHType,		///< random access
 	SACCHType,		///< slow associated control (acutally dedicated, but...)
 	//@}

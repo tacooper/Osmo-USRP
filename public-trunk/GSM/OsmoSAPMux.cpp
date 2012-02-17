@@ -57,19 +57,59 @@ void OsmoSAPMux::signalNextWtime(GSM::Time &time)
 {
 	assert(mLchan);
 
-	/*  osmo-bts sends a full SI message for each RTS IND,
-	 *  which is signalled for each of 4 bursts. 
-	 *	we ensure only one RTS is sent (for frame 2 of each multiframe). */
-	if(mLchan->type() == BCCHType)
+	/*  Only SCH and TCH/FACCH should be signalled every time.
+	 *  BCCH, CCCHs, SDCCH, and SACCH should be every 4 times. */
+	if(mLchan->type() == SCHType || mLchan->type() == FACCHType ||
+		mLchan->type() == TCHFType || mLchan->type() == TCHHType)
 	{
-		if(time.T3() == 2)
-		{
-			mLchan->signalNextWtime(time);
-		}
+		mLchan->signalNextWtime(time);
 	}
 	else
 	{
-		mLchan->signalNextWtime(time);
+		const int comb = mLchan->TS()->getComb();
+
+
+		/*  Ensure only one RTS is sent at first frame of each block. */
+		if(comb == 5)
+		{
+			switch(time.T3())
+			{
+				case 2:
+				case 6:
+				case 12:
+				case 16:
+				case 22:
+				case 26:
+				case 32:
+				case 36:
+				case 42:
+				case 46:
+					mLchan->signalNextWtime(time);
+				default:
+					return;
+			}
+		}
+		else if(comb == 7)
+		{
+			switch(time.T3())
+			{
+				case 0:
+				case 4:
+				case 8:
+				case 12:
+				case 16:
+				case 20:
+				case 24:
+				case 28:
+				case 32:
+				case 36:
+				case 40:
+				case 44:
+					mLchan->signalNextWtime(time);
+				default:
+					return;
+			}
+		}
 	}
 }
 
