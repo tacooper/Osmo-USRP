@@ -188,8 +188,10 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	}
 
 	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
-	assert(lchan.hasHL2());
-	buildPhReadyToSendInd(sapi, time, lchan);
+	if(lchan.hasHL2())
+	{
+		buildPhReadyToSendInd(sapi, time, lchan);
+	}
 }
 
 void OsmoThreadMuxer::startThreads()
