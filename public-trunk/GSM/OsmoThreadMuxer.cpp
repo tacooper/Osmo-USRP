@@ -67,16 +67,41 @@ namespace Osmo
 void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time, 
 	const float RSSI, const int TA, const OsmoLogicalChannel *lchan)
 {
-	/* Only reach here from RACH decoder/Lchan */
-	assert(lchan->type() == RACHType);
-
 	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
 	if(lchan->hasHL2())
 	{
 		const unsigned int size = frame.size()/8;
 		unsigned char buffer[size];
 		frame.pack(buffer);
-		buildPhRaInd((char*)buffer, size, time, RSSI, TA, lchan);
+
+		GsmL1_Sapi_t sapi;
+
+		/* Only uplink Lchans need to be handled */
+		switch(lchan->type())
+		{
+			/* RACH is special case, no PhDataInd */
+			case RACHType:
+				buildPhRaInd((char*)buffer, size, time, RSSI, TA, lchan);
+				return;
+			/* Translate lchan into sapi */
+			case SACCHType:
+				sapi = GsmL1_Sapi_Sacch;
+				break;
+			case SDCCHType:
+				sapi = GsmL1_Sapi_Sdcch;
+				break;
+			case FACCHType:
+				sapi = GsmL1_Sapi_FacchF;
+				break;
+			case TCHFType:
+				sapi = GsmL1_Sapi_TchF;
+				break;
+			/* No half-rate (TCHHType) */
+			default:
+				assert(0);
+		}
+
+		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, lchan);
 	}
 }
 
@@ -99,12 +124,12 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 		case GsmL1_Sapi_Pch:
 			return mTRX[0]->getTS(ts_nr)->getPCHLchan();
 		/* Only support full-rate traffic? */
-		case GsmL1_Sapi_TchF:
-		case GsmL1_Sapi_FacchF:
 		case GsmL1_Sapi_TchH:
 		case GsmL1_Sapi_FacchH:
+			break;
+		case GsmL1_Sapi_TchF:
+		case GsmL1_Sapi_FacchF:
 		case GsmL1_Sapi_Sacch:
-			return mTRX[0]->getTS(ts_nr)->getLchan(ss_nr);
 		case GsmL1_Sapi_Sdcch:
 			return mTRX[0]->getTS(ts_nr)->getLchan(ss_nr);
 		default:
@@ -140,25 +165,31 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 			sapi = GsmL1_Sapi_Pch;
 			break;
 		case SACCHType:
+			sapi = GsmL1_Sapi_Sacch;
+			break;
 		case SDCCHType:
+			sapi = GsmL1_Sapi_Sdcch;
+			break;
 		case FACCHType:
+			sapi = GsmL1_Sapi_FacchF;
+			break;
 		case TCHFType:
-		case TCHHType:
+			sapi = GsmL1_Sapi_TchF;
+			break;
 		/* Plain CCCH should be assigned as AGCH or PCH */
 		case CCCHType:
 			return;
 		/* These channel types should not be signalled */
 		case FCCHType:
 		case RACHType:
+		case TCHHType:
 		default:
 			assert(0);
 	}
 
 	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
-	if(lchan.hasHL2())
-	{
-		buildPhReadyToSendInd(sapi, time, lchan);
-	}
+	assert(lchan.hasHL2());
+	buildPhReadyToSendInd(sapi, time, lchan);
 }
 
 void OsmoThreadMuxer::startThreads()
@@ -681,6 +712,31 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size,
 	mL1MsgQ.write(send_msg);
 }
 
+void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size, 
+	const GsmL1_Sapi_t sapi, const float RSSI, const int TA,
+	const OsmoLogicalChannel *lchan)
+{
+	/* Build IND message to send */
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_PhDataInd_t *ind = &l1p->u.phDataInd;
+	
+	l1p->id = GsmL1_PrimId_PhDataInd;
+
+	ind->measParam.fRssi = RSSI;
+	ind->measParam.fLinkQuality = 10; //must be >MIN_QUAL_NORM of osmo-bts
+	ind->measParam.fBer = 0; //FIXME: actually used, so determine somehow
+	ind->measParam.i16BurstTiming = (int16_t)TA;
+	ind->sapi = sapi;
+	ind->hLayer2 = lchan->getHL2();
+	ind->msgUnitParam.u8Size = size;
+	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
+
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
+}
+
 void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,
 	const OsmoLogicalChannel &lchan)
 {
@@ -696,6 +752,7 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,
 	ind->u8Tn = (uint8_t)time.TN();
 	ind->u32Fn = (uint32_t)time.FN();
 	ind->sapi = sapi;
+	ind->subCh = (GsmL1_SubCh_t)lchan.SSnr();
 	ind->hLayer2 = lchan.getHL2();
 
 	LOG(DEBUG) << "PhReadyToSendInd message TN = " << (int)ind->u8Tn << " FN = "
@@ -707,7 +764,6 @@ void OsmoThreadMuxer::buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,
 	mL1MsgQ.write(send_msg);
 }
 /* ignored output values:
-	GsmL1_SubCh_t subCh (no use) //FIXME: get lchan.SSnr()
 	uint8_t u8BlockNbr (no use)
 */
 

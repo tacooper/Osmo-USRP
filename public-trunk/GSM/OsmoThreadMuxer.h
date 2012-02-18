@@ -248,6 +248,9 @@ private:
 	 * messages */
 	void buildPhRaInd(const char* buffer, const int size, const GSM::Time time,
 		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
+	void buildPhDataInd(const char* buffer, const int size, 
+		const GsmL1_Sapi_t sapi, const float RSSI, const int TA, 
+		const OsmoLogicalChannel *lchan);
 
 	/* Functions to build and send L1 IND messages required by osmo-bts */
 	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,

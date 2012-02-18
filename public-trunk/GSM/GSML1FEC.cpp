@@ -672,7 +672,7 @@ void XCCHL1Decoder::handleGoodFrame()
 	// stop T3101 and tell L2 we're alive down here.
 	if (mT3101.active()) {
 		mT3101.reset();
-		if (mUpstream!=NULL) mUpstream->writeLowSide(L2Frame(ESTABLISH));
+		//if (mUpstream!=NULL) mUpstream->writeLowSide(L2Frame(ESTABLISH));
 	}
 	mLock.unlock();
 

@@ -68,7 +68,6 @@ void OsmoSAPMux::signalNextWtime(GSM::Time &time)
 	{
 		const int comb = mLchan->TS()->getComb();
 
-
 		/*  Ensure only one RTS is sent at first frame of each block. */
 		if(comb == 5)
 		{

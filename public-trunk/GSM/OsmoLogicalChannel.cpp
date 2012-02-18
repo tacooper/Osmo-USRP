@@ -146,7 +146,7 @@ OsmoBCCHLchan::OsmoBCCHLchan(OsmoTS *osmo_ts)
 }
 
 OsmoSCHLchan::OsmoSCHLchan(OsmoTS *osmo_ts)
-	:OsmoNDCCHLogicalChannel(osmo_ts, 1)
+	:OsmoNDCCHLogicalChannel(osmo_ts, 0)
 {
 	assert(osmo_ts->getComb() == 5);
 
@@ -155,7 +155,7 @@ OsmoSCHLchan::OsmoSCHLchan(OsmoTS *osmo_ts)
 }
 
 OsmoRACHLchan::OsmoRACHLchan(OsmoTS *osmo_ts)
-	:OsmoNDCCHLogicalChannel(osmo_ts, 3)
+	:OsmoNDCCHLogicalChannel(osmo_ts, 0)
 {
 	assert(osmo_ts->getComb() == 5);
 
