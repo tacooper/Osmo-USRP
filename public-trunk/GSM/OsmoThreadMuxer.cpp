@@ -120,7 +120,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	OsmoLogicalChannel &lchan)
 {
-	LOG(INFO) << lchan << " " << time;
+	LOG(DEBUG) << lchan << " " << time;
 
 	/* Translate lchan into sapi */
 	GsmL1_Sapi_t sapi;
@@ -367,6 +367,9 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 		case GsmL1_PrimId_MphActivateReq:
 			processMphActivateReq(msg);
 			break;
+		case GsmL1_PrimId_MphDeactivateReq:
+			processMphDeactivateReq(msg);
+			break;
 		case GsmL1_PrimId_PhDataReq:
 			processPhDataReq(msg);
 			break;
@@ -556,7 +559,15 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	if(lchan)
 	{
 		/* Store reference to L2 in this Lchan */
-		lchan->setHL2(req->hLayer2);
+		if(req->sapi != GsmL1_Sapi_Sacch)
+		{
+			lchan->initHL2(req->hLayer2);
+		}
+		/* If SACCH, check if associated Lchan has same hLayer2 */
+		else
+		{
+			assert(lchan->getHL2() == req->hLayer2);
+		}
 
 		/* Start cycle of PhReadyToSendInd messages for activated Lchan */
 		if(req->sapi != GsmL1_Sapi_Rach)
@@ -583,6 +594,57 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	GsmL1_MphActivateCnf_t *cnf = &l1p->u.mphActivateCnf;
 	
 	l1p->id = GsmL1_PrimId_MphActivateCnf;
+
+	cnf->u8Tn = req->u8Tn;
+	cnf->sapi = req->sapi;
+	cnf->status = status;
+
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
+}
+
+/* ignored input values:
+	GsmL1_Dir_t dir (no use)
+*/
+void OsmoThreadMuxer::processMphDeactivateReq(struct Osmo::msgb *recv_msg)
+{
+	/* Process received REQ message */
+	GsmL1_Prim_t *l1p_req = msgb_l1prim(recv_msg);
+	GsmL1_MphDeactivateReq_t *req = &l1p_req->u.mphDeactivateReq;
+
+	/* Check if L1 reference is correct */
+	assert(mL1id == req->hLayer1);
+
+	GsmL1_Status_t status = GsmL1_Status_Uninitialized;
+
+	unsigned int ts_nr = (unsigned int)req->u8Tn;
+	unsigned int ss_nr = (unsigned int)req->subCh;
+	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr, ss_nr);
+
+	if(lchan)
+	{
+		/* Clear reference to L2 in this Lchan */
+		lchan->clearHL2();
+
+		/* Stop sending MphTimeInd messages if SCH is deactivated */
+		if(req->sapi == GsmL1_Sapi_Sch)
+		{
+			mRunningTimeInd = false;
+		}
+
+		status = GsmL1_Status_Success;
+	}
+
+	LOG(DEBUG) << "MphDeactivateReq message SAPI = " <<
+		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
+
+	/* Build CNF message to send */
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_MphDeactivateCnf_t *cnf = &l1p->u.mphDeactivateCnf;
+	
+	l1p->id = GsmL1_PrimId_MphDeactivateCnf;
 
 	cnf->u8Tn = req->u8Tn;
 	cnf->sapi = req->sapi;

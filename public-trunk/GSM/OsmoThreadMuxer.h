@@ -239,6 +239,7 @@ private:
 	void processMphInitReq();
 	void processMphConnectReq(struct Osmo::msgb *recv_msg);
 	void processMphActivateReq(struct Osmo::msgb *recv_msg);
+	void processMphDeactivateReq(struct Osmo::msgb *recv_msg);
 
 	/* Functions to process L1 REQ messages from osmo-bts (no CNF returned) */
 	void processPhDataReq(struct Osmo::msgb *recv_msg);

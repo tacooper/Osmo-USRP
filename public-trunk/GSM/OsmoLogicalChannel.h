@@ -209,7 +209,12 @@ public:
 	int getHL2() const { return mHL2; }
 	//@}
 
-	void setHL2(const int hLayer2) { mHL2 = hLayer2; }
+	void clearHL2() { mHL2 = -1; }
+	void initHL2(const int hLayer2)
+	{
+		assert(mHL2 == -1);
+		mHL2 = hLayer2;
+	}
 	bool hasHL2() const
 	{
 		if(mHL2 == -1)
