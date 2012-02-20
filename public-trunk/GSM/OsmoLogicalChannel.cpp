@@ -129,7 +129,7 @@ void OsmoLogicalChannel::downstream(ARFCNManager* radio)
 }
 
 OsmoCCCHLchan::OsmoCCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
-	:OsmoNDCCHLogicalChannel(osmo_ts, ss_nr)
+	:OsmoLogicalChannel(osmo_ts, ss_nr)
 {
 	mType = CCCHType;
 	mL1 = new CCCHL1FEC(gCCCH[ss_nr]);
@@ -137,7 +137,7 @@ OsmoCCCHLchan::OsmoCCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 }
 
 OsmoBCCHLchan::OsmoBCCHLchan(OsmoTS *osmo_ts)
-	:OsmoNDCCHLogicalChannel(osmo_ts, 0)
+	:OsmoLogicalChannel(osmo_ts, 0)
 {
 	assert(osmo_ts->getComb() == 5);
 
@@ -146,7 +146,7 @@ OsmoBCCHLchan::OsmoBCCHLchan(OsmoTS *osmo_ts)
 }
 
 OsmoSCHLchan::OsmoSCHLchan(OsmoTS *osmo_ts)
-	:OsmoNDCCHLogicalChannel(osmo_ts, 0)
+	:OsmoLogicalChannel(osmo_ts, 0)
 {
 	assert(osmo_ts->getComb() == 5);
 
@@ -155,7 +155,7 @@ OsmoSCHLchan::OsmoSCHLchan(OsmoTS *osmo_ts)
 }
 
 OsmoRACHLchan::OsmoRACHLchan(OsmoTS *osmo_ts)
-	:OsmoNDCCHLogicalChannel(osmo_ts, 0)
+	:OsmoLogicalChannel(osmo_ts, 0)
 {
 	assert(osmo_ts->getComb() == 5);
 

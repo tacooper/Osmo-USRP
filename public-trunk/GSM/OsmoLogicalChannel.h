@@ -301,21 +301,6 @@ class OsmoSDCCHLchan : public OsmoLogicalChannel {
 	ChannelType type() const { return SDCCHType; }
 };
 
-
-/**
-	Logical channel for NDCCHs that use Bbis format and a pseudolength.
-	This is a virtual base class this is extended for CCCH & BCCH.
-	See GSM 04.06 4.1.1, 4.1.3.
-*/
-class OsmoNDCCHLogicalChannel : public OsmoLogicalChannel {
-
-	public:
-	OsmoNDCCHLogicalChannel(OsmoTS *osmo_ts, unsigned int ss_nr) :
-		OsmoLogicalChannel(osmo_ts, ss_nr) { };
-
-};
-
-
 /**
 	Common control channel.
 	The "uplink" component of the CCCH is the RACH.
@@ -324,7 +309,7 @@ class OsmoNDCCHLogicalChannel : public OsmoLogicalChannel {
 	sub-divided into the common control channel (CCCH), the packet common control
 	channel (PCCCH), and the Compact packet common control channel (CPCCCH)."
 */
-class OsmoCCCHLchan : public OsmoNDCCHLogicalChannel {
+class OsmoCCCHLchan : public OsmoLogicalChannel {
 	private:
 	ChannelType mType;
 
@@ -339,21 +324,21 @@ class OsmoCCCHLchan : public OsmoNDCCHLogicalChannel {
 	}
 };
 
-class OsmoBCCHLchan : public OsmoNDCCHLogicalChannel {
+class OsmoBCCHLchan : public OsmoLogicalChannel {
 	public:
 	OsmoBCCHLchan(OsmoTS *osmo_ts);
 
 	ChannelType type() const { return BCCHType; }
 };
 
-class OsmoSCHLchan : public OsmoNDCCHLogicalChannel {
+class OsmoSCHLchan : public OsmoLogicalChannel {
 	public:
 	OsmoSCHLchan(OsmoTS *osmo_ts);
 
 	ChannelType type() const { return SCHType; }
 };
 
-class OsmoRACHLchan : public OsmoNDCCHLogicalChannel {
+class OsmoRACHLchan : public OsmoLogicalChannel {
 	public:
 	OsmoRACHLchan(OsmoTS *osmo_ts);
 
