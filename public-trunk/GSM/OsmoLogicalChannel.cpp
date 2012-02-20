@@ -63,8 +63,6 @@ OsmoTS::OsmoTS(OsmoTRX &trx, unsigned int ts_nr, unsigned comb)
 void OsmoLogicalChannel::open()
 {
 	LOG(INFO);
-	if (mSACCHL1)
-		mSACCHL1->open();
 	if (mL1)
 		mL1->open();
 }
@@ -122,10 +120,6 @@ void OsmoLogicalChannel::downstream(ARFCNManager* radio)
 	assert(mL1);
 	/* tell the L1 to which ARFCNmanager to transmit */
 	mL1->downstream(radio);
-
-	/* If we have a SACCH, configure it the same way */
-	if (mSACCHL1)
-		mSACCHL1->downstream(radio);
 }
 
 OsmoCCCHLchan::OsmoCCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
@@ -163,6 +157,31 @@ OsmoRACHLchan::OsmoRACHLchan(OsmoTS *osmo_ts)
 	connect();
 }
 
+OsmoSACCHLchan::OsmoSACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
+	:OsmoLogicalChannel(osmo_ts, ss_nr)
+{
+	unsigned int ts_nr = osmo_ts->getTSnr();
+	const CompleteMapping *wMapping = NULL;
+
+	/* we have to distinguish TCH/F, SDCCH/4, and SDCCH/8 mappings */
+	switch (osmo_ts->getComb()) {
+	case 1:
+		wMapping = &gTCHF_T[ts_nr];
+		break;
+	case 5:
+		wMapping = &gSDCCH4[ss_nr];
+		break;
+	case 7:
+		wMapping = &gSDCCH8[ss_nr];
+		break;
+	default:
+		assert(0);
+	}
+	mSACCHL1 = new SACCHL1FEC(ts_nr, wMapping->SACCH());
+	mL1 = mSACCHL1;
+	connect();
+}
+
 OsmoSDCCHLchan::OsmoSDCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	:OsmoLogicalChannel(osmo_ts, ss_nr)
 {
@@ -181,7 +200,6 @@ OsmoSDCCHLchan::OsmoSDCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 		assert(0);
 	}
 	mL1 = new SDCCHL1FEC(ts_nr, wMapping->LCH());
-	mSACCHL1 = new SACCHL1FEC(ts_nr, wMapping->SACCH());
 	connect();
 }
 
@@ -190,10 +208,22 @@ OsmoTCHFACCHLchan::OsmoTCHFACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 {
 	unsigned int ts_nr = osmo_ts->getTSnr();
 	mL1 = new TCHFACCHL1FEC(ts_nr, gTCHF_T[ts_nr].LCH());
-	mSACCHL1 = new SACCHL1FEC(ts_nr, gTCHF_T[ts_nr].SACCH());
 	connect();
 }
 
+// These have to go into the .cpp file to prevent an illegal forward reference.
+void OsmoLogicalChannel::setPhy(float wRSSI, float wTimingError) {
+	assert(mSACCHLchan);
+	mSACCHLchan->setPhy(wRSSI, wTimingError);
+}
+void OsmoLogicalChannel::setPhy(const OsmoLogicalChannel& other) {
+	assert(mSACCHLchan);
+	mSACCHLchan->setPhy(*other.SACCH());
+}
+float OsmoLogicalChannel::RSSI() const { return mSACCHLchan->RSSI(); }
+float OsmoLogicalChannel::timingError() const { return mSACCHLchan->timingError(); }
+int OsmoLogicalChannel::actualMSPower() const { return mSACCHLchan->actualMSPower(); }
+int OsmoLogicalChannel::actualMSTiming() const { return mSACCHLchan->actualMSTiming(); }
 
 // vim: ts=4 sw=4
 

@@ -56,6 +56,7 @@ class OsmoBCCHLchan;
 class OsmoSCHLchan;
 class OsmoRACHLchan;
 class OsmoCCCHLchan;
+class OsmoSACCHLchan;
 
 /* virtual class from which we derive timeslots */
 class OsmoTS {
@@ -174,7 +175,7 @@ protected:
 	OsmoThreadMuxer *mTM;
 	unsigned int mSS;	// sub-slot (logical channel within TS)
 	OsmoTS *mTS;
-	SACCHL1FEC *mSACCHL1;	///< The associated SACCH, if any.
+	OsmoSACCHLchan *mSACCHLchan;	///< The associated SACCH, if any.
 	int mHL2; //hLayer2 reference, initialized by osmo-bts
 
 public:
@@ -185,7 +186,7 @@ public:
 	*/
 	OsmoLogicalChannel(OsmoTS *osmo_ts, unsigned int ss_nr)
 		:mL1(NULL),
-		mSACCHL1(NULL)
+		mSACCHLchan(NULL)
 	{
 		mTS = osmo_ts;
 		mSS = ss_nr;
@@ -199,11 +200,21 @@ public:
 	/** Connect an ARFCN manager to link L1FEC to the radio. */
 	void downstream(ARFCNManager* radio);
 
+	/* Link a SACCH to this Lchan */
+	void setSACCHLchan(OsmoSACCHLchan* chan)
+	{
+		assert(mSACCHLchan == NULL);
+		mSACCHLchan = chan;
+	}
+
+	/* Only to be called by SACCH Lchan */
+	virtual OsmoLogicalChannel *getSiblingLchan() { assert(0); }
+
 	/**@name Accessors. */
 	//@{
 	L1FEC* getL1() { return mL1; }
-	SACCHL1FEC* SACCH() { return mSACCHL1; }
-	const SACCHL1FEC* SACCH() const { return mSACCHL1; }
+	OsmoSACCHLchan* SACCH() { return mSACCHLchan; }
+	const OsmoSACCHLchan* SACCH() const { return mSACCHLchan; }
 	const OsmoTS* TS() const { return mTS; }
 	unsigned int SSnr() const { return mSS; }
 	int getHL2() const { return mHL2; }
@@ -236,29 +247,23 @@ public:
 	//@{
 
 	/** Set L1 physical parameters from a RACH or pre-exsting channel. */
-	virtual void setPhy(float wRSSI, float wTimingError) {
-		assert(mSACCHL1);
-		mSACCHL1->setPhy(wRSSI, wTimingError);
-	}
+	virtual void setPhy(float wRSSI, float wTimingError);
 
 	/* Set L1 physical parameters from an existing logical channel. */
-	virtual void setPhy(const OsmoLogicalChannel& other) {
-		assert(mSACCHL1);
-		mSACCHL1->setPhy(*other.SACCH());
-	}
+	virtual void setPhy(const OsmoLogicalChannel& other);
 
 	//@} // passthrough
 
 	/**@name Channel stats from the physical layer */
 	//@{
 	/** RSSI wrt full scale. */
-	virtual float RSSI() const { return mSACCHL1->RSSI(); }
+	virtual float RSSI() const;
 	/** Uplink timing error. */
-	virtual float timingError() const { return mSACCHL1->timingError(); }
+	virtual float timingError() const;
 	/** Actual MS uplink power. */
-	virtual int actualMSPower() const { return mSACCHL1->actualMSPower(); }
+	virtual int actualMSPower() const;
 	/** Actual MS uplink timing advance. */
-	virtual int actualMSTiming() const { return mSACCHL1->actualMSTiming(); }
+	virtual int actualMSTiming() const;
 	//@}
 
 	/** Return the channel type. */
@@ -283,6 +288,37 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& os, const OsmoLogicalChannel& lchan);
+
+class OsmoSACCHLchan : public OsmoLogicalChannel {
+	protected:
+
+	SACCHL1FEC *mSACCHL1;
+	OsmoLogicalChannel *mSiblingLchan;
+
+	public:
+
+	OsmoSACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr);
+
+	ChannelType type() const { return SACCHType; }
+
+	/* Link a Lchan to this SACCH*/
+	void setSiblingLchan(OsmoLogicalChannel *chan)
+	{
+		assert(mSiblingLchan == NULL);
+		mSiblingLchan = chan;
+	}
+
+	virtual OsmoLogicalChannel *getSiblingLchan()
+	{
+		return mSiblingLchan;
+	}
+
+	/* Do not link a SACCH to another SACCH */
+	virtual void setSACCH(OsmoSACCHLchan* chan) { assert(0); }
+
+	void setPhy(float RSSI, float timingError) { mSACCHL1->setPhy(RSSI,timingError); }
+	void setPhy(const OsmoSACCHLchan& other) { mSACCHL1->setPhy(*other.mSACCHL1); }
+};
 
 /**
 	Standalone dedicated control channel.
@@ -438,6 +474,15 @@ public:
 			chan->open();
 			mLchan[i] = chan;
 			mNLchan++;
+
+			/* create associated SACCH */
+			OsmoSACCHLchan * achan = new OsmoSACCHLchan(this, i);
+			achan->downstream(radio);
+			achan->open();
+
+			/* link SDCCH and SACCH */
+			chan->setSACCHLchan(achan);
+			achan->setSiblingLchan(chan);
 		}
 	}
 };
@@ -458,6 +503,15 @@ public:
 			chan->open();
 			mLchan[i] = chan;
 			mNLchan++;
+
+			/* create associated SACCH */
+			OsmoSACCHLchan * achan = new OsmoSACCHLchan(this, i);
+			achan->downstream(radio);
+			achan->open();
+
+			/* link SDCCH and SACCH */
+			chan->setSACCHLchan(achan);
+			achan->setSiblingLchan(chan);
 		}
 	}
 };

@@ -129,9 +129,10 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			break;
 		case GsmL1_Sapi_TchF:
 		case GsmL1_Sapi_FacchF:
-		case GsmL1_Sapi_Sacch:
 		case GsmL1_Sapi_Sdcch:
 			return mTRX[0]->getTS(ts_nr)->getLchan(ss_nr);
+		case GsmL1_Sapi_Sacch:
+			return mTRX[0]->getTS(ts_nr)->getLchan(ss_nr)->SACCH();
 		default:
 			assert(0);
 	}
@@ -592,14 +593,12 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	if(lchan)
 	{
 		/* Store reference to L2 in this Lchan */
-		if(req->sapi != GsmL1_Sapi_Sacch)
-		{
-			lchan->initHL2(req->hLayer2);
-		}
+		lchan->initHL2(req->hLayer2);
+
 		/* If SACCH, check if associated Lchan has same hLayer2 */
-		else
+		if(req->sapi == GsmL1_Sapi_Sacch)
 		{
-			assert(lchan->getHL2() == req->hLayer2);
+			assert(lchan->getSiblingLchan()->getHL2() == req->hLayer2);
 		}
 
 		/* Start cycle of PhReadyToSendInd messages for activated Lchan */
