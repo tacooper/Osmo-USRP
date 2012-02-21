@@ -740,7 +740,7 @@ void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size,
 	ind->msgUnitParam.u8Size = size;
 	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
 
-	LOG(DEBUG) << "PhDataInd message SAPI = " <<
+	LOG(INFO) << "PhDataInd message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi);
 
 	/* Put it into the L1Msg FIFO */
@@ -790,8 +790,7 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 	/* Check if L1 reference is correct */
 	assert(mL1id == req->hLayer1);
 
-	LOG(DEBUG) << "PhDataReq message FN = " << req->u32Fn;
-	LOG(DEBUG) << "PhDataReq message SAPI = " <<
+	LOG(DEBUG) << "PhDataReq message FN = " << req->u32Fn << ", SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
 	/* Determine OsmoLchan based on SAPI and timeslot */

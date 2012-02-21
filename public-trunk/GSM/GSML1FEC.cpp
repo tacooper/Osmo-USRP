@@ -549,13 +549,16 @@ XCCHL1Decoder::XCCHL1Decoder(
 	:L1Decoder(wTN,wMapping,wParent),
 	mBlockCoder(0x10004820009ULL, 40, 224),
 	mC(456), mU(228),
-	mP(mU.segment(184,40)),mDP(mU.head(224)),mD(mU.head(184))
+	mP(mU.segment(184,40)),mDP(mU.head(224)),mD(mU.head(184)),
+	mRSSICounter(0)
 {
 	for (int i=0; i<4; i++) {
 		mI[i] = SoftVector(114);
 		// Fill with zeros just to make Valgrind happy.
 		mI[i].fill(.0);
 	}
+
+	for (int i=0; i<4; i++) mRSSI[i]=0.0F;
 }
 
 
@@ -584,6 +587,29 @@ void XCCHL1Decoder::writeLowSide(const RxBurst& inBurst)
 
 bool XCCHL1Decoder::processBurst(const RxBurst& inBurst)
 {
+	/* SACCH-like processing of RSSI and TimingError */
+	// TODO -- One quick test of burst validity is to look at the tail bits.
+	// We could do that as a double-check against putting garbage into
+	// the interleaver or accepting bad parameters.
+
+	// Get the physical parameters of the burst.
+	// The actual phone settings change every 4 bursts,
+	// so average over all 4.
+	// RSSI is dB wrt full scale.
+	mRSSI[mRSSICounter] = inBurst.RSSI();
+	// Timing error is a float in symbol intervals.
+	mTimingError[mRSSICounter] = inBurst.timingError();
+
+	OBJLOG(DEBUG) << "SACCHL1Decoder " << " RSSI=" << inBurst.RSSI()
+			<< " timingError=" << inBurst.timingError();
+
+	// This flag is used as a half-ass semaphore.
+	// It is cleared when the new value is read.
+	mPhyNew = true;
+	mRSSICounter++;
+	if (mRSSICounter>3) mRSSICounter=0;
+
+
 	OBJLOG(DEEPDEBUG) <<"XCCHL1Decoder " << inBurst;
 	// Accept the burst into the deinterleaving buffer.
 	// Return true if we are ready to interleave.
@@ -685,58 +711,37 @@ void XCCHL1Decoder::handleGoodFrame()
 		gWriteGSMTAP(ARFCN(),TN(),mReadTime.FN(),
 		             typeAndOffset(),mMapping.repeatLength()>51,true,
 					 mD, 0);
-		// Build an L2 frame and pass it up.
+		/* Build L2Frame and send burst up to OsmoSAPMux */
 		const BitVector L2Part(mD.tail(headerOffset()));
 		OBJLOG(DEEPDEBUG) <<"XCCHL1Decoder L2=" << L2Part;
-		mUpstream->writeLowSide(L2Frame(L2Part,DATA));
+		mUpstream->writeLowSide(L2Frame(L2Part,DATA), mReadTime, RSSI(), TA());
 	} else {
 		OBJLOG(ERROR) << "XCCHL1Decoder with no uplink connected.";
 	}
 }
 
 
-float SACCHL1Decoder::RSSI() const
+float XCCHL1Decoder::RSSI() const
 {
 	float sum=mRSSI[0]+mRSSI[1]+mRSSI[2]+mRSSI[3];
 	mPhyNew=false;
 	return 0.25F*sum;
 }
 
-float SACCHL1Decoder::timingError() const
+float XCCHL1Decoder::timingError() const
 {
 	float sum=mTimingError[0]+mTimingError[1]+mTimingError[2]+mTimingError[3];
 	mPhyNew=false;
 	return 0.25F*sum;
 }
 
-
-
-bool SACCHL1Decoder::processBurst(const RxBurst& inBurst)
+int XCCHL1Decoder::TA() const
 {
-	// TODO -- One quick test of burst validity is to look at the tail bits.
-	// We could do that as a double-check against putting garbage into
-	// the interleaver or accepting bad parameters.
-
-	// Get the physical parameters of the burst.
-	// The actual phone settings change every 4 bursts,
-	// so average over all 4.
-	// RSSI is dB wrt full scale.
-	mRSSI[mRSSICounter] = inBurst.RSSI();
-	// Timing error is a float in symbol intervals.
-	mTimingError[mRSSICounter] = inBurst.timingError();
-
-	OBJLOG(DEBUG) << "SACCHL1Decoder " << " RSSI=" << inBurst.RSSI()
-			<< " timingError=" << inBurst.timingError();
-
-	// This flag is used as a half-ass semaphore.
-	// It is cleared when the new value is read.
-	mPhyNew = true;
-	mRSSICounter++;
-	if (mRSSICounter>3) mRSSICounter=0;
-
-	return XCCHL1Decoder::processBurst(inBurst);
+	int TA = (int)(timingError() + 0.5F);
+	if (TA<0) TA=0;
+	if (TA>63) TA=63;
+	return TA;
 }
-
 
 void SACCHL1Decoder::handleGoodFrame()
 {

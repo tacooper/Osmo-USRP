@@ -500,12 +500,32 @@ class XCCHL1Decoder : public L1Decoder {
 	//@}
 
 	GSM::Time mReadTime;		///< timestamp of the first burst
-	unsigned mRSSIHistory[4];
+
+	/* SACCH-like parameters */
+	unsigned mRSSICounter;
+	volatile float mRSSI[4];			///< RSSI history , dB wrt full scale
+	volatile float mTimingError[4];		///< Timing error histoty in symbol
+	mutable volatile bool mPhyNew;		///< a flag to prevent phy params from being read twice
 
 	public:
 
 	XCCHL1Decoder(unsigned wTN, const TDMAMapping& wMapping,
 		L1FEC *wParent);
+
+	/** RSSI of most recent received burst, in dB wrt full scale. */
+	float RSSI() const;
+
+	/**
+		Timing error of most recent received burst, symbol units.
+		Positive is late; negative is early.
+	*/
+	float timingError() const;
+
+	/* Calculates TA (used in osmo-bts) from mTimingError */
+	int TA() const;
+
+	/** Return true if the physical parameters are fresh. */
+	bool phyNew() const { return mPhyNew; }
 
 	protected:
 
@@ -574,10 +594,6 @@ class SACCHL1Decoder : public XCCHL1Decoder {
 	private:
 
 	SACCHL1FEC *mSACCHParent;
-	unsigned mRSSICounter;
-	volatile float mRSSI[4];			///< RSSI history , dB wrt full scale
-	volatile float mTimingError[4];		///< Timing error histoty in symbol
-	mutable volatile bool mPhyNew;				///< a flag to prevent phy params from being read twice
 	volatile int mActualMSPower;		///< actual MS tx power in dBm
 	volatile int mActualMSTiming;		///< actual MS tx timing advance in symbols
 
@@ -588,10 +604,8 @@ class SACCHL1Decoder : public XCCHL1Decoder {
 		const TDMAMapping& wMapping,
 		SACCHL1FEC *wParent)
 		:XCCHL1Decoder(wTN,wMapping,(L1FEC*)wParent),
-		mSACCHParent(wParent),
-		mRSSICounter(0)
+		mSACCHParent(wParent)
 	{
-		for (int i=0; i<4; i++) mRSSI[i]=0.0F;
 	}
 
 	ChannelType channelType() const { return SACCHType; }
@@ -601,28 +615,11 @@ class SACCHL1Decoder : public XCCHL1Decoder {
 
 	/** Override open() to set physical parameters with reasonable defaults. */
 	void open();
-
-	/**
-		Override processBurst to catch the physical parameters.
-	*/
-	bool processBurst(const RxBurst&);
 	
 	/** Set pyshical parameters for initialization. */
 	void setPhy(float wRSSI, float wTimingError);
 
 	void setPhy(const SACCHL1Decoder& other);
-
-	/** RSSI of most recent received burst, in dB wrt full scale. */
-	float RSSI() const;
-
-	/**
-		Timing error of most recent received burst, symbol units.
-		Positive is late; negative is early.
-	*/
-	float timingError() const;
-
-	/** Return true if the physical parameters are fresh. */
-	bool phyNew() const { return mPhyNew; }
 
 
 	protected:
