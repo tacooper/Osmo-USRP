@@ -237,7 +237,7 @@ public:
 		return true;
 	}
 
-	virtual void writeHighSide(const BitVector& vector);
+	virtual void writeHighSide(const L2Frame& frame);
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
 		const float RSSI, const int TA);
 	virtual void signalNextWtime(GSM::Time &time);
@@ -420,7 +420,6 @@ public:
 		/* create logical channel */
 		OsmoTCHFACCHLchan * chan = new OsmoTCHFACCHLchan(this, 0);
 		chan->downstream(radio);
-		chan->open();
 		mLchan[0] = chan;
 		mNLchan = 1;
 	}
@@ -442,23 +441,19 @@ public:
 
 		mBCCH = new OsmoBCCHLchan(this);
 		mBCCH->downstream(radio);
-		mBCCH->open();
 
 		mSCH = new OsmoSCHLchan(this);
 		mSCH->downstream(radio);
-		mSCH->open();
 
 		mFCCH.downstream(radio);
-		mFCCH.open();
+		mFCCH.open(); //FIXME: activate like other Lchans
 
 		mRACH = new OsmoRACHLchan(this);
 		mRACH->downstream(radio);
-		mRACH->open();
 
 		for (int i = 0; i < 3; i++) {
 			mCCCH[i] = new OsmoCCCHLchan(this, i);
 			mCCCH[i]->downstream(radio);
-			mCCCH[i]->open();
 		}
 
 		/* Setup 1 AGCH and PCH each from the CCCH pool */
@@ -471,14 +466,12 @@ public:
 			/* create logical channel */
 			OsmoSDCCHLchan * chan = new OsmoSDCCHLchan(this, i);
 			chan->downstream(radio);
-			chan->open();
 			mLchan[i] = chan;
 			mNLchan++;
 
 			/* create associated SACCH */
 			OsmoSACCHLchan * achan = new OsmoSACCHLchan(this, i);
 			achan->downstream(radio);
-			achan->open();
 
 			/* link SDCCH and SACCH */
 			chan->setSACCHLchan(achan);
@@ -500,14 +493,12 @@ public:
 			/* create logical channel */
 			OsmoSDCCHLchan *chan = new OsmoSDCCHLchan(this, i);
 			chan->downstream(radio);
-			chan->open();
 			mLchan[i] = chan;
 			mNLchan++;
 
 			/* create associated SACCH */
 			OsmoSACCHLchan * achan = new OsmoSACCHLchan(this, i);
 			achan->downstream(radio);
-			achan->open();
 
 			/* link SDCCH and SACCH */
 			chan->setSACCHLchan(achan);

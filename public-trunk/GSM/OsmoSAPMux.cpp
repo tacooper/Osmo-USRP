@@ -35,12 +35,11 @@
 using namespace GSM;
 
 
-void OsmoSAPMux::writeHighSide(const BitVector& vector)
+void OsmoSAPMux::writeHighSide(const L2Frame& frame)
 {
-	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeHighSide " << vector;
+	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeHighSide " << frame;
 	/* put it into the top side of the L2 FIFO */
-	/* NOTE: packs vector bits into 23-byte L2Frame, adding filler if needed */
-	mL2Q.write(new L2Frame(vector, DATA));
+	mL2Q.write(new L2Frame(frame));
 }
 
 void OsmoSAPMux::writeLowSide(const L2Frame& frame, const GSM::Time time, 

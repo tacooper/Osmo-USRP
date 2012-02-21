@@ -82,11 +82,11 @@ void OsmoLogicalChannel::connect()
 }
 
 /* This is where OsmoThreadMuxer inputs data received from osmo-bts */
-void OsmoLogicalChannel::writeHighSide(const BitVector& vector)
+void OsmoLogicalChannel::writeHighSide(const L2Frame& frame)
 {
-	OBJLOG(DEEPDEBUG) << "OsmoLogicalChannel::writeHighSide " << vector;
+	OBJLOG(DEEPDEBUG) << "OsmoLogicalChannel::writeHighSide " << frame;
 	/* simply pass it through to the OsmoSAPMux */
-	mMux.writeHighSide(vector);
+	mMux.writeHighSide(frame);
 }
 
 /* This is where OsmoSAPMux inputs data received from L1FEC */

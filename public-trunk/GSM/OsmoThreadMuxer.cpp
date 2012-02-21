@@ -601,6 +601,9 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 			assert(lchan->getSiblingLchan()->getHL2() == req->hLayer2);
 		}
 
+		/* Open the L1FEC */
+		lchan->getL1()->open();
+
 		/* Start cycle of PhReadyToSendInd messages for activated Lchan */
 		if(req->sapi != GsmL1_Sapi_Rach)
 		{
@@ -616,7 +619,7 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 		status = GsmL1_Status_Success;
 	}
 
-	LOG(DEBUG) << "MphActivateReq message SAPI = " <<
+	LOG(INFO) << "MphActivateReq message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
 	/* Build CNF message to send */
@@ -664,10 +667,13 @@ void OsmoThreadMuxer::processMphDeactivateReq(struct Osmo::msgb *recv_msg)
 			mRunningTimeInd = false;
 		}
 
+		/* Close the L1FEC */
+		lchan->getL1()->close();
+
 		status = GsmL1_Status_Success;
 	}
 
-	LOG(DEBUG) << "MphDeactivateReq message SAPI = " <<
+	LOG(INFO) << "MphDeactivateReq message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
 	/* Build CNF message to send */
@@ -727,12 +733,15 @@ void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size,
 
 	ind->measParam.fRssi = RSSI;
 	ind->measParam.fLinkQuality = 10; //must be >MIN_QUAL_NORM of osmo-bts
-	ind->measParam.fBer = 0; //FIXME: actually used, so determine somehow
+	ind->measParam.fBer = 0; //FIXME: actually used, so determine from mFER?
 	ind->measParam.i16BurstTiming = (int16_t)TA;
 	ind->sapi = sapi;
 	ind->hLayer2 = lchan->getHL2();
 	ind->msgUnitParam.u8Size = size;
 	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
+
+	LOG(DEBUG) << "PhDataInd message SAPI = " <<
+		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi);
 
 	/* Put it into the L1Msg FIFO */
 	mL1MsgQ.write(send_msg);
@@ -806,8 +815,11 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 	OBJLOG(DEBUG) << "OsmoThreadMuxer::writeHighSide " << vector
 		<< " bytes size=" << (int)size;
 
-	/* Send BitVector to OsmoLchan */
-	lchan->writeHighSide(vector);
+	/* NOTE: packs vector bits into 23-byte L2Frame, adding filler if needed */
+	L2Frame frame(vector, DATA);
+
+	/* Send L2Frame down through OsmoLchan */
+	lchan->writeHighSide(frame);
 }
 
 void OsmoThreadMuxer::buildMphTimeInd()

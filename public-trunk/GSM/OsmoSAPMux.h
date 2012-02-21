@@ -59,7 +59,7 @@ class OsmoSAPMux : public SAPMux {
 
 	virtual ~OsmoSAPMux() {}
 
-	virtual void writeHighSide(const BitVector& vector);
+	virtual void writeHighSide(const L2Frame& frame);
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
 		const float RSSI, const int TA);
 	virtual void signalNextWtime(GSM::Time &time);
