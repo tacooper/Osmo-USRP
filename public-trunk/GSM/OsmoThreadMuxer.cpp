@@ -619,6 +619,12 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 		status = GsmL1_Status_Success;
 	}
 
+	/* No Lchan for FCCH, so just open L1FEC directly to start generate loop */
+	if(req->sapi == GsmL1_Sapi_Fcch)
+	{
+		mTRX[0]->getTS(ts_nr)->getFCCHL1()->open();
+	}
+
 	LOG(INFO) << "MphActivateReq message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 
@@ -671,6 +677,12 @@ void OsmoThreadMuxer::processMphDeactivateReq(struct Osmo::msgb *recv_msg)
 		lchan->getL1()->close();
 
 		status = GsmL1_Status_Success;
+	}
+
+	/* No Lchan for FCCH, so just close L1FEC directly to stop generate loop */
+	if(req->sapi == GsmL1_Sapi_Fcch)
+	{
+		mTRX[0]->getTS(ts_nr)->getFCCHL1()->close();
 	}
 
 	LOG(INFO) << "MphDeactivateReq message SAPI = " <<

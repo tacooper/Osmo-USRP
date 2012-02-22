@@ -63,6 +63,7 @@ class OsmoTS {
 protected:
 	OsmoTRX *mTRX;
 	unsigned int mTSnr;
+	FCCHL1FEC *mFCCH;
 	OsmoBCCHLchan *mBCCH;
 	OsmoSCHLchan *mSCH;
 	OsmoRACHLchan *mRACH;
@@ -85,6 +86,11 @@ public:
 			return mLchan[nr];
 		else
 			return NULL;
+	}
+
+	FCCHL1FEC *getFCCHL1()
+	{
+		return mFCCH;
 	}
 
 	OsmoBCCHLchan *getBCCHLchan()
@@ -428,11 +434,9 @@ public:
 /* timeslot in Combination 5 (FCCH, SCH, CCCH, BCCH and 4*SDCCH/4) */
 class OsmoComb5TS : public OsmoTS {
 protected:
-	FCCHL1FEC mFCCH;
 public:
 	OsmoComb5TS(OsmoTRX &trx, unsigned int tn)
-		:OsmoTS(trx, tn, 5),
-		mFCCH()
+		:OsmoTS(trx, tn, 5)
 	{
 		/* Add TS to TRX */
 		trx.addTS(*this);
@@ -445,8 +449,8 @@ public:
 		mSCH = new OsmoSCHLchan(this);
 		mSCH->downstream(radio);
 
-		mFCCH.downstream(radio);
-		mFCCH.open(); //FIXME: activate like other Lchans
+		mFCCH = new FCCHL1FEC();
+		mFCCH->downstream(radio);
 
 		mRACH = new OsmoRACHLchan(this);
 		mRACH->downstream(radio);

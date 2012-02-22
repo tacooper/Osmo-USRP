@@ -964,7 +964,7 @@ void *GSM::GeneratorL1EncoderServiceLoopAdapter(GeneratorL1Encoder* gen)
 
 void GeneratorL1Encoder::serviceLoop()
 {
-	while (mRunning) {
+	while (mRunning && mActive) {
 		resync();
 		waitToSend();
 		generate();
