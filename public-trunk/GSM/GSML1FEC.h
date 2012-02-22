@@ -918,45 +918,6 @@ class FCCHL1Encoder : public GeneratorL1Encoder {
 	void generate();
 };
 
-
-
-
-/**
-	L1 encoder for repeating non-dedicated control channels (BCCH).
-	This have generator-like drive loops, but xCCH-like FEC.
-*/
-class NDCCHL1Encoder : public XCCHL1Encoder {
-
-	protected:
-
-	Thread mSendThread;
-
-	public:
-
-
-	NDCCHL1Encoder(
-		unsigned wTN,
-		const TDMAMapping& wMapping,
-		L1FEC *wParent)
-		:XCCHL1Encoder(wTN, wMapping, wParent)
-	{ }
-
-	void start();
-
-	protected:
-
-	virtual void generate() =0;
-
-	/** The core service loop. */
-	void serviceLoop();
-
-	friend void *NDCCHL1EncoderServiceLoopAdapter(NDCCHL1Encoder*);
-};
-
-void *NDCCHL1EncoderServiceLoopAdapter(NDCCHL1Encoder*);
-
-
-
 /**
 	L1 encoder for the BCCH has generator filling behavior but xCCH-like FEC.
 */
@@ -1172,29 +1133,11 @@ class CCCHL1FEC : public L1FEC {
 	}
 };
 
-
-
-
-/**
-	A subclass for channels that have L2 and L3 so thin
-	that they are handled as special cases.
-	These are all broadcast and unicast channels.
-*/
-class NDCCHL1FEC : public L1FEC {
+class FCCHL1FEC : public L1FEC {
 
 	public:
 
-	NDCCHL1FEC():L1FEC() {}
-
-	void upstream(SAPMux*){ assert(0);}
-};
-
-
-class FCCHL1FEC : public NDCCHL1FEC {
-
-	public:
-
-	FCCHL1FEC():NDCCHL1FEC()
+	FCCHL1FEC():L1FEC()
 	{
 		mEncoder = new FCCHL1Encoder(this);
 	}
@@ -1202,34 +1145,34 @@ class FCCHL1FEC : public NDCCHL1FEC {
 };
 
 
-class RACHL1FEC : public NDCCHL1FEC {
+class RACHL1FEC : public L1FEC {
 
 	public:
 
 	RACHL1FEC(const TDMAMapping& wMapping)
-		:NDCCHL1FEC()
+		:L1FEC()
 	{
 		mDecoder = new RACHL1Decoder(wMapping,this);
 	}
 };
 
 
-class SCHL1FEC : public NDCCHL1FEC {
+class SCHL1FEC : public L1FEC {
 
 	public:
 
-	SCHL1FEC():NDCCHL1FEC()
+	SCHL1FEC():L1FEC()
 	{
 		mEncoder = new SCHL1Encoder(this);
 	}
 };
 
 
-class BCCHL1FEC : public NDCCHL1FEC {
+class BCCHL1FEC : public L1FEC {
 
 	public:
 
-	BCCHL1FEC():NDCCHL1FEC()
+	BCCHL1FEC():L1FEC()
 	{
 		mEncoder = new BCCHL1Encoder(this);
 	}

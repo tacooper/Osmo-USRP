@@ -995,35 +995,6 @@ void FCCHL1Encoder::generate()
 	rollForward();
 }
 
-
-
-
-void NDCCHL1Encoder::start()
-{
-	L1Encoder::start();
-	mSendThread.start((void*(*)(void*))NDCCHL1EncoderServiceLoopAdapter,(void*)this);
-}
-
-
-
-void *GSM::NDCCHL1EncoderServiceLoopAdapter(NDCCHL1Encoder* gen)
-{
-	gen->serviceLoop();
-	// DONTREACH
-	return NULL;
-}
-
-void NDCCHL1Encoder::serviceLoop()
-{
-	while (mRunning) {
-		generate();
-	}
-}
-
-
-
-
-
 TCHFACCHL1Decoder::TCHFACCHL1Decoder(
 	unsigned wTN,
 	const TDMAMapping& wMapping,
