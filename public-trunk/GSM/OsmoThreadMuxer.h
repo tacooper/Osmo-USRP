@@ -240,9 +240,11 @@ private:
 	void processMphConnectReq(struct Osmo::msgb *recv_msg);
 	void processMphActivateReq(struct Osmo::msgb *recv_msg);
 	void processMphDeactivateReq(struct Osmo::msgb *recv_msg);
+	void processMphConfigReq(struct Osmo::msgb *recv_msg);
 
 	/* Functions to process L1 REQ messages from osmo-bts (no CNF returned) */
 	void processPhDataReq(struct Osmo::msgb *recv_msg);
+	void processPhEmptyFrameReq(struct Osmo::msgb *recv_msg);
 
 	/* Functions for processing buffers from writeLowSide() into L1 IND 
 	 * messages */

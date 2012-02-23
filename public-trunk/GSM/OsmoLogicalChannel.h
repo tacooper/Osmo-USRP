@@ -428,6 +428,14 @@ public:
 		chan->downstream(radio);
 		mLchan[0] = chan;
 		mNLchan = 1;
+
+		/* create associated SACCH */
+		OsmoSACCHLchan * achan = new OsmoSACCHLchan(this, 0);
+		achan->downstream(radio);
+
+		/* link TCH/FACCH and SACCH */
+		chan->setSACCHLchan(achan);
+		achan->setSiblingLchan(chan);
 	}
 };
 

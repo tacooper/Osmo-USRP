@@ -127,6 +127,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 		case GsmL1_Sapi_TchH:
 		case GsmL1_Sapi_FacchH:
 			break;
+		/* TCH and FACCH are contained in single Lchan */
 		case GsmL1_Sapi_TchF:
 		case GsmL1_Sapi_FacchF:
 		case GsmL1_Sapi_Sdcch:
@@ -384,7 +385,8 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 
 	GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-	if(prim->id != GsmL1_PrimId_PhDataReq)
+	if(prim->id != GsmL1_PrimId_PhDataReq || 
+		prim->id != GsmL1_PrimId_PhEmptyFrameReq)
 	{
 		LOG(INFO) << "recv L1 frame type=" <<
 			Osmo::get_value_string(Osmo::femtobts_l1prim_names, prim->id);
@@ -404,8 +406,14 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 		case GsmL1_PrimId_MphDeactivateReq:
 			processMphDeactivateReq(msg);
 			break;
+		case GsmL1_PrimId_MphConfigReq:
+			processMphConfigReq(msg);
+			break;
 		case GsmL1_PrimId_PhDataReq:
 			processPhDataReq(msg);
+			break;
+		case GsmL1_PrimId_PhEmptyFrameReq:
+			processPhEmptyFrameReq(msg);
 			break;
 		default:
 			LOG(ERROR) << "Invalid L1 prim type!";
@@ -565,6 +573,36 @@ void OsmoThreadMuxer::processMphConnectReq(struct Osmo::msgb *recv_msg)
 	l1p->id = GsmL1_PrimId_MphConnectCnf;
 
 	cnf->status = GsmL1_Status_Success;
+
+	/* Put it into the L1Msg FIFO */
+	mL1MsgQ.write(send_msg);
+}
+
+void OsmoThreadMuxer::processMphConfigReq(struct Osmo::msgb *recv_msg)
+{
+	/* Process received REQ message */
+	GsmL1_Prim_t *l1p_req = msgb_l1prim(recv_msg);
+	GsmL1_MphConfigReq_t *req = &l1p_req->u.mphConfigReq;
+
+	/* Check if L1 reference is correct */
+	assert(mL1id == req->hLayer1);
+
+	/* Build CNF message to send */
+	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
+
+	GsmL1_Prim_t *l1p = msgb_l1prim(send_msg);
+	GsmL1_MphConfigCnf_t *cnf = &l1p->u.mphConfigCnf;
+	
+	l1p->id = GsmL1_PrimId_MphConfigCnf;
+
+	cnf->status = GsmL1_Status_Success;
+	cnf->cfgParamId = req->cfgParamId;
+	cnf->cfgParams.setLogChParams.sapi = req->cfgParams.setLogChParams.sapi;
+	cnf->cfgParams.setLogChParams.u8Tn = req->cfgParams.setLogChParams.u8Tn;
+	cnf->cfgParams.setLogChParams.subCh = req->cfgParams.setLogChParams.subCh;
+	cnf->cfgParams.setLogChParams.dir = req->cfgParams.setLogChParams.dir;
+	cnf->cfgParams.setLogChParams.logChParams = 
+		req->cfgParams.setLogChParams.logChParams;
 
 	/* Put it into the L1Msg FIFO */
 	mL1MsgQ.write(send_msg);
@@ -831,6 +869,47 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 
 	/* Send L2Frame down through OsmoLchan */
 	lchan->writeHighSide(frame);
+}
+
+/* ignored input values:
+	uint32_t u32Fn (no use)
+	uint8_t u8BlockNbr (no use)
+*/
+void OsmoThreadMuxer::processPhEmptyFrameReq(struct Osmo::msgb *recv_msg)
+{
+	/* Process received REQ message */
+	GsmL1_Prim_t *l1p = msgb_l1prim(recv_msg);
+	GsmL1_PhDataReq_t *req = &l1p->u.phDataReq;
+
+	/* Check if L1 reference is correct */
+	assert(mL1id == req->hLayer1);
+
+	LOG(DEBUG) << "PhEmptyFrameReq message FN = " << req->u32Fn << ", SAPI = " 
+		<< Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
+
+	/* Determine OsmoLchan based on SAPI and timeslot */
+	unsigned int ts_nr = (unsigned int)req->u8Tn;
+	unsigned int ss_nr = (unsigned int)req->subCh;
+	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr, ss_nr);
+
+	if(!lchan)
+	{
+		LOG(ERROR) << 
+			"Received PhEmptyFrameReq for invalid Lchan... dropping it!";
+		return;
+	}
+	else if(req->sapi != GsmL1_Sapi_TchF && req->sapi != GsmL1_Sapi_FacchF)
+	{
+		LOG(ERROR) << "Received PhEmptyFrameReq for invalid sapi=" << 
+			 Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi) << 
+			"... dropping it!";
+		return;
+	}
+
+	/*  Do nothing with empty frame since filler is auto-generated in 
+	 *  TCHFACCHL1Encoder */
+	LOG(DEBUG) << "Received PhEmptyFrameReq for sapi=" << 
+			 Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 }
 
 void OsmoThreadMuxer::buildMphTimeInd()

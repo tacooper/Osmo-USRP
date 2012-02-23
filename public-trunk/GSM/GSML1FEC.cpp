@@ -442,7 +442,7 @@ void RACHL1Decoder::serviceLoop()
 	// the allocator can potentially block and we don't 
 	// want the whole receive thread to block.
 
-	while (true) {
+	while (mRunning && mActive) {
 		RxBurst *rx = mQ.read();
 		// Yes, if we wait long enough that read will timeout.
 		if (rx==NULL) continue;
@@ -1193,7 +1193,7 @@ bool TCHFACCHL1Decoder::decodeTCH(bool stolen)
 
 void GSM::TCHFACCHL1EncoderRoutine( TCHFACCHL1Encoder * encoder )
 {
-	while (1) {
+	while (encoder->active()) {
 		encoder->dispatch();
 	}
 }
