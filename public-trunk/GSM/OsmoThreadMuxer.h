@@ -200,7 +200,11 @@ public:
 		return *otrx;
 	}
 
-	/* receive frame synchronously from RACH L1Decoder->OsmoSAPMux and
+	/* Receive speech frame from TCHL1Decoder */
+	void writeLowSideTCH(const unsigned char* frame, const GSM::Time time, 
+		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
+
+	/* receive frame synchronously from L1Decoder->OsmoSAPMux and
 	 * enqueue it towards osmo-bts */
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
 		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);

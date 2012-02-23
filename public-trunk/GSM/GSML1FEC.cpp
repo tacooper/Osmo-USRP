@@ -1178,8 +1178,12 @@ bool TCHFACCHL1Decoder::decodeTCH(bool stolen)
 		memcpy(newFrame,mPrevGoodFrame,33);
 	}
 
-	// Good or bad, we must feed the speech channel.
-	mSpeechQ.write(newFrame);
+	/* Only feed the speech channel if TCH, not FACCH */	
+	if(!stolen)
+	{
+		assert(mUpstream);
+		mUpstream->writeLowSide(newFrame, mReadTime, RSSI(), TA());
+	}
 
 	return good;
 }

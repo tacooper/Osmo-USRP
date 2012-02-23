@@ -780,9 +780,6 @@ class TCHFACCHL1Decoder : public XCCHL1Decoder {
 
 	Parity mTCHParity;
 
-	InterthreadQueue<unsigned char> mSpeechQ;					///< output queue for speech frames
-
-
 	public:
 
 	TCHFACCHL1Decoder( unsigned wTN, 
@@ -811,16 +808,6 @@ class TCHFACCHL1Decoder : public XCCHL1Decoder {
 		Return true if there's a good frame.
 	*/
 	bool decodeTCH(bool stolen);
-
-	/**
-		Receive a traffic frame.
-		Non-blocking.  Returns NULL if queue is dry.
-		Caller is responsible for deleting the returned array.
-	*/
-	unsigned char *recvTCH() { return mSpeechQ.read(0); }
-
-	/** Return count of internally-queued traffic frames. */
-	unsigned queueSize() const { return mSpeechQ.size(); }
 
 	/** Return true if the uplink is dead. */
 	bool uplinkLost() const;
@@ -1047,18 +1034,6 @@ public:
 	/** Send a traffic frame. */
 	void sendTCH(const unsigned char * frame)
 		{ assert(mTCHEncoder); mTCHEncoder->sendTCH(frame); }
-
-	/**
-		Receive a traffic frame.
-		Returns a pointer that must be deleted by calls.
-		Non-blocking.
-		Returns NULL is no data available.
-	*/
-	unsigned char* recvTCH()
-		{ assert(mTCHDecoder); return mTCHDecoder->recvTCH(); }
-
-	unsigned queueSize() const
-		{ assert(mTCHDecoder); return mTCHDecoder->queueSize(); }
 
 	bool radioFailure() const
 		{ assert(mTCHDecoder); return mTCHDecoder->uplinkLost(); }

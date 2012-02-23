@@ -52,6 +52,15 @@ void OsmoSAPMux::writeLowSide(const L2Frame& frame, const GSM::Time time,
 	mLchan->writeLowSide(frame, time, RSSI, TA);
 }
 
+void OsmoSAPMux::writeLowSide(const unsigned char* frame, const GSM::Time time, 
+	const float RSSI, const int TA)
+{
+	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide TCH";
+	assert(mLchan);
+	/* simply pass it right through to the OsmoThreadMux */
+	mLchan->writeLowSide(frame, time, RSSI, TA);
+}
+
 void OsmoSAPMux::signalNextWtime(GSM::Time &time)
 {
 	assert(mLchan);
@@ -115,6 +124,8 @@ void OsmoSAPMux::dispatch()
 {
 	/* blocking read from FIFO */
 	L2Frame *frame = mL2Q.read();
+
+	LOG(DEBUG) << "size=" << mL2Q.size();
 
 	assert(mDownstream);
 

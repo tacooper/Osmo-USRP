@@ -433,10 +433,10 @@ class TCHFACCHLogicalChannel : public LogicalChannel {
 		{ assert(mTCHL1); mTCHL1->sendTCH(frame); }
 
 	unsigned char* recvTCH()
-		{ assert(mTCHL1); return mTCHL1->recvTCH(); }
+		{ return NULL; }
 
 	unsigned queueSize() const
-		{ assert(mTCHL1); return mTCHL1->queueSize(); }
+		{ return 0; }
 
 	bool radioFailure() const
 		{ assert(mTCHL1); return mTCHL1->radioFailure(); }

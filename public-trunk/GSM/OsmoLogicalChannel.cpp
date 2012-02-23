@@ -101,6 +101,12 @@ void OsmoLogicalChannel::writeLowSide(const L2Frame& frame,
 	mTM->writeLowSide(frame, time, RSSI, TA, this);
 }
 
+void OsmoTCHFACCHLchan::writeLowSide(const unsigned char* frame, 
+	const GSM::Time time, const float RSSI, const int TA)
+{
+	mTM->writeLowSideTCH(frame, time, RSSI, TA, this);
+}
+
 ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
 {
 	unsigned int trx_nr, ts_nr, ss_nr;

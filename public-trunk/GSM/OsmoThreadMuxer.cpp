@@ -64,6 +64,31 @@ namespace Osmo
 	}
 }
 
+void OsmoThreadMuxer::writeLowSideTCH(const unsigned char* frame, 
+	const GSM::Time time, const float RSSI, const int TA, 
+	const OsmoLogicalChannel *lchan)
+{
+	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
+	if(lchan->hasHL2())
+	{
+		GsmL1_Sapi_t sapi;
+
+		/* Only TCH part of TCHFACCH Lchan needs to be handled */
+		switch(lchan->type())
+		{
+			case TCHFType:
+				sapi = GsmL1_Sapi_TchF;
+				break;
+			/* No TCHHType */
+			default:
+				assert(0);
+		}
+
+		/* NOTE: Frame length is hard-coded in TCHFACCHL1Decoder::decodeTCH() */
+		buildPhDataInd((char*)frame, 33, sapi, RSSI, TA, lchan);
+	}
+}
+
 void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time, 
 	const float RSSI, const int TA, const OsmoLogicalChannel *lchan)
 {
@@ -90,13 +115,11 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time,
 			case SDCCHType:
 				sapi = GsmL1_Sapi_Sdcch;
 				break;
-			case FACCHType:
+			/* NOTE: writeLowSide() is used for FACCH part of TCHFACCH Lchan */
+			case TCHFType:
 				sapi = GsmL1_Sapi_FacchF;
 				break;
-			case TCHFType:
-				sapi = GsmL1_Sapi_TchF;
-				break;
-			/* No half-rate (TCHHType) */
+			/* No TCHHType */
 			default:
 				assert(0);
 		}
@@ -151,40 +174,46 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 
 	/* Translate lchan into sapi */
 	GsmL1_Sapi_t sapi;
+	GsmL1_Sapi_t sapi2;
 
 	switch(lchan.type())
 	{
 		case BCCHType:
 			sapi = GsmL1_Sapi_Bcch;
+			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case SCHType:
 			sapi = GsmL1_Sapi_Sch;
+			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case AGCHType:
 			sapi = GsmL1_Sapi_Agch;
+			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case PCHType:
 			sapi = GsmL1_Sapi_Pch;
+			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case SACCHType:
 			sapi = GsmL1_Sapi_Sacch;
+			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case SDCCHType:
 			sapi = GsmL1_Sapi_Sdcch;
-			break;
-		case FACCHType:
-			sapi = GsmL1_Sapi_FacchF;
+			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case TCHFType:
 			sapi = GsmL1_Sapi_TchF;
+			sapi2 = GsmL1_Sapi_FacchF;
 			break;
-		/* Plain CCCH should be assigned as AGCH or PCH */
+		/* Plain CCCH should be assigned as AGCH or PCH in OsmoTS */
 		case CCCHType:
 			return;
 		/* These channel types should not be signalled */
 		case FCCHType:
 		case RACHType:
 		case TCHHType:
+		case FACCHType:
 		default:
 			assert(0);
 	}
@@ -193,6 +222,12 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 	if(lchan.hasHL2())
 	{
 		buildPhReadyToSendInd(sapi, time, lchan);
+
+		/* Send another RTS for FACCH too (separate sapis in osmo-bts) */
+		if(sapi2 == GsmL1_Sapi_FacchF)
+		{
+			buildPhReadyToSendInd(sapi2, time, lchan);
+		}
 	}
 }
 
@@ -703,7 +738,10 @@ void OsmoThreadMuxer::processMphDeactivateReq(struct Osmo::msgb *recv_msg)
 	if(lchan)
 	{
 		/* Clear reference to L2 in this Lchan */
-		lchan->clearHL2();
+		if(req->sapi != GsmL1_Sapi_FacchF)
+		{
+			lchan->clearHL2();
+		}
 
 		/* Stop sending MphTimeInd messages if SCH is deactivated */
 		if(req->sapi == GsmL1_Sapi_Sch)
@@ -856,19 +894,28 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 
 	/* Pack msgUnitParam into BitVector */
 	unsigned char* data = (unsigned char*)req->msgUnitParam.u8Buffer;
-	uint8_t size = req->msgUnitParam.u8Size;
 
-	BitVector vector(size*8);
-	vector.unpack(data);
+	if(req->sapi == GsmL1_Sapi_TchF)
+	{
+		lchan->sendTCH(data);
+	}
+	else
+	{
+		uint8_t size = req->msgUnitParam.u8Size;
 
-	OBJLOG(DEBUG) << "OsmoThreadMuxer::writeHighSide " << vector
-		<< " bytes size=" << (int)size;
+		BitVector vector(size*8);
+		vector.unpack(data);
 
-	/* NOTE: packs vector bits into 23-byte L2Frame, adding filler if needed */
-	L2Frame frame(vector, DATA);
+		OBJLOG(DEBUG) << "OsmoThreadMuxer::writeHighSide " << vector
+			<< " bytes size=" << (int)size;
 
-	/* Send L2Frame down through OsmoLchan */
-	lchan->writeHighSide(frame);
+		/*  NOTE: packs vector bits into 23-byte L2Frame, adding filler if 
+		 *  needed */
+		L2Frame frame(vector, DATA);
+
+		/* Send L2Frame down through OsmoLchan */
+		lchan->writeHighSide(frame);
+	}
 }
 
 /* ignored input values:

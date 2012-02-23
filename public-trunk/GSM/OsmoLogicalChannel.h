@@ -247,7 +247,11 @@ public:
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
 		const float RSSI, const int TA);
 	virtual void signalNextWtime(GSM::Time &time);
-
+	
+	/* Only used by TCHFACCH Lchan */
+	virtual void sendTCH(const unsigned char* frame) { }
+	virtual void writeLowSide(const unsigned char* frame, const GSM::Time time, 
+		const float RSSI, const int TA) { }
 
 	/**@name Pass-throughs. */
 	//@{
@@ -397,19 +401,14 @@ class OsmoTCHFACCHLchan : public OsmoLogicalChannel {
 
 	OsmoTCHFACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr);
 
-	ChannelType type() const { return FACCHType; }
+	/* No TCHHType supported */
+	ChannelType type() const { return TCHFType; }
 
-	void sendTCH(const unsigned char* frame)
+	virtual void sendTCH(const unsigned char* frame)
 		{ assert(mTCHL1); mTCHL1->sendTCH(frame); }
 
-	unsigned char* recvTCH()
-		{ assert(mTCHL1); return mTCHL1->recvTCH(); }
-
-	unsigned queueSize() const
-		{ assert(mTCHL1); return mTCHL1->queueSize(); }
-
-	bool radioFailure() const
-		{ assert(mTCHL1); return mTCHL1->radioFailure(); }
+	virtual void writeLowSide(const unsigned char* frame, const GSM::Time time, 
+		const float RSSI, const int TA);
 };
 
 //@}
