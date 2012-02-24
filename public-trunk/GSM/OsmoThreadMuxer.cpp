@@ -668,34 +668,32 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 	{
 		/*  FIXME: Hack to discard malformed TCH activate req. Only works 
 		 *  because TCH/FACCH hL2 is initialized right after by FACCH req. */
-		if(req->sapi == GsmL1_Sapi_TchF)
+		if(req->sapi != GsmL1_Sapi_TchF)
 		{
-			return;
-		}
+			/*  Store reference to L2 in this Lchan */
+			lchan->initHL2(req->hLayer2);
 
-		/*  Store reference to L2 in this Lchan */
-		lchan->initHL2(req->hLayer2);
+			/* If SACCH, check if associated Lchan has same hLayer2 */
+			if(req->sapi == GsmL1_Sapi_Sacch)
+			{
+				LOG(ERROR) << "sib=" << *(lchan->getSiblingLchan());
+				assert(lchan->getSiblingLchan()->getHL2() == req->hLayer2);
+			}
 
-		/* If SACCH, check if associated Lchan has same hLayer2 */
-		if(req->sapi == GsmL1_Sapi_Sacch)
-		{
-			LOG(ERROR) << "sib=" << *(lchan->getSiblingLchan());
-			assert(lchan->getSiblingLchan()->getHL2() == req->hLayer2);
-		}
+			/* Open the L1FEC */
+			lchan->getL1()->open();
 
-		/* Open the L1FEC */
-		lchan->getL1()->open();
+			/* Start cycle of PhReadyToSendInd messages for activated Lchan */
+			if(req->sapi != GsmL1_Sapi_Rach)
+			{
+				lchan->getL1()->encoder()->signalNextWtime();
+			}
 
-		/* Start cycle of PhReadyToSendInd messages for activated Lchan */
-		if(req->sapi != GsmL1_Sapi_Rach)
-		{
-			lchan->getL1()->encoder()->signalNextWtime();
-		}
-
-		/* Start sending MphTimeInd messages if SCH is activated */
-		if(req->sapi == GsmL1_Sapi_Sch)
-		{
-			mRunningTimeInd = true;
+			/* Start sending MphTimeInd messages if SCH is activated */
+			if(req->sapi == GsmL1_Sapi_Sch)
+			{
+				mRunningTimeInd = true;
+			}
 		}
 
 		status = GsmL1_Status_Success;
@@ -746,20 +744,21 @@ void OsmoThreadMuxer::processMphDeactivateReq(struct Osmo::msgb *recv_msg)
 
 	if(lchan)
 	{
-		/* Clear reference to L2 in this Lchan */
+		/* Ignore and deactivate Lchan later for TCH instead */
 		if(req->sapi != GsmL1_Sapi_FacchF)
 		{
+			/* Stop sending MphTimeInd messages if SCH is deactivated */
+			if(req->sapi == GsmL1_Sapi_Sch)
+			{
+				mRunningTimeInd = false;
+			}
+
+			/* Close the L1FEC */
+			lchan->getL1()->close();
+
+			/* Clear reference to L2 in this Lchan */
 			lchan->clearHL2();
 		}
-
-		/* Stop sending MphTimeInd messages if SCH is deactivated */
-		if(req->sapi == GsmL1_Sapi_Sch)
-		{
-			mRunningTimeInd = false;
-		}
-
-		/* Close the L1FEC */
-		lchan->getL1()->close();
 
 		status = GsmL1_Status_Success;
 	}

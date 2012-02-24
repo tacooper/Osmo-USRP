@@ -134,7 +134,7 @@ typedef struct GsmL1_DeviceParam_t {
 } GsmL1_DeviceParam_t;
 
 typedef struct GsmL1_MsgUnitParam_t {
-	uint8_t u8Buffer[23]; //NOTE: =GSM_MACBLOCK_LEN
+	uint8_t u8Buffer[256];
 	uint8_t u8Size;
 } GsmL1_MsgUnitParam_t;
 
