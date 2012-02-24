@@ -420,7 +420,7 @@ void OsmoThreadMuxer::handleL1Msg(const char *buffer)
 
 	GsmL1_Prim_t *prim = msgb_l1prim(msg);
 
-	if(prim->id != GsmL1_PrimId_PhDataReq || 
+	if(prim->id != GsmL1_PrimId_PhDataReq && 
 		prim->id != GsmL1_PrimId_PhEmptyFrameReq)
 	{
 		LOG(INFO) << "recv L1 frame type=" <<
@@ -661,16 +661,25 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 
 	unsigned int ts_nr = (unsigned int)req->u8Tn;
 	unsigned int ss_nr = (unsigned int)req->subCh;
+
 	OsmoLogicalChannel *lchan = getLchanFromSapi(req->sapi, ts_nr, ss_nr);
 
 	if(lchan)
 	{
-		/* Store reference to L2 in this Lchan */
+		/*  FIXME: Hack to discard malformed TCH activate req. Only works 
+		 *  because TCH/FACCH hL2 is initialized right after by FACCH req. */
+		if(req->sapi == GsmL1_Sapi_TchF)
+		{
+			return;
+		}
+
+		/*  Store reference to L2 in this Lchan */
 		lchan->initHL2(req->hLayer2);
 
 		/* If SACCH, check if associated Lchan has same hLayer2 */
 		if(req->sapi == GsmL1_Sapi_Sacch)
 		{
+			LOG(ERROR) << "sib=" << *(lchan->getSiblingLchan());
 			assert(lchan->getSiblingLchan()->getHL2() == req->hLayer2);
 		}
 

@@ -114,8 +114,9 @@ ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
 	ts_nr = lchan.TS()->getTSnr();
 	ss_nr = lchan.SSnr();
 
-	/* Just dump something like "(TRX,TS,SS)" identifying the lchan */
-	os << "(" << trx_nr << "," << ts_nr << "," << ss_nr << "," << lchan.type() << ")";
+	/* Just dump something like "(hL2,TRX,TS,SS,Type)" identifying the lchan */
+	os << "(" << lchan.getHL2() << "," << trx_nr << "," << ts_nr << "," << 
+		ss_nr << "," << lchan.type() << ")";
 }
 
 void OsmoLogicalChannel::signalNextWtime(GSM::Time &time)
@@ -189,6 +190,8 @@ OsmoSACCHLchan::OsmoSACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	mSACCHL1 = new SACCHL1FEC(ts_nr, wMapping->SACCH());
 	mL1 = mSACCHL1;
 	connect();
+
+	mSiblingLchan = NULL;
 }
 
 OsmoSDCCHLchan::OsmoSDCCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
@@ -216,7 +219,8 @@ OsmoTCHFACCHLchan::OsmoTCHFACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	:OsmoLogicalChannel(osmo_ts, ss_nr)
 {
 	unsigned int ts_nr = osmo_ts->getTSnr();
-	mL1 = new TCHFACCHL1FEC(ts_nr, gTCHF_T[ts_nr].LCH());
+	mTCHL1 = new TCHFACCHL1FEC(ts_nr, gTCHF_T[ts_nr].LCH());
+	mL1 = mTCHL1;
 	connect();
 }
 

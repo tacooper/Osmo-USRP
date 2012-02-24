@@ -134,8 +134,7 @@ typedef struct GsmL1_DeviceParam_t {
 } GsmL1_DeviceParam_t;
 
 typedef struct GsmL1_MsgUnitParam_t {
-#warning assuming max buffer size
-	uint8_t u8Buffer[256];
+	uint8_t u8Buffer[23]; //NOTE: =GSM_MACBLOCK_LEN
 	uint8_t u8Size;
 } GsmL1_MsgUnitParam_t;
 
@@ -159,8 +158,7 @@ typedef struct GsmL1_LogChParam_t {
 			enum {
 				GsmL1_AmrCodecMode_Unset,
 			} amrInitCodecMode;
-        
-#warning what is the array size?
+
 			enum {
 				GsmL1_AmrCodec_Unset,
 				GsmL1_AmrCodec_4_75,
@@ -171,7 +169,7 @@ typedef struct GsmL1_LogChParam_t {
 				GsmL1_AmrCodec_7_95,
 				GsmL1_AmrCodec_10_2,
 				GsmL1_AmrCodec_12_2,
-			} amrActiveCodecSet[16];
+			} amrActiveCodecSet[1]; //>1 overwrites MphActivateReq sapi...
 		} tch;
 
 		struct {

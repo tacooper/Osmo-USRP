@@ -316,6 +316,8 @@ class OsmoSACCHLchan : public OsmoLogicalChannel {
 	{
 		assert(mSiblingLchan == NULL);
 		mSiblingLchan = chan;
+
+		LOG(INFO) << "sibling " << *chan << " set to " << *this;
 	}
 
 	virtual OsmoLogicalChannel *getSiblingLchan()
@@ -324,7 +326,7 @@ class OsmoSACCHLchan : public OsmoLogicalChannel {
 	}
 
 	/* Do not link a SACCH to another SACCH */
-	virtual void setSACCH(OsmoSACCHLchan* chan) { assert(0); }
+	virtual void setSACCHLchan(OsmoSACCHLchan* chan) { assert(0); }
 
 	void setPhy(float RSSI, float timingError) { mSACCHL1->setPhy(RSSI,timingError); }
 	void setPhy(const OsmoSACCHLchan& other) { mSACCHL1->setPhy(*other.mSACCHL1); }
