@@ -169,7 +169,7 @@ typedef struct GsmL1_LogChParam_t {
 				GsmL1_AmrCodec_7_95,
 				GsmL1_AmrCodec_10_2,
 				GsmL1_AmrCodec_12_2,
-			} amrActiveCodecSet[1]; //>1 overwrites MphActivateReq sapi...
+			} amrActiveCodecSet[8];
 		} tch;
 
 		struct {
@@ -224,7 +224,7 @@ typedef struct GsmL1_MphDisconnectReq_t {
 
 typedef struct GsmL1_MphActivateReq_t {
 	uint32_t hLayer1;
-	enum GsmL1_LogChComb_t logChPrm;
+	struct GsmL1_LogChParam_t logChPrm;
 	uint8_t u8Tn;
 	enum GsmL1_SubCh_t subCh;
 	enum GsmL1_Dir_t dir;

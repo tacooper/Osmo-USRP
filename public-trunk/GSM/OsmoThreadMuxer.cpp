@@ -666,9 +666,9 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 
 	if(lchan)
 	{
-		/*  FIXME: Hack to discard malformed TCH activate req. Only works 
-		 *  because TCH/FACCH hL2 is initialized right after by FACCH req. */
-		if(req->sapi != GsmL1_Sapi_TchF)
+		/*  Ignore FACCH activate REQ since TCH is already activated and they
+		 *  share an Lchan */
+		if(req->sapi != GsmL1_Sapi_FacchF)
 		{
 			/*  Store reference to L2 in this Lchan */
 			lchan->initHL2(req->hLayer2);
@@ -676,7 +676,7 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 			/* If SACCH, check if associated Lchan has same hLayer2 */
 			if(req->sapi == GsmL1_Sapi_Sacch)
 			{
-				LOG(ERROR) << "sib=" << *(lchan->getSiblingLchan());
+				LOG(INFO) << "sib=" << *(lchan->getSiblingLchan());
 				assert(lchan->getSiblingLchan()->getHL2() == req->hLayer2);
 			}
 
