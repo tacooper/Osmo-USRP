@@ -49,11 +49,12 @@ class OsmoSAPMux : public SAPMux {
 	OsmoLogicalChannel *mLchan;
 	L2FrameFIFO mL2Q;
 	Thread mQueueThread;
+	unsigned int mTCHcounter;
 
 	public:
 
 	OsmoSAPMux()
-		:mLchan(NULL){
+		:mLchan(NULL), mTCHcounter(3){
 		start();
 	}
 
