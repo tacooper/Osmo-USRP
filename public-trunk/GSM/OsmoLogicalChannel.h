@@ -398,6 +398,7 @@ class OsmoTCHFACCHLchan : public OsmoLogicalChannel {
 	protected:
 
 	TCHFACCHL1FEC * mTCHL1;
+	uint8_t mPayloadType;
 
 	public:
 
@@ -405,6 +406,10 @@ class OsmoTCHFACCHLchan : public OsmoLogicalChannel {
 
 	/* No TCHHType supported */
 	ChannelType type() const { return TCHFType; }
+
+	uint8_t getPayloadType() const { return mPayloadType; }
+	void setPayloadType(const uint8_t type)
+		{ mPayloadType = type; }
 
 	virtual void sendTCH(const unsigned char* frame)
 		{ assert(mTCHL1); mTCHL1->sendTCH(frame); }

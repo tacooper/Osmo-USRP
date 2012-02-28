@@ -1315,7 +1315,8 @@ void TCHFACCHL1Encoder::dispatch()
 	
 	// Speech latency control.
 	// Since Asterisk is local, latency should be small.
-	OBJLOG(DEBUG) <<"TCHFACCHL1Encoder speechQ.size=" << mSpeechQ.size();
+	OBJLOG(INFO) <<"TCHFACCHL1Encoder speechQ.size=" << mSpeechQ.size();
+	OBJLOG(INFO) <<"TCHFACCHL1Encoder L2Q.size=" << mL2Q.size();
 	int maxQ = gConfig.getNum("GSM.MaxSpeechLatency");
 	while (mSpeechQ.size() > maxQ) delete mSpeechQ.read();
 

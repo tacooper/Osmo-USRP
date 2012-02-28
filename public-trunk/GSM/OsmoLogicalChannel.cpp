@@ -222,6 +222,7 @@ OsmoTCHFACCHLchan::OsmoTCHFACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	mTCHL1 = new TCHFACCHL1FEC(ts_nr, gTCHF_T[ts_nr].LCH());
 	mL1 = mTCHL1;
 	connect();
+	mPayloadType = GsmL1_TchPlType_NA;
 }
 
 // These have to go into the .cpp file to prevent an illegal forward reference.

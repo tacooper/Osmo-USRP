@@ -174,37 +174,29 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 
 	/* Translate lchan into sapi */
 	GsmL1_Sapi_t sapi;
-	GsmL1_Sapi_t sapi2;
 
 	switch(lchan.type())
 	{
 		case BCCHType:
 			sapi = GsmL1_Sapi_Bcch;
-			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case SCHType:
 			sapi = GsmL1_Sapi_Sch;
-			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case AGCHType:
 			sapi = GsmL1_Sapi_Agch;
-			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case PCHType:
 			sapi = GsmL1_Sapi_Pch;
-			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case SACCHType:
 			sapi = GsmL1_Sapi_Sacch;
-			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case SDCCHType:
 			sapi = GsmL1_Sapi_Sdcch;
-			sapi2 = GsmL1_Sapi_Idle;
 			break;
 		case TCHFType:
 			sapi = GsmL1_Sapi_TchF;
-			sapi2 = GsmL1_Sapi_FacchF;
 			break;
 		/* Plain CCCH should be assigned as AGCH or PCH in OsmoTS */
 		case CCCHType:
@@ -224,9 +216,9 @@ void OsmoThreadMuxer::signalNextWtime(GSM::Time &time,
 		buildPhReadyToSendInd(sapi, time, lchan);
 
 		/* Send another RTS for FACCH too (separate sapis in osmo-bts) */
-		if(sapi2 == GsmL1_Sapi_FacchF)
+		if(sapi == GsmL1_Sapi_TchF)
 		{
-			buildPhReadyToSendInd(sapi2, time, lchan);
+			buildPhReadyToSendInd(GsmL1_Sapi_FacchF, time, lchan);
 		}
 	}
 }
@@ -630,21 +622,72 @@ void OsmoThreadMuxer::processMphConfigReq(struct Osmo::msgb *recv_msg)
 	
 	l1p->id = GsmL1_PrimId_MphConfigCnf;
 
-	cnf->status = GsmL1_Status_Success;
+	GsmL1_Status_t status = GsmL1_Status_Uninitialized;
+
 	cnf->cfgParamId = req->cfgParamId;
 	cnf->cfgParams.setLogChParams.sapi = req->cfgParams.setLogChParams.sapi;
 	cnf->cfgParams.setLogChParams.u8Tn = req->cfgParams.setLogChParams.u8Tn;
 	cnf->cfgParams.setLogChParams.subCh = req->cfgParams.setLogChParams.subCh;
 	cnf->cfgParams.setLogChParams.dir = req->cfgParams.setLogChParams.dir;
-	cnf->cfgParams.setLogChParams.logChParams = 
-		req->cfgParams.setLogChParams.logChParams;
+
+	GsmL1_Sapi_t sapi = req->cfgParams.setLogChParams.sapi;
+	unsigned int ts_nr = (unsigned int)req->cfgParams.setLogChParams.u8Tn;
+	unsigned int ss_nr = (unsigned int)req->cfgParams.setLogChParams.subCh;
+
+	switch(sapi)
+	{
+		case GsmL1_Sapi_Rach:
+			cnf->cfgParams.setLogChParams.logChParams.rach.u8Bsic = 
+				req->cfgParams.setLogChParams.logChParams.rach.u8Bsic;
+			cnf->cfgParams.setLogChParams.logChParams.rach.u8NbrOfAgch = 
+				req->cfgParams.setLogChParams.logChParams.rach.u8NbrOfAgch;
+			break;
+		case GsmL1_Sapi_Agch:
+			cnf->cfgParams.setLogChParams.logChParams.agch.u8NbrOfAgch = 
+				req->cfgParams.setLogChParams.logChParams.agch.u8NbrOfAgch;
+			break;
+		case GsmL1_Sapi_Sacch:
+			cnf->cfgParams.setLogChParams.logChParams.sacch.u8MsPowerLevel = 
+				req->cfgParams.setLogChParams.logChParams.sacch.u8MsPowerLevel;
+			break;
+		case GsmL1_Sapi_TchF:
+		case GsmL1_Sapi_TchH:
+		{
+			/* Store payload type for future use in sending speech frames */
+			OsmoTCHFACCHLchan *lchan = (OsmoTCHFACCHLchan*)getLchanFromSapi(sapi, ts_nr, ss_nr);
+			if(lchan)
+			{
+				lchan->setPayloadType(req->cfgParams.setLogChParams.logChParams.tch.tchPlType);
+
+				cnf->cfgParams.setLogChParams.logChParams.tch.tchPlType = 
+					req->cfgParams.setLogChParams.logChParams.tch.tchPlType;
+				cnf->cfgParams.setLogChParams.logChParams.tch.amrCmiPhase = 
+					req->cfgParams.setLogChParams.logChParams.tch.amrCmiPhase;
+				cnf->cfgParams.setLogChParams.logChParams.tch.amrInitCodecMode = 
+					req->cfgParams.setLogChParams.logChParams.tch.amrInitCodecMode;
+			
+				for(int i = 0; i < ARRAY_SIZE(
+					req->cfgParams.setLogChParams.logChParams.tch.amrActiveCodecSet); i++)
+				{
+					cnf->cfgParams.setLogChParams.logChParams.tch.amrActiveCodecSet[i] = 
+						req->cfgParams.setLogChParams.logChParams.tch.amrActiveCodecSet[i];
+				}
+
+				status = GsmL1_Status_Success;				
+			}
+			break;
+		}
+		default:
+			break;
+	}
+
+	cnf->status = status;
 
 	/* Put it into the L1Msg FIFO */
 	mL1MsgQ.write(send_msg);
 }
 
 /* ignored input values:
-	GsmL1_LogChComb_t logChPrm (already set in .config file)
 	GsmL1_Dir_t dir (no use)
 	float fBFILevel (no use)
 */
@@ -697,6 +740,32 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 		}
 
 		status = GsmL1_Status_Success;
+	}
+
+	switch(req->sapi)
+	{
+		case GsmL1_Sapi_TchF:
+		case GsmL1_Sapi_TchH:
+		{
+			/* Store payload type for future use in sending speech frames */
+			OsmoTCHFACCHLchan *lchan2 = (OsmoTCHFACCHLchan*)lchan;
+			if(lchan2)
+			{
+				lchan2->setPayloadType(req->logChPrm.tch.tchPlType);
+
+				status = GsmL1_Status_Success;				
+			}
+			else
+			{
+				status = GsmL1_Status_NoRessource;
+			}
+			break;
+		}
+		case GsmL1_Sapi_Rach:
+		case GsmL1_Sapi_Agch:
+		case GsmL1_Sapi_Sacch:
+		default:
+			break;
 	}
 
 	/* No Lchan for FCCH, so just open L1FEC directly to start generate loop */
@@ -753,14 +822,25 @@ void OsmoThreadMuxer::processMphDeactivateReq(struct Osmo::msgb *recv_msg)
 				mRunningTimeInd = false;
 			}
 
-			/* Close the L1FEC */
-			lchan->getL1()->close();
+			if(lchan->hasHL2())
+			{
+				/* Close the L1FEC */
+				lchan->getL1()->close();
 
-			/* Clear reference to L2 in this Lchan */
-			lchan->clearHL2();
+				/* Clear reference to L2 in this Lchan */
+				lchan->clearHL2();
+
+				status = GsmL1_Status_Success;
+			}
+			else
+			{
+				status = GsmL1_Status_AlreadyDeactivated;
+			}
 		}
-
-		status = GsmL1_Status_Success;
+		else
+		{
+			status = GsmL1_Status_Success;
+		}
 	}
 
 	/* No Lchan for FCCH, so just close L1FEC directly to stop generate loop */
@@ -833,11 +913,25 @@ void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size,
 	ind->measParam.i16BurstTiming = (int16_t)TA;
 	ind->sapi = sapi;
 	ind->hLayer2 = lchan->getHL2();
-	ind->msgUnitParam.u8Size = size;
-	memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
+
+	if(sapi == GsmL1_Sapi_TchF)
+	{
+		ind->msgUnitParam.u8Size = size+1;
+		ind->msgUnitParam.u8Buffer[0] = ((OsmoTCHFACCHLchan*)lchan)->getPayloadType();
+		memcpy(&ind->msgUnitParam.u8Buffer[1], buffer, size);
+	}
+	else
+	{
+		ind->msgUnitParam.u8Size = size;
+		memcpy(ind->msgUnitParam.u8Buffer, buffer, size);
+	}
 
 	LOG(INFO) << "PhDataInd message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi);
+
+		BitVector vector(size*8);
+		vector.unpack((unsigned char*)ind->msgUnitParam.u8Buffer);
+		LOG(INFO) << vector;
 
 	/* Put it into the L1Msg FIFO */
 	mL1MsgQ.write(send_msg);
