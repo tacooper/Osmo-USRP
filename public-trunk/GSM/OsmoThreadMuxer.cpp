@@ -946,9 +946,9 @@ void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size,
 	LOG(INFO) << "PhDataInd message SAPI = " <<
 		Osmo::get_value_string(Osmo::femtobts_l1sapi_names, sapi);
 
-		BitVector vector(size*8);
-		vector.unpack((unsigned char*)ind->msgUnitParam.u8Buffer);
-		LOG(INFO) << vector;
+	BitVector vector(size*8);
+	vector.unpack((unsigned char*)ind->msgUnitParam.u8Buffer);
+	LOG(DEBUG) << vector;
 
 	/* Put it into the L1Msg FIFO */
 	mL1MsgQ.write(send_msg);
@@ -1011,17 +1011,36 @@ void OsmoThreadMuxer::processPhDataReq(struct Osmo::msgb *recv_msg)
 		return;
 	}
 
-	/* Pack msgUnitParam into BitVector */
+	uint8_t size = req->msgUnitParam.u8Size;
 	unsigned char* data = (unsigned char*)req->msgUnitParam.u8Buffer;
 
 	if(req->sapi == GsmL1_Sapi_TchF)
 	{
-		lchan->sendTCH(data);
+		if(size == 34) //length = payload type 1 + data 33
+		{
+			BitVector vector(size*8);
+			vector.unpack(data);
+			LOG(DEBUG) << vector;
+
+			if(req->msgUnitParam.u8Buffer[0] ==
+				((OsmoTCHFACCHLchan*)lchan)->getPayloadType())
+			{
+				lchan->sendTCH(&data[1]);
+			}
+			else
+			{
+				LOG(ERROR) << "Invalid TCH frame, payload type: " << 
+					(int)req->msgUnitParam.u8Buffer[0];
+			}
+		}
+		else
+		{
+			LOG(ERROR) << "Invalid size of TCH frame: " << (int)size;
+		}
 	}
 	else
 	{
-		uint8_t size = req->msgUnitParam.u8Size;
-
+		/* Pack msgUnitParam into BitVector */
 		BitVector vector(size*8);
 		vector.unpack(data);
 

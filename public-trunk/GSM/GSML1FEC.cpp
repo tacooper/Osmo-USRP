@@ -1022,6 +1022,11 @@ void TCHFACCHL1Decoder::writeLowSide(const RxBurst& inBurst)
 		OBJLOG(DEEPDEBUG) << "TCHFACCHL1Decoder not active, ignoring input";
 		return;
 	}
+
+	// Send to GSMTAP
+	gWriteGSMTAP(ARFCN(), inBurst.time().TN(), inBurst.time().FN(), 
+		typeAndOffset(), false, true, mD, 0);
+
 	processBurst(inBurst);
 }
 
@@ -1363,9 +1368,14 @@ void TCHFACCHL1Encoder::dispatch()
 		// stealing bits
 		mBurst.Hu(currentFACCH);
 		mBurst.Hl(mPreviousFACCH);
+
+		// Send to GSMTAP
+		gWriteGSMTAP(ARFCN(), mBurst.time().TN(), mBurst.time().FN(), 
+			typeAndOffset(), false, false, mD, 0);
+
 		// send
 		OBJLOG(DEEPDEBUG) <<"TCHFACCHEncoder sending burst=" << mBurst;
-		mDownstream->writeHighSide(mBurst);	
+		mDownstream->writeHighSide(mBurst);
 		rollForward();
 	}	
 

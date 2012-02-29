@@ -65,9 +65,10 @@ void OsmoSAPMux::signalNextWtime(GSM::Time &time)
 {
 	assert(mLchan);
 
-	/*  Only SCH should be signalled every time.
-	 *  TCH/FACCH should be every 4 times.
-	 *  BCCH, CCCHs, SDCCH, and SACCH should be every 4 times. */
+	/*  Only SCH bursts should be signalled every time since the L2Frame 
+	 *  carries only 1 TDMA frame.
+	 *  BCCH, CCCHs, SDCCH, SACCH, and TCH/FACCH should be signalled every 
+	 *  4 times since the L2Frame carries 4 TDMA frames. */
 	if(mLchan->type() == SCHType)
 	{
 		mLchan->signalNextWtime(time);
@@ -131,15 +132,12 @@ void OsmoSAPMux::signalNextWtime(GSM::Time &time)
 		else if(comb == 1)
 		{
 			/* Only case is for SACCH (with C-1 mapping) */
-			switch(time.T3())
+			mSACCHcounter++;
+			if(mSACCHcounter > 3)
 			{
-				case 12:
-					mLchan->signalNextWtime(time);
-					return;
-				default:
-					LOG(ERROR) << "Invalid SACCH signalNextWtime at " << 
-						time.T3();
-					return;
+				mSACCHcounter = 0;
+
+				mLchan->signalNextWtime(time);
 			}
 		}
 	}
