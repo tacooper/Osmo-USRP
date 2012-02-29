@@ -657,10 +657,19 @@ void OsmoThreadMuxer::processMphConfigReq(struct Osmo::msgb *recv_msg)
 			OsmoTCHFACCHLchan *lchan = (OsmoTCHFACCHLchan*)getLchanFromSapi(sapi, ts_nr, ss_nr);
 			if(lchan)
 			{
-				lchan->setPayloadType(req->cfgParams.setLogChParams.logChParams.tch.tchPlType);
+				GsmL1_TchPlType_t type = req->cfgParams.setLogChParams.logChParams.tch.tchPlType;
 
-				cnf->cfgParams.setLogChParams.logChParams.tch.tchPlType = 
-					req->cfgParams.setLogChParams.logChParams.tch.tchPlType;
+				if(type == GsmL1_TchPlType_NA || type == GsmL1_TchPlType_Fr)
+				{
+					lchan->setPayloadType(type);
+					status = GsmL1_Status_Success;		
+				}
+				else
+				{
+					status = GsmL1_Status_Unsupported;
+				}
+
+				cnf->cfgParams.setLogChParams.logChParams.tch.tchPlType = type;
 				cnf->cfgParams.setLogChParams.logChParams.tch.amrCmiPhase = 
 					req->cfgParams.setLogChParams.logChParams.tch.amrCmiPhase;
 				cnf->cfgParams.setLogChParams.logChParams.tch.amrInitCodecMode = 
@@ -751,13 +760,21 @@ void OsmoThreadMuxer::processMphActivateReq(struct Osmo::msgb *recv_msg)
 			OsmoTCHFACCHLchan *lchan2 = (OsmoTCHFACCHLchan*)lchan;
 			if(lchan2)
 			{
-				lchan2->setPayloadType(req->logChPrm.tch.tchPlType);
+				GsmL1_TchPlType_t type = req->logChPrm.tch.tchPlType;
 
-				status = GsmL1_Status_Success;				
+				if(type == GsmL1_TchPlType_NA || type == GsmL1_TchPlType_Fr)
+				{
+					lchan2->setPayloadType(type);
+					status = GsmL1_Status_Success;		
+				}
+				else
+				{
+					status = GsmL1_Status_Unsupported;
+				}
 			}
 			else
 			{
-				status = GsmL1_Status_NoRessource;
+				status = GsmL1_Status_Uninitialized;
 			}
 			break;
 		}
