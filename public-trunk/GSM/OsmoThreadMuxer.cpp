@@ -1,5 +1,6 @@
 /*
 * Copyright 2011 Harald Welte <laforge@gnumonks.org>
+* Copyright 2012 Thomas Cooper <tacooper@vt.edu>
 *
 * This software is distributed under the terms of the GNU Affero Public License.
 * See the COPYING file in the main directory for details.
@@ -146,7 +147,7 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			return mTRX[0]->getTS(ts_nr)->getAGCHLchan();
 		case GsmL1_Sapi_Pch:
 			return mTRX[0]->getTS(ts_nr)->getPCHLchan();
-		/* Only support full-rate traffic? */
+		/* Only support full-rate traffic */
 		case GsmL1_Sapi_TchH:
 		case GsmL1_Sapi_FacchH:
 			break;
@@ -161,7 +162,6 @@ OsmoLogicalChannel* OsmoThreadMuxer::getLchanFromSapi(const GsmL1_Sapi_t sapi,
 			assert(0);
 	}
 
-	/* FIXME: temp fix to return NULL if sapi/lchan has not been coded yet */
 	LOG(ERROR) << "No Lchan found for this SAPI on TS=" << ts_nr << ", SS=" 
 		<< ss_nr;
 	return NULL;
