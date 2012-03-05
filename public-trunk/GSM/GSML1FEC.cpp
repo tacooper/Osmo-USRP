@@ -443,12 +443,16 @@ void RACHL1Decoder::serviceLoop()
 	// the allocator can potentially block and we don't 
 	// want the whole receive thread to block.
 
-	while (mRunning && mActive) {
-		RxBurst *rx = mQ.read();
-		// Yes, if we wait long enough that read will timeout.
-		if (rx==NULL) continue;
-		writeLowSide(*rx);
-		delete rx;
+	while(mRunning)
+	{
+		if(mActive)
+		{
+			RxBurst *rx = mQ.read();
+			// Yes, if we wait long enough that read will timeout.
+			if (rx==NULL) continue;
+			writeLowSide(*rx);
+			delete rx;
+		}
 	}
 }
 
@@ -965,10 +969,14 @@ void *GSM::GeneratorL1EncoderServiceLoopAdapter(GeneratorL1Encoder* gen)
 
 void GeneratorL1Encoder::serviceLoop()
 {
-	while (mRunning && mActive) {
-		resync();
-		waitToSend();
-		generate();
+	while(mRunning)
+	{
+		if(mActive)
+		{
+			resync();
+			waitToSend();
+			generate();
+		}
 	}
 }
 
