@@ -563,6 +563,8 @@ int main(int argc, char *argv[])
 	OsmoComb1TS TS6(TRX0, 6);
 	OsmoComb1TS TS7(TRX0, 7);
 
+	ThreadMux.startThreads();
+
 #if 0
 	// C-V on C0T0
 	radio->setSlot(0,5);

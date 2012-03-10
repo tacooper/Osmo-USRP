@@ -189,8 +189,6 @@ public:
 		{
 			LOG(INFO) << "All 4 socket files created.";
 		}
-
-		startThreads();
 	}
 
 	OsmoTRX &addTRX(TransceiverManager &trx_mgr, unsigned int trx_nr) {
@@ -217,10 +215,12 @@ public:
 	/* L1 informs us about the next TDMA time for which it needs data */
 	virtual void signalNextWtime(GSM::Time &time, OsmoLogicalChannel &lchan);
 
+	/* Initialization functions */
+	void startThreads();
+
 private:
 	/* Initialization functions */
 	void createSockets();
-	void startThreads();
 
 	/* Functions for processing SYS type messages */
 	void recvSysMsg();
