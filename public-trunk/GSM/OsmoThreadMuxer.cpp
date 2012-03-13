@@ -29,8 +29,6 @@
 #include "OsmoThreadMuxer.h"
 #include <Logger.h>
 #include "Interthread.h"
-#include <Globals.h>
-#include "GSMConfigL1.h"
 
 #define msgb_l1prim(msg) ((GsmL1_Prim_t *)(msg)->l1h)
 #define msgb_sysprim(msg) ((FemtoBts_Prim_t *)(msg)->l1h)

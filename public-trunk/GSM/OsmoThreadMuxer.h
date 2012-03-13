@@ -31,6 +31,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <Globals.h>
+#include "GSMConfigL1.h"
 #include "gsmL1prim.h"
 
 #define SYS_WRITE 0
@@ -177,7 +179,7 @@ protected:
 
 public:
 	OsmoThreadMuxer()
-		:mNumTRX(0), mL1id(1), mRunningTimeInd(false)
+		:mNumTRX(0), mRunningTimeInd(false)
 	{
 		createSockets();
 
@@ -189,6 +191,8 @@ public:
 		{
 			LOG(INFO) << "All 4 socket files created.";
 		}
+
+		mL1id = gConfig.getNum("Osmo.HandleL1");
 	}
 
 	OsmoTRX &addTRX(TransceiverManager &trx_mgr, unsigned int trx_nr) {
