@@ -102,7 +102,16 @@ void OsmoLogicalChannel::writeLowSide(const L2Frame& frame,
 	mTM->writeLowSide(frame, time, RSSI, TA, this);
 }
 
-void OsmoTCHFACCHLchan::writeLowSide(const unsigned char* frame, 
+void OsmoSACCHLchan::writeLowSideSACCH(const L2Frame& frame, 
+	const GSM::Time time, const float RSSI, const int TA,
+	const int MSpower, const int MStiming)
+{
+	/* simply pass it through to the OsmoThreadMuxer, including
+	 * a reference to us (the logical channel) */
+	mTM->writeLowSideSACCH(frame, time, RSSI, TA, MSpower, MStiming, this);
+}
+
+void OsmoTCHFACCHLchan::writeLowSideTCH(const unsigned char* frame, 
 	const GSM::Time time, const float RSSI, const int TA)
 {
 	mTM->writeLowSideTCH(frame, time, RSSI, TA, this);
@@ -225,20 +234,6 @@ OsmoTCHFACCHLchan::OsmoTCHFACCHLchan(OsmoTS *osmo_ts, unsigned int ss_nr)
 	connect();
 	mPayloadType = GsmL1_TchPlType_NA;
 }
-
-// These have to go into the .cpp file to prevent an illegal forward reference.
-void OsmoLogicalChannel::setPhy(float wRSSI, float wTimingError) {
-	assert(mSACCHLchan);
-	mSACCHLchan->setPhy(wRSSI, wTimingError);
-}
-void OsmoLogicalChannel::setPhy(const OsmoLogicalChannel& other) {
-	assert(mSACCHLchan);
-	mSACCHLchan->setPhy(*other.SACCH());
-}
-float OsmoLogicalChannel::RSSI() const { return mSACCHLchan->RSSI(); }
-float OsmoLogicalChannel::timingError() const { return mSACCHLchan->timingError(); }
-int OsmoLogicalChannel::actualMSPower() const { return mSACCHLchan->actualMSPower(); }
-int OsmoLogicalChannel::actualMSTiming() const { return mSACCHLchan->actualMSTiming(); }
 
 // vim: ts=4 sw=4
 

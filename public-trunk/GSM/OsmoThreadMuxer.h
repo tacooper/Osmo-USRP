@@ -209,6 +209,11 @@ public:
 	void writeLowSideTCH(const unsigned char* frame, const GSM::Time time, 
 		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
 
+	/* Receive frame with measurements from SACCHL1Decoder */
+	void writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
+		const float RSSI, const int TA, const int MSpower, const int MStiming, 
+		const OsmoLogicalChannel *lchan);
+
 	/* receive frame synchronously from L1Decoder->OsmoSAPMux and
 	 * enqueue it towards osmo-bts */
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
@@ -263,7 +268,7 @@ private:
 		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
 	void buildPhDataInd(const char* buffer, const int size, 
 		const GsmL1_Sapi_t sapi, const float RSSI, const int TA, 
-		const OsmoLogicalChannel *lchan);
+		const int MSpower, const int MStiming, const OsmoLogicalChannel *lchan);
 
 	/* Functions to build and send L1 IND messages required by osmo-bts */
 	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,

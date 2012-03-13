@@ -719,7 +719,18 @@ void XCCHL1Decoder::handleGoodFrame()
 		/* Build L2Frame and send burst up to OsmoSAPMux */
 		const BitVector L2Part(mD.tail(headerOffset()));
 		OBJLOG(DEEPDEBUG) <<"XCCHL1Decoder L2=" << L2Part;
-		mUpstream->writeLowSide(L2Frame(L2Part,DATA), mReadTime, RSSI(), TA());
+
+		if(channelType() == SACCHType)
+		{
+			mUpstream->writeLowSideSACCH(L2Frame(L2Part,DATA), mReadTime, 
+				RSSI(), TA(), actualMSPower(), actualMSTiming());
+		}
+		else
+		{
+			mUpstream->writeLowSide(L2Frame(L2Part,DATA), mReadTime, RSSI(), 
+				TA());
+		}
+
 	} else {
 		OBJLOG(ERROR) << "XCCHL1Decoder with no uplink connected.";
 	}
@@ -1196,7 +1207,7 @@ bool TCHFACCHL1Decoder::decodeTCH(bool stolen)
 	if(!stolen)
 	{
 		assert(mUpstream);
-		mUpstream->writeLowSide(newFrame, mReadTime, RSSI(), TA());
+		mUpstream->writeLowSideTCH(newFrame, mReadTime, RSSI(), TA());
 	}
 
 	return good;

@@ -528,6 +528,10 @@ class XCCHL1Decoder : public L1Decoder {
 	/** Return true if the physical parameters are fresh. */
 	bool phyNew() const { return mPhyNew; }
 
+	/* Only used by SACCHL1Decoder */
+	virtual int actualMSPower() const { return 0; }
+	virtual int actualMSTiming() const { return 0; }
+
 	protected:
 
 	/** Offset to the start of the L2 header. */
@@ -611,8 +615,8 @@ class SACCHL1Decoder : public XCCHL1Decoder {
 
 	ChannelType channelType() const { return SACCHType; }
 
-	int actualMSPower() const { return mActualMSPower; }
-	int actualMSTiming() const { return mActualMSTiming; }
+	virtual int actualMSPower() const { return mActualMSPower; }
+	virtual int actualMSTiming() const { return mActualMSTiming; }
 
 	/** Override open() to set physical parameters with reasonable defaults. */
 	void open();

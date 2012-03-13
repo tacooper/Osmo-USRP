@@ -65,8 +65,10 @@ class OsmoSAPMux : public SAPMux {
 	virtual void writeHighSide(const L2Frame& frame);
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
 		const float RSSI, const int TA);
-	virtual void writeLowSide(const unsigned char* frame, const GSM::Time time, 
-		const float RSSI, const int TA);
+	virtual void writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
+		const float RSSI, const int TA, const int MSpower, const int MStiming);
+	virtual void writeLowSideTCH(const unsigned char* frame, 
+		const GSM::Time time, const float RSSI, const int TA);
 	virtual void signalNextWtime(GSM::Time &time);
 
 	void upstream(OsmoLogicalChannel *lchan) {

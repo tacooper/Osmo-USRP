@@ -53,13 +53,22 @@ void OsmoSAPMux::writeLowSide(const L2Frame& frame, const GSM::Time time,
 	mLchan->writeLowSide(frame, time, RSSI, TA);
 }
 
-void OsmoSAPMux::writeLowSide(const unsigned char* frame, const GSM::Time time, 
+void OsmoSAPMux::writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
+	const float RSSI, const int TA, const int MSpower, const int MStiming)
+{
+	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide SACCH";
+	assert(mLchan);
+	/* simply pass it right through to the OsmoThreadMux */
+	mLchan->writeLowSideSACCH(frame, time, RSSI, TA, MSpower, MStiming);
+}
+
+void OsmoSAPMux::writeLowSideTCH(const unsigned char* frame, const GSM::Time time, 
 	const float RSSI, const int TA)
 {
 	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide TCH";
 	assert(mLchan);
 	/* simply pass it right through to the OsmoThreadMux */
-	mLchan->writeLowSide(frame, time, RSSI, TA);
+	mLchan->writeLowSideTCH(frame, time, RSSI, TA);
 }
 
 void OsmoSAPMux::signalNextWtime(GSM::Time &time)

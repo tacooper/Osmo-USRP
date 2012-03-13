@@ -84,7 +84,35 @@ void OsmoThreadMuxer::writeLowSideTCH(const unsigned char* frame,
 		}
 
 		/* NOTE: Frame length is hard-coded in TCHFACCHL1Decoder::decodeTCH() */
-		buildPhDataInd((char*)frame, 33, sapi, RSSI, TA, lchan);
+		buildPhDataInd((char*)frame, 33, sapi, RSSI, TA, 0, 0, lchan);
+	}
+}
+
+void OsmoThreadMuxer::writeLowSideSACCH(const L2Frame& frame, 
+		const GSM::Time time, const float RSSI, const int TA, const int MSpower,
+		const int MStiming, const OsmoLogicalChannel *lchan)
+{
+	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
+	if(lchan->hasHL2())
+	{
+		const unsigned int size = frame.size()/8;
+		unsigned char buffer[size];
+		frame.pack(buffer);
+
+		GsmL1_Sapi_t sapi;
+
+		/* Only SACCH Lchan needs to be handled */
+		switch(lchan->type())
+		{
+			case SACCHType:
+				sapi = GsmL1_Sapi_Sacch;
+				break;
+			default:
+				assert(0);
+		}
+
+		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, MSpower, MStiming,
+			lchan);
 	}
 }
 
@@ -123,7 +151,7 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time,
 				assert(0);
 		}
 
-		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, lchan);
+		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, 0, 0, lchan);
 	}
 }
 
@@ -916,8 +944,8 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size,
 }
 
 void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size, 
-	const GsmL1_Sapi_t sapi, const float RSSI, const int TA,
-	const OsmoLogicalChannel *lchan)
+	const GsmL1_Sapi_t sapi, const float RSSI, const int TA, const int MSpower,
+	const int MStiming, const OsmoLogicalChannel *lchan)
 {
 	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -934,11 +962,21 @@ void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size,
 	ind->sapi = sapi;
 	ind->hLayer2 = lchan->getHL2();
 
+	/* TCH frame has special byte reserved for payload type */
 	if(sapi == GsmL1_Sapi_TchF)
 	{
 		ind->msgUnitParam.u8Size = size+1;
-		ind->msgUnitParam.u8Buffer[0] = ((OsmoTCHFACCHLchan*)lchan)->getPayloadType();
+		ind->msgUnitParam.u8Buffer[0] = 
+			((OsmoTCHFACCHLchan*)lchan)->getPayloadType();
 		memcpy(&ind->msgUnitParam.u8Buffer[1], buffer, size);
+	}
+	/* SACCH frame has special 2 bytes reserved for MS power and timing */
+	else if(sapi == GsmL1_Sapi_Sacch)
+	{
+		ind->msgUnitParam.u8Size = size+2;
+		ind->msgUnitParam.u8Buffer[0] = MSpower;
+		ind->msgUnitParam.u8Buffer[1] = MStiming;
+		memcpy(&ind->msgUnitParam.u8Buffer[2], buffer, size);
 	}
 	else
 	{

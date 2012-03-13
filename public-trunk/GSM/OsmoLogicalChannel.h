@@ -248,34 +248,16 @@ public:
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
 		const float RSSI, const int TA);
 	virtual void signalNextWtime(GSM::Time &time);
+
+	/* Only used by SACCH Lchan */
+	virtual void writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
+		const float RSSI, const int TA, const int MSpower, const int MStiming)
+		{ }
 	
 	/* Only used by TCHFACCH Lchan */
 	virtual void sendTCH(const unsigned char* frame) { }
-	virtual void writeLowSide(const unsigned char* frame, const GSM::Time time, 
-		const float RSSI, const int TA) { }
-
-	/**@name Pass-throughs. */
-	//@{
-
-	/** Set L1 physical parameters from a RACH or pre-exsting channel. */
-	virtual void setPhy(float wRSSI, float wTimingError);
-
-	/* Set L1 physical parameters from an existing logical channel. */
-	virtual void setPhy(const OsmoLogicalChannel& other);
-
-	//@} // passthrough
-
-	/**@name Channel stats from the physical layer */
-	//@{
-	/** RSSI wrt full scale. */
-	virtual float RSSI() const;
-	/** Uplink timing error. */
-	virtual float timingError() const;
-	/** Actual MS uplink power. */
-	virtual int actualMSPower() const;
-	/** Actual MS uplink timing advance. */
-	virtual int actualMSTiming() const;
-	//@}
+	virtual void writeLowSideTCH(const unsigned char* frame, 
+		const GSM::Time time, const float RSSI, const int TA) { }
 
 	/** Return the channel type. */
 	virtual ChannelType type() const =0;
@@ -329,8 +311,8 @@ class OsmoSACCHLchan : public OsmoLogicalChannel {
 	/* Do not link a SACCH to another SACCH */
 	virtual void setSACCHLchan(OsmoSACCHLchan* chan) { assert(0); }
 
-	void setPhy(float RSSI, float timingError) { mSACCHL1->setPhy(RSSI,timingError); }
-	void setPhy(const OsmoSACCHLchan& other) { mSACCHL1->setPhy(*other.mSACCHL1); }
+	virtual void writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
+		const float RSSI, const int TA, const int MSpower, const int MStiming);
 };
 
 /**
@@ -415,8 +397,8 @@ class OsmoTCHFACCHLchan : public OsmoLogicalChannel {
 	virtual void sendTCH(const unsigned char* frame)
 		{ assert(mTCHL1); mTCHL1->sendTCH(frame); }
 
-	virtual void writeLowSide(const unsigned char* frame, const GSM::Time time, 
-		const float RSSI, const int TA);
+	virtual void writeLowSideTCH(const unsigned char* frame, 
+		const GSM::Time time, const float RSSI, const int TA);
 };
 
 //@}
