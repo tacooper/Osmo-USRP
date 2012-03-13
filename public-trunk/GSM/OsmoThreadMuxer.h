@@ -176,6 +176,7 @@ protected:
 	int mL1id; // hLayer1, initialized by OpenBTS (=TRX?)
 	bool mRunningTimeInd;
 	L1MsgFIFO mL1MsgQ;
+	GSM::Time mTimeToSend;
 
 public:
 	OsmoThreadMuxer()
@@ -185,7 +186,8 @@ public:
 
 		if(mSockFd[0] < 0 || mSockFd[1] < 0 || mSockFd[2] < 0 || mSockFd[3] < 0)
 		{
-			LOG(ERROR) << "Error creating socket files. RESTART!";
+			LOG(ERROR) << "Error creating socket files!";
+			assert(0);
 		}
 		else
 		{
@@ -266,7 +268,7 @@ private:
 	/* Functions to build and send L1 IND messages required by osmo-bts */
 	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,
 		const OsmoLogicalChannel &lchan);
-	void buildMphTimeInd(); //interval < 5 sec
+	void buildMphTimeInd(GSM::Time &time); //interval = every TDMA frame
 
 	/* Helper function for value parsing */
 	const char* getPath(const int index);

@@ -229,6 +229,7 @@ void OsmoThreadMuxer::startThreads()
 	Thread recvL1MsgThread;
 	recvL1MsgThread.start((void*(*)(void*))RecvL1MsgLoopAdapter, this);
 
+	mTimeToSend = gBTSL1.time().FN();
 	Thread sendTimeIndThread;
 	sendTimeIndThread.start((void*(*)(void*))SendTimeIndLoopAdapter, this);
 
@@ -262,10 +263,14 @@ void *GSM::SendTimeIndLoopAdapter(OsmoThreadMuxer *TMux)
 {
 	while(true)
 	{
+		/* Increment time counter and wait to send (every FN) */
+		TMux->mTimeToSend += 1;
+
+		gBTSL1.clock().wait(TMux->mTimeToSend);
+
 		if(TMux->mRunningTimeInd)
 		{
-			TMux->buildMphTimeInd();
-			sleep(1);
+			TMux->buildMphTimeInd(TMux->mTimeToSend);
 		}
 
 		pthread_testcancel();
@@ -1095,7 +1100,7 @@ void OsmoThreadMuxer::processPhEmptyFrameReq(struct Osmo::msgb *recv_msg)
 			 Osmo::get_value_string(Osmo::femtobts_l1sapi_names, req->sapi);
 }
 
-void OsmoThreadMuxer::buildMphTimeInd()
+void OsmoThreadMuxer::buildMphTimeInd(GSM::Time &time)
 {
 	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -1105,7 +1110,7 @@ void OsmoThreadMuxer::buildMphTimeInd()
 	
 	l1p->id = GsmL1_PrimId_MphTimeInd;
 
-	ind->u32Fn = (uint32_t) gBTSL1.time().FN();
+	ind->u32Fn = (uint32_t)time.FN();
 
 	/* Put it into the L1Msg FIFO */
 	mL1MsgQ.write(send_msg);
