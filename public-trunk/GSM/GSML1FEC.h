@@ -233,7 +233,7 @@ class L1Decoder {
 	//@{
 	volatile bool mRunning;						///< true if all required service threads are started
 	volatile float mFER;						///< current FER estimate
-	static const int mFERMemory=20;				///< FER decay time, in frames
+	static const int mFERMemory=10;				///< FER decay time, in frames
 	//@}
 
 	/**@name Parameters fixed by the constructor, not requiring mutex protection. */

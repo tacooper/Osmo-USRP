@@ -207,17 +207,19 @@ public:
 
 	/* Receive speech frame from TCHL1Decoder */
 	void writeLowSideTCH(const unsigned char* frame, const GSM::Time time, 
-		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
+		const float RSSI, const int TA, const float FER, 
+		const OsmoLogicalChannel *lchan);
 
 	/* Receive frame with measurements from SACCHL1Decoder */
 	void writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
-		const float RSSI, const int TA, const int MSpower, const int MStiming, 
-		const OsmoLogicalChannel *lchan);
+		const float RSSI, const int TA, const float FER, const int MSpower, 
+		const int MStiming, const OsmoLogicalChannel *lchan);
 
 	/* receive frame synchronously from L1Decoder->OsmoSAPMux and
 	 * enqueue it towards osmo-bts */
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
-		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
+		const float RSSI, const int TA, const float FER, 
+		const OsmoLogicalChannel *lchan);
 
 	/* Determine Lchan from [sapi, u8Tn, SubCh] of osmo-bts */
 	OsmoLogicalChannel* getLchanFromSapi(const GsmL1_Sapi_t sapi, 
@@ -265,10 +267,12 @@ private:
 	/* Functions for processing buffers from writeLowSide() into L1 IND 
 	 * messages */
 	void buildPhRaInd(const char* buffer, const int size, const GSM::Time time,
-		const float RSSI, const int TA, const OsmoLogicalChannel *lchan);
+		const float RSSI, const int TA, const float FER, 
+		const OsmoLogicalChannel *lchan);
 	void buildPhDataInd(const char* buffer, const int size, 
 		const GsmL1_Sapi_t sapi, const float RSSI, const int TA, 
-		const int MSpower, const int MStiming, const OsmoLogicalChannel *lchan);
+		const float FER, const int MSpower, const int MStiming, 
+		const OsmoLogicalChannel *lchan);
 
 	/* Functions to build and send L1 IND messages required by osmo-bts */
 	void buildPhReadyToSendInd(GsmL1_Sapi_t sapi, GSM::Time &time,

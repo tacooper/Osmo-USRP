@@ -64,7 +64,7 @@ namespace Osmo
 }
 
 void OsmoThreadMuxer::writeLowSideTCH(const unsigned char* frame, 
-	const GSM::Time time, const float RSSI, const int TA, 
+	const GSM::Time time, const float RSSI, const int TA, const float FER, 
 	const OsmoLogicalChannel *lchan)
 {
 	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
@@ -84,13 +84,13 @@ void OsmoThreadMuxer::writeLowSideTCH(const unsigned char* frame,
 		}
 
 		/* NOTE: Frame length is hard-coded in TCHFACCHL1Decoder::decodeTCH() */
-		buildPhDataInd((char*)frame, 33, sapi, RSSI, TA, 0, 0, lchan);
+		buildPhDataInd((char*)frame, 33, sapi, RSSI, TA, FER, 0, 0, lchan);
 	}
 }
 
 void OsmoThreadMuxer::writeLowSideSACCH(const L2Frame& frame, 
-		const GSM::Time time, const float RSSI, const int TA, const int MSpower,
-		const int MStiming, const OsmoLogicalChannel *lchan)
+		const GSM::Time time, const float RSSI, const int TA, const float FER, 
+		const int MSpower, const int MStiming, const OsmoLogicalChannel *lchan)
 {
 	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
 	if(lchan->hasHL2())
@@ -111,13 +111,14 @@ void OsmoThreadMuxer::writeLowSideSACCH(const L2Frame& frame,
 				assert(0);
 		}
 
-		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, MSpower, MStiming,
-			lchan);
+		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, FER, MSpower, 
+			MStiming, lchan);
 	}
 }
 
 void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time, 
-	const float RSSI, const int TA, const OsmoLogicalChannel *lchan)
+	const float RSSI, const int TA, const float FER, 
+	const OsmoLogicalChannel *lchan)
 {
 	/* Make sure lchan has been connected to osmo-bts via MphActivateReq */
 	if(lchan->hasHL2())
@@ -133,7 +134,7 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time,
 		{
 			/* RACH is special case, no PhDataInd */
 			case RACHType:
-				buildPhRaInd((char*)buffer, size, time, RSSI, TA, lchan);
+				buildPhRaInd((char*)buffer, size, time, RSSI, TA, FER, lchan);
 				return;
 			/* Translate lchan into sapi */
 			case SACCHType:
@@ -151,7 +152,7 @@ void OsmoThreadMuxer::writeLowSide(const L2Frame& frame, const GSM::Time time,
 				assert(0);
 		}
 
-		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, 0, 0, lchan);
+		buildPhDataInd((char*)buffer, size, sapi, RSSI, TA, FER, 0, 0, lchan);
 	}
 }
 
@@ -917,7 +918,7 @@ void OsmoThreadMuxer::processMphDeactivateReq(struct Osmo::msgb *recv_msg)
 }
 
 void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size, 
-	const GSM::Time time, const float RSSI, const int TA,
+	const GSM::Time time, const float RSSI, const int TA, const float FER,
 	const OsmoLogicalChannel *lchan)
 {
 	/* Build IND message to send */
@@ -929,8 +930,10 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size,
 	l1p->id = GsmL1_PrimId_PhRaInd;
 
 	ind->measParam.fRssi = RSSI;
-	ind->measParam.fLinkQuality = 10; //must be >MIN_QUAL_RACH of osmo-bts
-	ind->measParam.fBer = 0; //only used for logging in osmo-bts
+	/* Not used in MEAS RES, but must be >MIN_QUAL_RACH of osmo-bts */
+	ind->measParam.fLinkQuality = 10;
+	/* NOTE: using FER instead of BER, close enough? */
+	ind->measParam.fBer = FER;
 	ind->measParam.i16BurstTiming = (int16_t)TA;
 	ind->u32Fn = (uint32_t)time.FN();
 	ind->hLayer2 = lchan->getHL2();
@@ -944,8 +947,8 @@ void OsmoThreadMuxer::buildPhRaInd(const char* buffer, const int size,
 }
 
 void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size, 
-	const GsmL1_Sapi_t sapi, const float RSSI, const int TA, const int MSpower,
-	const int MStiming, const OsmoLogicalChannel *lchan)
+	const GsmL1_Sapi_t sapi, const float RSSI, const int TA, const float FER, 
+	const int MSpower, const int MStiming, const OsmoLogicalChannel *lchan)
 {
 	/* Build IND message to send */
 	struct Osmo::msgb *send_msg = Osmo::l1p_msgb_alloc();
@@ -955,9 +958,14 @@ void OsmoThreadMuxer::buildPhDataInd(const char* buffer, const int size,
 	
 	l1p->id = GsmL1_PrimId_PhDataInd;
 
+	LOG(DEBUG) << "rssi=" << RSSI << ", fer=" << FER << ", ta=" << (int16_t)TA 
+		<< ", mspower=" << MSpower << ", mstiming=" << MStiming;
+
 	ind->measParam.fRssi = RSSI;
-	ind->measParam.fLinkQuality = 10; //must be >MIN_QUAL_NORM of osmo-bts
-	ind->measParam.fBer = 0; //FIXME: actually used, so determine from mFER?
+	/* Not used in MEAS RES, but must be >MIN_QUAL_NORM of osmo-bts */
+	ind->measParam.fLinkQuality = 10;
+	/* NOTE: using FER instead of BER, close enough? */
+	ind->measParam.fBer = FER;
 	ind->measParam.i16BurstTiming = (int16_t)TA;
 	ind->sapi = sapi;
 	ind->hLayer2 = lchan->getHL2();

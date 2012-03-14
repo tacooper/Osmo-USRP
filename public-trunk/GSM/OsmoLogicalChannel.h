@@ -246,18 +246,19 @@ public:
 
 	virtual void writeHighSide(const L2Frame& frame);
 	virtual void writeLowSide(const L2Frame& frame, const GSM::Time time, 
-		const float RSSI, const int TA);
+		const float RSSI, const int TA, const float FER);
 	virtual void signalNextWtime(GSM::Time &time);
 
 	/* Only used by SACCH Lchan */
 	virtual void writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
-		const float RSSI, const int TA, const int MSpower, const int MStiming)
-		{ }
+		const float RSSI, const int TA, const float FER, const int MSpower, 
+		const int MStiming)	{ }
 	
 	/* Only used by TCHFACCH Lchan */
 	virtual void sendTCH(const unsigned char* frame) { }
 	virtual void writeLowSideTCH(const unsigned char* frame, 
-		const GSM::Time time, const float RSSI, const int TA) { }
+		const GSM::Time time, const float RSSI, const int TA, const float FER) 
+		{ }
 
 	/** Return the channel type. */
 	virtual ChannelType type() const =0;
@@ -312,7 +313,8 @@ class OsmoSACCHLchan : public OsmoLogicalChannel {
 	virtual void setSACCHLchan(OsmoSACCHLchan* chan) { assert(0); }
 
 	virtual void writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
-		const float RSSI, const int TA, const int MSpower, const int MStiming);
+		const float RSSI, const int TA, const float FER, const int MSpower, 
+		const int MStiming);
 };
 
 /**
@@ -398,7 +400,7 @@ class OsmoTCHFACCHLchan : public OsmoLogicalChannel {
 		{ assert(mTCHL1); mTCHL1->sendTCH(frame); }
 
 	virtual void writeLowSideTCH(const unsigned char* frame, 
-		const GSM::Time time, const float RSSI, const int TA);
+		const GSM::Time time, const float RSSI, const int TA, const float FER);
 };
 
 //@}
