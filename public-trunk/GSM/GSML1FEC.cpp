@@ -528,7 +528,7 @@ void RACHL1Decoder::writeLowSide(const RxBurst& burst)
 
 	L2Frame frame(mD, DATA);
 
-	mUpstream->writeLowSide(frame, burst.time(), burst.RSSI(), initialTA);
+	mUpstream->writeLowSide(frame, burst.time(), burst.RSSI(), initialTA, mFER);
 }
 
 
@@ -605,8 +605,8 @@ bool XCCHL1Decoder::processBurst(const RxBurst& inBurst)
 	// Timing error is a float in symbol intervals.
 	mTimingError[mRSSICounter] = inBurst.timingError();
 
-	OBJLOG(DEBUG) << "SACCHL1Decoder " << " RSSI=" << inBurst.RSSI()
-			<< " timingError=" << inBurst.timingError();
+	OBJLOG(DEBUG) << "XCCHL1Decoder #" << mRSSICounter << ": RSSI=" << 
+		inBurst.RSSI() << " timingError=" << inBurst.timingError();
 
 	// This flag is used as a half-ass semaphore.
 	// It is cleared when the new value is read.
@@ -723,12 +723,12 @@ void XCCHL1Decoder::handleGoodFrame()
 		if(channelType() == SACCHType)
 		{
 			mUpstream->writeLowSideSACCH(L2Frame(L2Part,DATA), mReadTime, 
-				RSSI(), TA(), actualMSPower(), actualMSTiming());
+				RSSI(), TA(), mFER, actualMSPower(), actualMSTiming());
 		}
 		else
 		{
 			mUpstream->writeLowSide(L2Frame(L2Part,DATA), mReadTime, RSSI(), 
-				TA());
+				TA(), mFER);
 		}
 
 	} else {
@@ -1059,6 +1059,24 @@ bool TCHFACCHL1Decoder::processBurst( const RxBurst& inBurst)
 	// Accept the burst into the deinterleaving buffer.
 	// Return true if we are ready to interleave.
 
+	/* SACCH-like processing of RSSI and TimingError */
+	// Get the physical parameters of the burst.
+	// The actual phone settings change every 4 bursts,
+	// so average over all 4.
+	// RSSI is dB wrt full scale.
+	mRSSI[mRSSICounter] = inBurst.RSSI();
+	// Timing error is a float in symbol intervals.
+	mTimingError[mRSSICounter] = inBurst.timingError();
+
+	OBJLOG(DEBUG) << "TCHFACCHL1Decoder #" << mRSSICounter << ": RSSI=" << 
+		inBurst.RSSI() << " timingError=" << inBurst.timingError();
+
+	// This flag is used as a half-ass semaphore.
+	// It is cleared when the new value is read.
+	mPhyNew = true;
+	mRSSICounter++;
+	if (mRSSICounter>3) mRSSICounter=0;
+
 	// TODO -- One quick test of burst validity is to look at the tail bits.
 	// We could do that as a double-check against putting garbage into
 	// the interleaver or accepting bad parameters.
@@ -1207,7 +1225,7 @@ bool TCHFACCHL1Decoder::decodeTCH(bool stolen)
 	if(!stolen)
 	{
 		assert(mUpstream);
-		mUpstream->writeLowSideTCH(newFrame, mReadTime, RSSI(), TA());
+		mUpstream->writeLowSideTCH(newFrame, mReadTime, RSSI(), TA(), mFER);
 	}
 
 	return good;

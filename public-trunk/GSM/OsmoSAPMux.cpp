@@ -44,31 +44,32 @@ void OsmoSAPMux::writeHighSide(const L2Frame& frame)
 }
 
 void OsmoSAPMux::writeLowSide(const L2Frame& frame, const GSM::Time time, 
-	const float RSSI, const int TA)
+	const float RSSI, const int TA, const float FER)
 {
 	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide SAP" << frame.SAPI() << " " 
 		<< frame;
 	assert(mLchan);
 	/* simply pass it right through to the OsmoThreadMux */
-	mLchan->writeLowSide(frame, time, RSSI, TA);
+	mLchan->writeLowSide(frame, time, RSSI, TA, FER);
 }
 
 void OsmoSAPMux::writeLowSideSACCH(const L2Frame& frame, const GSM::Time time, 
-	const float RSSI, const int TA, const int MSpower, const int MStiming)
+	const float RSSI, const int TA, const float FER, const int MSpower, 
+	const int MStiming)
 {
 	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide SACCH";
 	assert(mLchan);
 	/* simply pass it right through to the OsmoThreadMux */
-	mLchan->writeLowSideSACCH(frame, time, RSSI, TA, MSpower, MStiming);
+	mLchan->writeLowSideSACCH(frame, time, RSSI, TA, FER, MSpower, MStiming);
 }
 
-void OsmoSAPMux::writeLowSideTCH(const unsigned char* frame, const GSM::Time time, 
-	const float RSSI, const int TA)
+void OsmoSAPMux::writeLowSideTCH(const unsigned char* frame, 
+	const GSM::Time time, const float RSSI, const int TA, const float FER)
 {
 	OBJLOG(DEEPDEBUG) << "OsmoSAPMux::writeLowSide TCH";
 	assert(mLchan);
 	/* simply pass it right through to the OsmoThreadMux */
-	mLchan->writeLowSideTCH(frame, time, RSSI, TA);
+	mLchan->writeLowSideTCH(frame, time, RSSI, TA, FER);
 }
 
 void OsmoSAPMux::signalNextWtime(GSM::Time &time)

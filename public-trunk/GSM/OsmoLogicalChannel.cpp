@@ -95,26 +95,26 @@ void OsmoLogicalChannel::writeHighSide(const L2Frame& frame)
 
 /* This is where OsmoSAPMux inputs data received from L1FEC */
 void OsmoLogicalChannel::writeLowSide(const L2Frame& frame, 
-	const GSM::Time time, const float RSSI, const int TA)
+	const GSM::Time time, const float RSSI, const int TA, const float FER)
 {
 	/* simply pass it through to the OsmoThreadMuxer, including
 	 * a reference to us (the logical channel) */
-	mTM->writeLowSide(frame, time, RSSI, TA, this);
+	mTM->writeLowSide(frame, time, RSSI, TA, FER, this);
 }
 
 void OsmoSACCHLchan::writeLowSideSACCH(const L2Frame& frame, 
-	const GSM::Time time, const float RSSI, const int TA,
+	const GSM::Time time, const float RSSI, const int TA, const float FER,
 	const int MSpower, const int MStiming)
 {
 	/* simply pass it through to the OsmoThreadMuxer, including
 	 * a reference to us (the logical channel) */
-	mTM->writeLowSideSACCH(frame, time, RSSI, TA, MSpower, MStiming, this);
+	mTM->writeLowSideSACCH(frame, time, RSSI, TA, FER, MSpower, MStiming, this);
 }
 
 void OsmoTCHFACCHLchan::writeLowSideTCH(const unsigned char* frame, 
-	const GSM::Time time, const float RSSI, const int TA)
+	const GSM::Time time, const float RSSI, const int TA, const float FER)
 {
-	mTM->writeLowSideTCH(frame, time, RSSI, TA, this);
+	mTM->writeLowSideTCH(frame, time, RSSI, TA, FER, this);
 }
 
 ostream& GSM::operator<<(ostream& os, const OsmoLogicalChannel& lchan)
